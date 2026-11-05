@@ -32,6 +32,7 @@ const (
 
 // RunListInput selects a page of runs. Zero fields do not filter.
 type RunListInput struct {
+	Archived  bool
 	ProjectID *uuid.UUID
 	TaskID    *uuid.UUID
 	Statuses  []string
@@ -95,6 +96,11 @@ func (r *Runs) List(ctx context.Context, p *auth.Principal, in RunListInput) (Ru
 	}
 	var runs []store.Run
 	q := r.db.NewSelect().Model(&runs).Where("project_id IN (?)", bun.List(projects))
+	if in.Archived {
+		q = q.Where("archived_at IS NOT NULL")
+	} else {
+		q = q.Where("archived_at IS NULL")
+	}
 	if in.TaskID != nil {
 		q = q.Where("task_id = ?", *in.TaskID)
 	}

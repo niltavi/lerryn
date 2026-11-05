@@ -291,11 +291,12 @@ export function summarizeRunEvents(events: readonly RunEvent[]): RunEventSummary
 
 // ── Run list ──
 
-export type RunFilter = "all" | "failed" | "active";
+export type RunFilter = "all" | "failed" | "active" | "archived";
 
 /** The statuses each run list filter asks the server for. */
 export const RUN_FILTER_STATUSES: Record<RunFilter, Schemas["RunStatus"][]> = {
   all: [],
+  archived: [],
   failed: ["failed", "timed_out", "interrupted"],
   active: ["queued", "preparing", "running", "cancelling"],
 };

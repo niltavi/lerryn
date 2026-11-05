@@ -30,13 +30,13 @@ export type RunsView = "list" | "board";
 export function validateRunsSearch(s: Record<string, unknown>): RunsSearch {
   const out: RunsSearch = {};
   if (typeof s.run === "string" && s.run) out.run = s.run;
-  if (s.filter === "failed" || s.filter === "active") out.filter = s.filter;
+  if (s.filter === "failed" || s.filter === "active" || s.filter === "archived") out.filter = s.filter;
   if (typeof s.task === "string" && s.task) out.task = s.task;
   if (s.view === "board" || s.view === "list") out.view = s.view;
   return out;
 }
 
-const FILTERS: RunFilter[] = ["all", "failed", "active"];
+const FILTERS: RunFilter[] = ["all", "failed", "active", "archived"];
 
 /**
  * Runs (prototype Runs.dc.html): a list of runs, newest first, beside a
@@ -52,7 +52,10 @@ export function RunsPage() {
   useEffect(() => {
     if (search.view) storeRunsView(search.view);
   }, [search.view]);
-  const runs = useRunList({ status: RUN_FILTER_STATUSES[filter], taskId: search.task }, { enabled: view === "list" });
+  const runs = useRunList(
+    { status: RUN_FILTER_STATUSES[filter], taskId: search.task, archived: filter === "archived" },
+    { enabled: view === "list" },
+  );
   const items = runs.data?.items ?? [];
   const selected = search.run ?? items[0]?.id;
   const now = useNow(30_000);

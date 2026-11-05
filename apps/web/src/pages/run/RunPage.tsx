@@ -62,6 +62,7 @@ import { NotFoundBody } from "../NotFoundPage";
 import { storedRunsView } from "../RunsPage";
 import { Artifacts } from "./Artifacts";
 import { RetryButton } from "./RunActions";
+import { ArchiveRunButton } from "./ArchiveRunButton";
 
 export function RunPage() {
   const { runId } = useParams({ from: "/app/runs/$runId" });
@@ -144,8 +145,10 @@ function RunBoard({ run }: { run: Run }) {
             {taskName ?? t("run.taskLink")}
           </Link>
           <span className="mono-sm">{shortId(run.id)}</span>
+          {run.archived_at ? <span className="tag">{t("run.archived")}</span> : null}
         </nav>
         <div className="tools">
+          <ArchiveRunButton key={run.id} run={run} />
           {!active && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
           <CopyButton value={run.id} label={t("run.copyId")} icon={Hash} />
           <CopyButton value={run.links.console} label={t("run.copyLink")} icon={Link2} />

@@ -26,6 +26,7 @@ import { useNow } from "../lib/hooks";
 import { shortWhen } from "../lib/present";
 import { LoadError } from "../shell/layout";
 import { NotFoundBody } from "./NotFoundPage";
+import { ArchiveRunButton } from "./run/ArchiveRunButton";
 import { RetryButton } from "./run/RunActions";
 
 /** The last lines of a run's log, for the preview. */
@@ -68,6 +69,8 @@ function PreviewBody({ run }: { run: Run }) {
       <div className="board-top">
         <span className="eyebrow mono-sm">{shortId(run.id)}</span>
         <div className="tools" style={{ gap: 8 }}>
+          <ArchiveRunButton key={run.id} run={run} />
+          {run.archived_at ? <span className="tag">{t("run.archived")}</span> : null}
           {isAttentionStatus(run.status) && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
           <CopyButton value={run.id} label={t("run.copyId")} icon={Hash} />
           <Link to="/runs/$runId" params={{ runId: run.id }} className="chip" style={{ height: 36 }}>

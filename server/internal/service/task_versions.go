@@ -497,6 +497,7 @@ func (t *Tasks) summaries(ctx context.Context, tasks []store.Task) ([]TaskSummar
 	var last []store.Run
 	err := t.db.NewSelect().Model(&last).
 		Where("run.task_id IN (?) AND run.is_test = ?", bun.List(ids), false).
+		Where("run.archived_at IS NULL").
 		Where("run.queued_at = (SELECT MAX(r2.queued_at) FROM runs AS r2 WHERE r2.task_id = run.task_id AND r2.is_test = ?)", false).
 		Order("run.id").
 		Scan(ctx)
