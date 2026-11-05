@@ -51,7 +51,8 @@
 }
 
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-snap-type:y proximity}
+html{scroll-behavior:smooth}
+html.deck{scroll-snap-type:y mandatory}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-underline-offset:4px;text-decoration-thickness:1px}
 button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
@@ -82,7 +83,7 @@ h1,h2,p,figure{margin:0}
 .theme-switch[aria-pressed='true'] .sun-icon{display:block}
 
 /* Slides: one sentence, one line, one scene per screen. */
-.slide{position:relative;min-height:100vh;min-height:100svh;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:center;padding:96px 0 48px;scroll-snap-align:start}
+.slide{position:relative;min-height:100vh;min-height:100svh;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:center;padding:96px 0 48px;scroll-snap-align:start;scroll-snap-stop:always}
 .slide:nth-child(3),.slide:nth-child(5),.slide.connect{grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
 .slide:nth-child(3) .slide-copy,.slide:nth-child(5) .slide-copy,.slide.connect .slide-copy{order:2}
 .slide-copy h1,.slide-copy h2{font-family:var(--serif);font-weight:400;font-size:clamp(44px,5.2vw,76px);line-height:1.02;letter-spacing:-.025em;text-wrap:balance}
@@ -117,7 +118,7 @@ h1,h2,p,figure{margin:0}
 .prompt-actions{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-top:24px}
 .copy-message{font-size:13px;color:var(--muted)}
 
-footer{display:flex;justify-content:center;padding:24px 0 36px}
+footer{display:flex;justify-content:center;padding:24px 0 36px;scroll-snap-align:end}
 .niltavi{display:block;border-radius:4px;opacity:.72;transition:opacity .15s ease}
 .niltavi:hover{opacity:1}
 .niltavi-wordmark{display:block;width:60px;height:auto}

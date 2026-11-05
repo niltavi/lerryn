@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, sep } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { languages, origin } from '../content.mjs';
 
 const dist = resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
@@ -81,3 +82,5 @@ for (const block of paletteBlocks) {
 }
 assert((await readFile(resolve(dist, 'robots.txt'), 'utf8')).includes(`${origin}/sitemap.xml`));
 console.log('Local font assets, sitemap discovery, and light/dark text contrast passed');
+const pagingTests = spawnSync(process.execPath, ['--test', fileURLToPath(new URL('./paging.test.mjs', import.meta.url))], { stdio: 'inherit' });
+assert.equal(pagingTests.status, 0, 'Slide navigation tests failed');
