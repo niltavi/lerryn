@@ -239,6 +239,7 @@ export const zhCN = {
     nextRun: "下次执行",
     lastRun: "上次执行",
     recentRuns: "最近的运行",
+    inactiveGroup: "未启用",
     scheduled: "按计划",
     queuedShort: "排队",
     none: "尚无任务",

@@ -44,9 +44,9 @@ const brief = (status: string, finished = "2026-11-02T08:00:00Z") =>
   }) as TaskSummary["last_run"];
 
 describe("groupTasks", () => {
-  it("puts running first by activity, failures in attention, the rest by next run with paused last", () => {
+  it("separates running, failed, scheduled, enabled and inactive tasks", () => {
     const g = groupTasks([
-      task({ name: "paused", state: "inactive" }),
+      task({ name: "paused", state: "inactive", last_run: brief("failed") }),
       task({ name: "later", next_run_at: "2026-11-03T09:00:00Z" }),
       task({ name: "soon", next_run_at: "2026-11-03T08:00:00Z" }),
       task({ name: "broken", last_run: brief("timed_out") }),
@@ -55,7 +55,9 @@ describe("groupTasks", () => {
     ]);
     expect(g.running.map((t) => t.name)).toEqual(["busy"]);
     expect(g.attention.map((t) => t.name)).toEqual(["broken"]);
-    expect(g.scheduled.map((t) => t.name)).toEqual(["soon", "later", "fine", "paused"]);
+    expect(g.scheduled.map((t) => t.name)).toEqual(["soon", "later"]);
+    expect(g.enabled.map((t) => t.name)).toEqual(["fine"]);
+    expect(g.inactive.map((t) => t.name)).toEqual(["paused"]);
   });
 
   it("filters by name or purpose", () => {

@@ -3,9 +3,9 @@ import { ApiProvider, I18nProvider } from "@lerryn/core";
 import { LerrynThemeProvider } from "@lerryn/ui-web";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAppRouter } from "./router";
 
@@ -77,12 +77,36 @@ function renderRequests(count: number, opts: { fail?: (cursor: string | null) =>
       <RouterProvider router={router} />
     </ApiProvider></QueryClientProvider></I18nProvider></LerrynThemeProvider>,
   );
-  return { cursors, filled };
+  return { cursors, filled, requests, credentials };
 }
 
 const rail = () => within(screen.getByRole("navigation", { name: "主导航" }));
 
 describe("pending credential requests in settings", () => {
+  it("updates the pending list, navigation count, open dialog and credentials after an external fill", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { requests, credentials } = renderRequests(1);
+      const row = await screen.findByText("REQUEST_000");
+      fireEvent.click(row.closest("button")!);
+      const dialog = await screen.findByRole("dialog", { name: "task-0 需要凭证" });
+      await within(dialog).findByLabelText(/^API_KEY · Key/, { selector: "input" });
+      Object.assign(requests[0]!, { status: "fulfilled", credential_id: "credential-0" });
+      credentials.push(credential(0));
+      await act(() => vi.advanceTimersByTimeAsync(5_100));
+      expect(within(dialog).queryByLabelText(/^API_KEY · Key/, { selector: "input" })).toBeNull();
+      expect(within(dialog).queryByRole("button", { name: "保存" })).toBeNull();
+      fireEvent.click(within(dialog).getByRole("button", { name: "关闭" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(screen.queryByRole("region", { name: "待填写" })).toBeNull();
+      expect(rail().getByRole("link", { name: "密钥" })).toBeTruthy();
+      expect(screen.getByText("CRED_000")).toBeTruthy();
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+    }
+  });
+
   it("pages requests on demand, marks incomplete counts and opens the oldest request", async () => {
     const { cursors, filled } = renderRequests(401);
     await screen.findByText("REQUEST_199");

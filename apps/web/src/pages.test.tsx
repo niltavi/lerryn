@@ -247,6 +247,7 @@ interface FakeOptions {
   /** An error code startRun answers with instead of a run. */
   startError?: string;
   task?: Partial<Schemas["Task"]>;
+  runs?: Schemas["RunSummary"][];
   triggerItems?: Schemas["Trigger"][];
   taskControlSubmit?: (path: string, body: unknown) => Promise<Response>;
   admin?: boolean;
@@ -370,7 +371,7 @@ function fakeServer(opts: FakeOptions = {}) {
       case "DELETE /api/v1/credential-requests/req2":
         return json({ ...UPDATE_REQUEST, status: "cancelled" });
       case "GET /api/v1/runs":
-        return json({ items: [], next_cursor: null });
+        return json({ items: opts.runs ?? [], next_cursor: null });
       case "GET /api/v1/tools":
         return opts.toolsResponse?.() ?? json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
       default:
@@ -708,6 +709,48 @@ describe("compact list navigation", () => {
 });
 
 describe("task page", () => {
+  it.each(["queued", "preparing", "running", "cancelling"] as const)("shows %s for an inactive task with an active test run", async (status) => {
+    const labels = { queued: "排队中", preparing: "准备中", running: "运行中", cancelling: "取消中" };
+    renderApp(`/tasks/${TASK.id}`, {
+      task: { state: "inactive", active_version: null },
+      runs: [{
+        ...NEW_RUN, task: TASK_REF, test: true, status, trigger: { ...NEW_RUN.trigger, kind: "manual" },
+        result_status: null, result_summary: null, current_stage: null,
+      }],
+    });
+    const board = await screen.findByRole("main", { name: TASK.name });
+    expect(await within(board).findByRole("img", { name: labels[status] })).toBeTruthy();
+    expect(within(board).queryByText("未激活")).toBeNull();
+  });
+
+  it("keeps an inactive task visibly running when its active run is older than the recent history", async () => {
+    const summary: Schemas["TaskSummary"] = {
+      ...TASK, state: "inactive", active_version: null, latest_version: 2,
+      active_runs: 1, last_run: null, next_run_at: null,
+    };
+    renderApp(`/tasks/${TASK.id}`, { task: { state: "inactive", active_version: null }, tasks: [summary] });
+    const board = await screen.findByRole("main", { name: TASK.name });
+    expect(await within(board).findByRole("img", { name: "运行中" })).toBeTruthy();
+    const running = screen.getByRole("group", { name: "运行中" });
+    expect(within(running).getByRole("img", { name: "运行中" })).toBeTruthy();
+    expect(within(board).queryByText("未激活")).toBeNull();
+  });
+
+  it("separates scheduled tasks from paused tasks and uses the same calendar status on the board", async () => {
+    const summary: Schemas["TaskSummary"] = {
+      ...TASK, state: "active", latest_version: 2, active_runs: 0, last_run: null,
+      next_run_at: TRIGGERS.triggers[0]!.next_fire_at,
+    };
+    renderApp(`/tasks/${TASK.id}`, { tasks: [summary, { ...summary, id: "paused", name: "paused-task", state: "inactive", next_run_at: null }] });
+    const scheduled = await screen.findByRole("group", { name: "按计划" });
+    expect(within(scheduled).getByRole("img", { name: "按计划" }).querySelector("svg.lucide-calendar-clock")).toBeTruthy();
+    expect(within(scheduled).queryByText("paused-task")).toBeNull();
+    const inactive = screen.getByRole("group", { name: "未启用" });
+    expect(within(inactive).getByRole("img", { name: "已暂停" })).toBeTruthy();
+    const board = await screen.findByRole("main", { name: TASK.name });
+    expect(await within(board).findByRole("img", { name: "按计划" })).toBeTruthy();
+  });
+
   it("disables and enables the previously active version, independently of manual runs", async () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", manualRun: false, task: { active_version: 1 } });
     const user = userEvent.setup();
@@ -723,7 +766,7 @@ describe("task page", () => {
     expect(within(dialog).getByText(/启用 v1/)).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "启用任务" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(screen.getByText("按计划")).toBeTruthy();
     expect(server.requests.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ active: false }, { active: true, version: 1 }]);
   });
 
@@ -739,7 +782,7 @@ describe("task page", () => {
     const post = server.requests.find((r) => r.method === "POST")!;
     expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/skip-next-run`);
     expect(post.body).toEqual({ scheduled_at: TRIGGERS.triggers[0]!.next_fire_at });
-    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(screen.getByText("按计划")).toBeTruthy();
     expect(server.requests.filter((r) => r.path.endsWith("/triggers"))).toHaveLength(2);
   });
 
@@ -777,7 +820,7 @@ describe("task page", () => {
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
     renderApp(`/tasks/${TASK.id}`);
     await screen.findByRole("heading", { name: "weekday-digest" });
-    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(screen.getByText("按计划")).toBeTruthy();
     expect((await screen.findAllByText("每个工作日 08:00")).length).toBeGreaterThan(0);
     expect(screen.getByTitle("0 8 * * 1-5 · Asia/Shanghai")).toBeTruthy();
     expect(await screen.findByText("凭证 1")).toBeTruthy();

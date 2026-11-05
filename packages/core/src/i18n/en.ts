@@ -239,6 +239,7 @@ export const en: Messages = {
     nextRun: "Next run",
     lastRun: "Last run",
     recentRuns: "Recent runs",
+    inactiveGroup: "Inactive",
     scheduled: "Scheduled",
     queuedShort: "Queued",
     none: "No tasks yet",
