@@ -4,7 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { ApiError, isNotFound, unwrap, useApi, useApiSession } from "../client";
 import { isExpired, shouldRetry } from "../errors";
-import { useOpenStream, usePollInterval } from "../live/live";
+import { RESOURCE_POLL_MS, useOpenStream, usePollInterval } from "../live/live";
 import {
   applyEarlier,
   applyForward,
@@ -45,12 +45,13 @@ export function useTask(taskId: string | undefined) {
     enabled: !!taskId,
     queryFn: () => unwrap(api.GET("/api/v1/tasks/{taskId}", { params: { path: { taskId: taskId! } } })),
     retry: noRetryOnNotFound,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
 /**
  * A run, refreshed until it reaches a final state: every `pollMs` while the
- * event stream is down, and on each run event while it is up.
+ * event stream is down, and on each event with a slower safety poll while up.
  */
 export function useRun(runId: string, options: { pollMs?: number; enabled?: boolean } = {}) {
   const api = useApi();
@@ -142,6 +143,8 @@ function useRunStarted() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.task(run.task_id) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.runListAll });
     void queryClient.invalidateQueries({ queryKey: queryKeys.overviewAll });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.calendarAll });
     if (run.rerun_of) void queryClient.invalidateQueries({ queryKey: queryKeys.reruns(run.rerun_of) });
   };
 }

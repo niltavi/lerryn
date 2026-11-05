@@ -6,9 +6,11 @@ import {
   formatDateTime,
   formatDuration,
   historyNeeds,
+  isRunActive,
   isNotFound,
   runRidges,
   runStatusMeta,
+  taskStatus,
   taskTools,
   toolLocation,
   useI18n,
@@ -18,6 +20,7 @@ import {
   useRun,
   useTask,
   useTaskCredentials,
+  useTaskList,
   useTaskRuns,
   useTaskTriggers,
   useTaskVersions,
@@ -42,11 +45,11 @@ import {
   ToneGlyph,
 } from "@lerryn/ui-web";
 import { Link, useParams } from "@tanstack/react-router";
-import { Archive, Box, CalendarClock, Check, Clock, Copy, FileText, KeyRound, Link2, Pause, Webhook, X } from "lucide-react";
+import { Box, CalendarClock, Check, Clock, Copy, FileText, KeyRound, Link2, Webhook, X } from "lucide-react";
 import { useState } from "react";
 
 import { useNow } from "../../lib/hooks";
-import { shortWhen } from "../../lib/present";
+import { GlyphView, shortWhen } from "../../lib/present";
 import { initialOf } from "../../shell/AppShell";
 import { useOpenCredentialFill } from "../../shell/CredentialFill";
 import { Board, LoadError, usePageTitle } from "../../shell/layout";
@@ -83,6 +86,7 @@ function TaskBoard({ task }: { task: Task }) {
   const now = useNow(30_000);
   const triggers = useTaskTriggers(task.id);
   const runs = useTaskRuns(task.id);
+  const summary = useTaskList(null).data?.items.find((item) => item.id === task.id);
   const [diffSeq, setDiffSeq] = useState<number | null>(null);
 
   const version = task.latest_version;
@@ -96,6 +100,8 @@ function TaskBoard({ task }: { task: Task }) {
     .sort()[0];
   const runItems = (runs.data?.items ?? []).filter((r) => !r.test);
   const lastRun = runItems[0];
+  const activeRun = runs.data?.items.find((run) => isRunActive(run.status));
+  const status = taskStatus({ ...task, active_runs: summary?.active_runs, last_run: activeRun, next_run_at: nextFire });
   // Tools the manifest names, resolved against the project's registry.
   const registry = useTools(task.project_id, { enabled: !!m.tools?.length });
   const tools = taskTools(m.tools, registry.data?.items ?? [], task.project_id);
@@ -104,24 +110,10 @@ function TaskBoard({ task }: { task: Task }) {
   return (
     <Board label={task.name}>
       <div className="board-top">
-        <span className="eyebrow">
-          {task.archived_at ? (
-            <>
-              <Archive className="wl-icon" width={14} aria-hidden="true" />
-              {t("task.archived")}
-            </>
-          ) : active ? (
-            <>
-              <span className="live-dot" aria-hidden="true" />
-              {t("task.active")}
-              {task.active_version ? <span className="mono-sm">v{task.active_version}</span> : null}
-            </>
-          ) : (
-            <>
-              <Pause className="wl-icon" width={14} aria-hidden="true" />
-              {task.active_version ? t("task.paused") : t("task.neverActivated")}
-            </>
-          )}
+        <span className="eyebrow" aria-live="polite" aria-atomic="true">
+          <GlyphView glyph={status.glyph} label={t(status.label)} />
+          {t(status.label)}
+          {active && task.active_version ? <span className="mono-sm">v{task.active_version}</span> : null}
         </span>
         <div className="tools">
           <TaskActions key={task.id} task={task} nextFire={nextFire} />

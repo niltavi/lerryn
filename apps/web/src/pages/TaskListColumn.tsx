@@ -3,11 +3,13 @@ import {
   filterTasks,
   formatDuration,
   groupTasks,
+  isRunActive,
   runGlyph,
   runStatusMeta,
   taskGlyph,
   useI18n,
   useTaskList,
+  type TaskGroups,
   type TaskSummary,
 } from "@lerryn/core";
 import { IconButton } from "@lerryn/ui-web";
@@ -21,7 +23,7 @@ import { ListColumn } from "../shell/layout";
 
 /**
  * The task list beside the overview and task boards, grouped as needing
- * attention, running and scheduled (prototype Main.dc.html). When the list
+ * attention, running, scheduled, enabled and inactive. When the list
  * cannot be read the column says so instead of showing an empty list,
  * which would claim there are no tasks.
  */
@@ -84,6 +86,8 @@ export function TaskListColumn({ currentTaskId, projectId = null }: { currentTas
       <Group label={t("overview.attention")} tasks={groups.attention} current={currentTaskId} now={now} kind="attention" />
       <Group label={t("overview.running")} tasks={groups.running} current={currentTaskId} now={now} kind="running" />
       <Group label={t("task.scheduled")} tasks={groups.scheduled} current={currentTaskId} now={now} kind="scheduled" />
+      <Group label={t("task.active")} tasks={groups.enabled} current={currentTaskId} now={now} kind="enabled" />
+      <Group label={t("task.inactiveGroup")} tasks={groups.inactive} current={currentTaskId} now={now} kind="inactive" />
     </ListColumn>
   );
 }
@@ -99,7 +103,7 @@ function Group({
   tasks: TaskSummary[];
   current?: string;
   now: number;
-  kind: "attention" | "running" | "scheduled";
+  kind: keyof TaskGroups;
 }) {
   if (tasks.length === 0) return null;
   return (
@@ -114,7 +118,7 @@ function Group({
   );
 }
 
-function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: boolean; now: number; kind: "attention" | "running" | "scheduled" }) {
+function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: boolean; now: number; kind: keyof TaskGroups }) {
   const { t, locale } = useI18n();
   const run = task.last_run;
   let meta: string = "—";
@@ -125,20 +129,20 @@ function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: bo
     sub = errorCodeLabel(run.error_code, t);
     bad = run.status !== "interrupted";
   } else if (kind === "running") {
-    if (run && run.started_at && !run.finished_at) meta = formatDuration(elapsedMs(run.started_at, null, now), { whole: true });
-    else meta = t("task.queuedShort");
+    if (run && isRunActive(run.status) && run.started_at && !run.finished_at) meta = formatDuration(elapsedMs(run.started_at, null, now), { whole: true });
+    else meta = run?.status === "queued" ? t("task.queuedShort") : taskGlyphLabel(task, t);
   } else if (task.state === "active" && task.next_run_at) {
     meta = shortWhen(task.next_run_at, locale, now);
   }
   const glyph =
-    kind === "running" ? { tone: "run" as const, icon: "wave" as const } : kind === "attention" && run ? runGlyph(run.status) : taskGlyph(task);
+    kind === "attention" && run ? runGlyph(run.status) : taskGlyph(task);
   const glyphLabel =
-    kind === "running" ? t("run.status.running") : kind === "attention" && run ? t(runStatusMeta(run.status).label) : taskGlyphLabel(task, t);
+    kind === "attention" && run ? t(runStatusMeta(run.status).label) : taskGlyphLabel(task, t);
   return (
     <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="li" aria-current={current ? "page" : undefined}>
       <GlyphView glyph={glyph} label={glyphLabel} />
       <span style={{ minWidth: 0 }}>
-        <span className="li-name" style={task.state === "inactive" ? { color: "var(--ink-muted)" } : undefined}>
+        <span className="li-name" style={kind === "inactive" ? { color: "var(--ink-muted)" } : undefined}>
           {task.name}
         </span>
         {sub ? <span className="li-sub">{sub}</span> : null}

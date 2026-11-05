@@ -27,12 +27,15 @@ export function useLiveMode(): LiveMode {
 }
 
 /**
- * refetchInterval for a query: off while the event stream keeps it fresh,
- * `ms` while polling.
+ * Run events refresh immediately; a slower safety poll also covers missed events
+ * and connections that remain open while a proxy buffers their data.
  */
-export function usePollInterval(ms: number): number | false {
-  return useLiveMode() === "stream" ? false : ms;
+export function usePollInterval(ms: number): number {
+  return useLiveMode() === "stream" ? Math.max(ms, 15_000) : ms;
 }
+
+/** The stream only carries runs, so mutable task and credential metadata always polls. */
+export const RESOURCE_POLL_MS = 5_000;
 
 /** Callbacks of one server-sent event stream. */
 export interface StreamCallbacks {

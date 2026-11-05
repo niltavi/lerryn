@@ -1,5 +1,6 @@
 import { cn, useLerrynTheme, WaveLoader, type LerrynColor } from '@lerryn/ui-native';
 import {
+  Archive,
   Ban,
   CalendarClock,
   Check,
@@ -28,6 +29,7 @@ const TONE: Record<Tone, { bg: string; color: LerrynColor }> = {
 };
 
 const ICON: Record<Exclude<GlyphIcon, 'wave'>, LucideIcon> = {
+  archive: Archive,
   clock: Clock,
   check: Check,
   x: X,
