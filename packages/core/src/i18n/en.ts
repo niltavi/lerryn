@@ -321,6 +321,22 @@ export const en: Messages = {
     preview: "Run preview",
     open: "Open",
     logTail: "End of log",
+    view: {
+      label: "View",
+      list: "List",
+      board: "Board",
+    },
+    board: {
+      label: "Runs board",
+      window: "Last 48 hours",
+      empty: "None",
+      column: {
+        scheduled: "Scheduled",
+        active: "In progress",
+        done: "Done",
+        attention: "Needs attention",
+      },
+    },
   },
   settings: {
     title: "Settings",

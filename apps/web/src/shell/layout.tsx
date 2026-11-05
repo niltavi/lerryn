@@ -93,9 +93,10 @@ export function SectionLink({
 }
 
 /** The board: the page's main area. */
-export function Board({ children, center, label }: { children: ReactNode; center?: boolean; label?: string }) {
+export function Board({ children, center, wide, label }: { children: ReactNode; center?: boolean; wide?: boolean; label?: string }) {
+  const className = ["board", center && "board--center", wide && "board--wide"].filter(Boolean).join(" ");
   return (
-    <main className={center ? "board board--center" : "board"} aria-label={label}>
+    <main className={className} aria-label={label}>
       {children}
     </main>
   );

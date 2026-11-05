@@ -398,7 +398,7 @@ function renderApp(path: string, opts: FakeOptions = {}) {
       </I18nProvider>
     </LerrynThemeProvider>,
   );
-  return { router, server };
+  return { router, server, queryClient };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -1100,5 +1100,78 @@ describe("helpers", () => {
     expect(consolePath("http://lerryn.test/runs/r1", "http://lerryn.test")).toBe("/runs/r1");
     expect(consolePath("http://lerryn.test/c/abc", "http://lerryn.test")).toBeNull();
     expect(consolePath("https://evil.test/runs/r1", "http://lerryn.test")).toBeNull();
+  });
+});
+
+describe("runs board", () => {
+  const summary = (n: number, name: string, status: Schemas["RunStatus"], queuedMin: number): Schemas["RunSummary"] => ({
+    ...NEW_RUN,
+    id: `0192f3a1-0000-7000-8000-0000000b${String(n).padStart(4, "0")}`,
+    task: { ...TASK_REF, name },
+    trigger: { ...NEW_RUN.trigger, kind: "manual" },
+    status,
+    queued_at: iso(queuedMin),
+    started_at: status === "queued" ? null : iso(queuedMin + 1),
+    finished_at: null,
+    result_status: null,
+    result_summary: null,
+    current_stage: null,
+  });
+
+  it("sorts the last 48 hours of runs into four columns by status", async () => {
+    const runs = [
+      summary(1, "scheduled-run", "queued", -1),
+      summary(2, "preparing-run", "preparing", -2),
+      summary(3, "running-run", "running", -3),
+      summary(4, "completed-run", "completed", -60),
+      summary(5, "failed-run", "failed", -120),
+      summary(6, "cancelled-run", "cancelled", -180),
+      summary(7, "stale-run", "completed", -49 * 60),
+    ];
+    const { server } = renderApp("/runs?view=board", { runs });
+    const board = await screen.findByRole("main", { name: "运行看板" });
+    const column = (name: string) => within(within(board).getByRole("region", { name }));
+    await waitFor(() => expect(column("已排期").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["scheduled-run"]));
+    expect(column("进行中").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["preparing-run", "running-run"]);
+    expect(column("已完成").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["completed-run"]);
+    expect(column("待处理").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["failed-run", "cancelled-run"]);
+    expect(within(board).queryByText("stale-run")).toBeNull();
+
+    const listCall = server.fetch.mock.calls.map(([req]) => new URL(req.url)).find((u) => u.pathname === "/api/v1/runs");
+    const since = Date.parse(listCall!.searchParams.get("since")!);
+    expect(Math.abs(Date.now() - 48 * 3_600_000 - since)).toBeLessThan(60_000);
+  });
+
+  it("carries a card to its new column when the run's status changes", async () => {
+    const animate = vi.fn(() => ({ onfinish: null, oncancel: null, cancel() {} }) as unknown as Animation);
+    Object.assign(HTMLElement.prototype, { animate, getAnimations: () => [] });
+    const runs = [summary(1, "moving-run", "queued", -1), summary(2, "steady-run", "completed", -5)];
+    const { queryClient } = renderApp("/runs?view=board", { runs });
+    const board = await screen.findByRole("main", { name: "运行看板" });
+    const column = (name: string) => within(within(board).getByRole("region", { name }));
+    await waitFor(() => expect(column("已排期").getByText("moving-run")).toBeTruthy());
+    expect(animate).not.toHaveBeenCalled();
+
+    runs[0] = { ...runs[0]!, status: "running" };
+    await act(() => queryClient.invalidateQueries());
+    await waitFor(() => expect(column("进行中").getByText("moving-run")).toBeTruthy());
+    expect(animate).toHaveBeenCalledTimes(1);
+    const item = column("进行中").getByText("moving-run").closest("li")!;
+    expect(animate.mock.contexts[0]).toBe(item);
+    expect(item.classList.contains("kb-item--moving")).toBe(true);
+    delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+    delete (HTMLElement.prototype as Partial<HTMLElement>).getAnimations;
+  });
+
+  it("switches between the list and the board", async () => {
+    const { router } = renderApp("/runs", { runs: [summary(1, "scheduled-run", "queued", -1)] });
+    const user = userEvent.setup();
+    await screen.findByRole("region", { name: "运行列表" });
+    await user.click(screen.getByRole("button", { name: "看板" }));
+    await screen.findByRole("main", { name: "运行看板" });
+    expect(router.state.location.search).toEqual({ view: "board" });
+    await user.click(screen.getByRole("button", { name: "列表" }));
+    await screen.findByRole("region", { name: "运行列表" });
+    expect(router.state.location.search).toEqual({});
   });
 });

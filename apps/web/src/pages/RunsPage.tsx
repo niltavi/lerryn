@@ -24,25 +24,30 @@ import {
 import { CopyButton, RunStages, StatusGlyph, StatusIcon } from "@lerryn/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowUpRight, CircleAlert, Hash, RotateCcw } from "lucide-react";
+import { ArrowUpRight, CircleAlert, Hash, Kanban, List, RotateCcw } from "lucide-react";
 
 import { useNow } from "../lib/hooks";
 import { shortWhen, skipReasonLabel } from "../lib/present";
 import { Board, ListColumn, LoadError, LoadMore, usePageTitle } from "../shell/layout";
 import { NotFoundBody } from "./NotFoundPage";
 import { RetryButton } from "./run/RunActions";
+import { RunsBoard } from "./RunsBoard";
 
 export interface RunsSearch {
   run?: string;
   filter?: RunFilter;
   task?: string;
+  view?: RunsView;
 }
+
+export type RunsView = "list" | "board";
 
 export function validateRunsSearch(s: Record<string, unknown>): RunsSearch {
   const out: RunsSearch = {};
   if (typeof s.run === "string" && s.run) out.run = s.run;
   if (s.filter === "failed" || s.filter === "active") out.filter = s.filter;
   if (typeof s.task === "string" && s.task) out.task = s.task;
+  if (s.view === "board") out.view = s.view;
   return out;
 }
 
@@ -58,17 +63,29 @@ export function RunsPage() {
   const search = useSearch({ from: "/app/runs" });
   const navigate = useNavigate();
   const filter = search.filter ?? "all";
-  const runs = useRunList({ status: RUN_FILTER_STATUSES[filter], taskId: search.task });
+  const view = search.view ?? "list";
+  const runs = useRunList({ status: RUN_FILTER_STATUSES[filter], taskId: search.task }, { enabled: view === "list" });
   const items = runs.data?.items ?? [];
   const selected = search.run ?? items[0]?.id;
   const now = useNow(30_000);
 
   const setFilter = (f: RunFilter) =>
     void navigate({ to: "/runs", search: { ...(f === "all" ? {} : { filter: f }), ...(search.task ? { task: search.task } : {}) }, replace: true });
+  const setView = (v: RunsView) =>
+    void navigate({ to: "/runs", search: { ...(v === "board" ? { view: v } : {}), ...(search.task ? { task: search.task } : {}) } });
+  const viewSwitch = <ViewSwitch view={view} onChange={setView} />;
+
+  if (view === "board") {
+    return (
+      <Board label={t("runs.board.label")} wide>
+        <RunsBoard taskId={search.task} tools={viewSwitch} />
+      </Board>
+    );
+  }
 
   return (
     <>
-      <ListColumn title={t("runs.title")} label={t("runs.list")}>
+      <ListColumn title={t("runs.title")} label={t("runs.list")} tools={viewSwitch}>
         <div className="list-seg">
           <div className="seg seg--block" role="group" aria-label={t("runs.filterLabel")}>
             {FILTERS.map((f) => (
@@ -105,6 +122,22 @@ export function RunsPage() {
       </ListColumn>
       <Board label={t("runs.preview")}>{selected ? <RunPreview runId={selected} /> : null}</Board>
     </>
+  );
+}
+
+function ViewSwitch({ view, onChange }: { view: RunsView; onChange: (v: RunsView) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="seg" role="group" aria-label={t("runs.view.label")}>
+      <button type="button" aria-pressed={view === "list"} onClick={() => onChange("list")}>
+        <List className="wl-icon" width={16} height={16} aria-hidden="true" />
+        {t("runs.view.list")}
+      </button>
+      <button type="button" aria-pressed={view === "board"} onClick={() => onChange("board")}>
+        <Kanban className="wl-icon" width={16} height={16} aria-hidden="true" />
+        {t("runs.view.board")}
+      </button>
+    </div>
   );
 }
 

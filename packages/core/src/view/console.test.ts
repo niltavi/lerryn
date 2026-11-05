@@ -8,6 +8,7 @@ import {
   formatCallDuration,
   groupTasks,
   historyNeeds,
+  runBoardColumn,
   summarizeRunEvents,
   TOOL_ARGS_PREVIEW,
 } from "./console";
@@ -204,5 +205,23 @@ describe("formatInZone", () => {
   });
   it("falls back to the viewer's zone for an unknown one", () => {
     expect(formatInZone("2026-11-03T00:00:00Z", "Not/AZone", "en").time).toMatch(/^\d\d:\d\d$/);
+  });
+});
+
+describe("runBoardColumn", () => {
+  it.each([
+    ["queued", "scheduled"],
+    ["preparing", "active"],
+    ["running", "active"],
+    ["cancelling", "active"],
+    ["completed", "done"],
+    ["failed", "attention"],
+    ["timed_out", "attention"],
+    ["cancelled", "attention"],
+    ["interrupted", "attention"],
+    ["skipped", "attention"],
+    ["from_the_future", "attention"],
+  ])("puts %s in %s", (status, column) => {
+    expect(runBoardColumn(status)).toBe(column);
   });
 });

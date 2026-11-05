@@ -300,6 +300,32 @@ export const RUN_FILTER_STATUSES: Record<RunFilter, Schemas["RunStatus"][]> = {
   active: ["queued", "preparing", "running", "cancelling"],
 };
 
+/**
+ * Kanban columns of the runs board, left to right: waiting to start, running,
+ * finished well, and finished without a result (cancelled, failed, skipped).
+ */
+export const RUN_BOARD_COLUMNS = ["scheduled", "active", "done", "attention"] as const;
+export type RunBoardColumn = (typeof RUN_BOARD_COLUMNS)[number];
+
+/** How far back the runs board looks. */
+export const RUN_BOARD_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/** The board column a run belongs to. An unknown status from a newer server waits in "attention". */
+export function runBoardColumn(status: string): RunBoardColumn {
+  switch (status) {
+    case "queued":
+      return "scheduled";
+    case "preparing":
+    case "running":
+    case "cancelling":
+      return "active";
+    case "completed":
+      return "done";
+    default:
+      return "attention";
+  }
+}
+
 /** Whether a run's status needs someone to look at it. */
 export function isAttentionStatus(status: string): boolean {
   return ATTENTION.has(status);

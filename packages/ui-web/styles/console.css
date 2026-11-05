@@ -557,6 +557,22 @@
   /* ── 原生下拉框（与输入框同样的 E 楞） ── */
   .field-select { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .field-select select { height: 44px; padding: 0 12px; border: 1px solid var(--field-border); border-radius: var(--radius-2xl); background: var(--field-background); color: var(--field-foreground); font: inherit; font-size: 15px; box-shadow: var(--flute-e);  min-width: 0; }
+  .board--wide > * { max-width: none; }
+
+  /* ── 运行看板：四列按状态排开；卡片换列时由脚本做“拿起、搬过去、放下”的位移动画 ── */
+  .kb { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .kb-col { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 8px; border: 1px solid var(--line); border-radius: var(--radius-3xl); background: var(--liner); }
+  .kb-head { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0 6px 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
+  .kb-head .n { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  .kb-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .kb-item { min-width: 0; }
+  .kb-item--moving { position: relative; z-index: 5; }
+  .kb-card { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-2xl); background: var(--paper); color: var(--ink); text-decoration: none; transition: border-color .15s; }
+  .kb-card:hover { border-color: var(--line-strong); }
+  .kb-item--moving .kb-card { border-color: var(--kraft); cursor: grabbing; }
+  .kb-empty { padding: 16px 6px; font-size: 13px; line-height: 18px; color: var(--ink-muted); text-align: center; }
+  @media (max-width: 1100px) { .kb { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .kb { grid-template-columns: minmax(0, 1fr); } }
   .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 12px; }
 
   /* ── 容量条、头像 ── */
@@ -574,6 +590,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .wl-loader svg { animation: none; }
-    .switch-sm::after, .toggle::after, .acts { transition: none; }
+    .switch-sm::after, .toggle::after, .acts, .kb-card { transition: none; }
   }
 }

@@ -321,6 +321,22 @@ export const zhCN = {
     preview: "运行预览",
     open: "打开",
     logTail: "日志末尾",
+    view: {
+      label: "视图",
+      list: "列表",
+      board: "看板",
+    },
+    board: {
+      label: "运行看板",
+      window: "近 48 小时",
+      empty: "暂无",
+      column: {
+        scheduled: "已排期",
+        active: "进行中",
+        done: "已完成",
+        attention: "待处理",
+      },
+    },
   },
   settings: {
     title: "个人设置",
