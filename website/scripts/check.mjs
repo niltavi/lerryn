@@ -72,7 +72,6 @@ for (const block of paletteBlocks) {
   for (const color of ['ink', 'link']) assert(contrast(color, 'surface-2') >= 4.5, `Text contrast failed: ${color} on surface-2`);
   assert(contrast('ink', 'surface-3') >= 4.5, 'Code contrast failed');
   assert(contrast('accent', 'on-accent') >= 4.5, 'Button contrast failed');
-  assert(contrast('success', 'success-soft') >= 4.5, 'Status chip contrast failed');
 }
 assert((await readFile(resolve(dist, 'robots.txt'), 'utf8')).includes(`${origin}/sitemap.xml`));
 console.log('Local font assets, sitemap discovery, and light/dark text contrast passed');
