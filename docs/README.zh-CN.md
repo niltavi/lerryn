@@ -6,6 +6,7 @@ Niltavi 产品线中的自动化沙箱，由外部 Agent 通过 API 和 MCP 操�
 
 - 产品需求、技术设计、实施规划：`docs/`
 - 改名与升级：[docs/rename-to-lerryn.md](../docs/rename-to-lerryn.md)
+- CI 与镜像发布：[Gitea Actions 配置](ci.md)
 - 仓库搬迁：[docs/repository-migration.md](repository-migration.md)
 - 官网源码：[website/README.md](../website/README.md)，目标域名 `lerryn.niltavi.com`
 - 部署与配置：[docs/deploy.md](../docs/deploy.md)

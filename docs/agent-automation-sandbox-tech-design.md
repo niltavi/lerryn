@@ -51,7 +51,7 @@
 | Web | Vite、React、TypeScript、TanStack Router／Query、HeroUI v3 变形版 | 构建产物内嵌进服务端二进制 |
 | 移动端 | Expo、Expo Router、HeroUI Native 变形版 | 与 Web 共享客户端、hooks 和设计令牌 |
 | 仓库 | 单仓库：根目录 Go module `github.com/niltavi/lerryn` + pnpm workspace | 见第 16 节 |
-| CI 与镜像 | GitHub Actions；镜像发布到 `ghcr.io/niltavi/lerryn` | |
+| CI 与镜像 | Gitea Actions；镜像发布到 `ghcr.io/niltavi/lerryn` | |
 | 可观测 | slog（JSON 日志）、Prometheus 指标 | OpenTelemetry 放到 P1 |
 
 ## 3 后端语言
@@ -1745,7 +1745,7 @@ tests/
   acceptance/         A01 至 A18、B01 至 B03
   chaos/              多节点故障注入
   agent-evals/        Skill 评测
-.github/workflows/    CI 与发布
+.gitea/workflows/    CI 与发布
 ```
 
 Go module 放在仓库根目录，与现有的 pnpm workspace 并存，覆盖 `server/`、`tests/` 和 `runtimes/` 下的 Go 代码。`apps/` 和 `packages/` 的具体内容以设计语言和组件库工作的结果为准。
@@ -1764,7 +1764,8 @@ Go module 放在仓库根目录，与现有的 pnpm workspace 并存，覆盖 `s
 - 分层固定：接口层（HTTP、MCP）→ service → store。接口层不写业务逻辑，权限检查只在 service 层。
 - 接口改动从 `api/` 开始，然后运行 `make generate`。生成的代码不手工修改。
 - `make check` 是合并前的必过项：Spectral、golangci-lint（含 gofmt、goimports、gosec）、go vet、带 `-race` 的 Go 测试（SQLite）、govulncheck、TypeScript 类型检查。生成物一致性（`make generate-check`）和 PostgreSQL 上的测试（`make test-pg`）需要额外的工具链或数据库，由 CI 运行。oasdiff 在第一个版本发布后加入，前端测试随控制台轨道加入。
-- CI 使用 GitHub Actions。作业有：`go`（lint、vet、SQLite 测试、govulncheck）、`api`（生成物一致性、Spectral）、`go-postgres`（PostgreSQL 17 上的测试）、两个执行器集成测试作业（第 16.4 节）、`web`（类型检查）、`image`（镜像构建）。
+- CI 使用 Gitea Actions。作业有：`go`（lint、vet、SQLite 测试、govulncheck）、`api`（生成物一致性、Spectral、许可证声明）、`go-postgres`（PostgreSQL 17 上的测试）、两个执行器集成测试作业（第 16.4 节）、`web`（类型检查、单元测试、官网检查）、`image`（镜像构建）。
+- Runner 标签、宿主机要求和发布凭证见 [Gitea Actions 配置](ci.md)。
 - CI 安装 Go 1.27 的最新补丁版本。`go.mod` 中的 `go 1.27.0` 只是最低语言版本，setup-go 按它安装会得到 1.27.0，govulncheck 会报告后续补丁已经修复的标准库漏洞。
 - Go 工具（oapi-codegen、goose、govulncheck）用 `go.mod` 的 `tool` 指令固定版本，用 `go tool <名字>` 运行。
 - 不引入依赖注入框架和反射式路由。
@@ -1776,7 +1777,7 @@ Go module 放在仓库根目录，与现有的 pnpm workspace 并存，覆盖 `s
 | 单元测试 | service、调度计算、脱敏、清单校验 |
 | 存储契约测试 | 同一套测试在 PostgreSQL 和 SQLite 上各跑一遍。CI 目前只用 PostgreSQL 17，M5 前补上最低支持版本 15 |
 | 契约测试 | 加载真实契约构建 MCP 工具注册表；按打包结果校验 API 处理函数的真实响应（第 9.5 节） |
-| 执行器集成测试 | 使用真实 Docker，带 build tag `integration`：默认加固逐项在容器内核对、资源限制、取消、超时、子进程清理、挂载、网络隔离。CI 有两个作业：`go-integration` 直接在 `ubuntu-latest` 上运行，并要求任务之间的网络隔离生效（`LERRYN_TEST_REQUIRE_ICC=1`）；`go-integration-in-container` 让测试进程在 `golang:1.27` 容器中运行、经宿主机的 Docker socket 启动任务容器，数据目录同路径挂载，覆盖 runner 自身在容器中运行的情况 |
+| 执行器集成测试 | 使用真实 Docker，带 build tag `integration`：默认加固逐项在容器内核对、资源限制、取消、超时、子进程清理、挂载、网络隔离。CI 有两个作业：`go-integration` 通过 `lerryn-linux:host` runner 直接在 Linux 宿主机上运行，并要求任务之间的网络隔离生效（`LERRYN_TEST_REQUIRE_ICC=1`）；`go-integration-in-container` 让测试进程在 `golang:1.27` 容器中运行、经宿主机的 Docker socket 启动任务容器，数据目录同路径挂载，覆盖 runner 自身在容器中运行的情况 |
 | 验收测试 | A01 至 A18、B01 至 B03，使用真实执行和故障注入 |
 | 多节点故障测试 | 运行中杀掉 server 和 runner、断开数据库连接，检查状态和去重 |
 | 前端测试 | 组件测试；Web 控制台用 Playwright 覆盖主要页面 |

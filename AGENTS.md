@@ -15,7 +15,7 @@ Lerryn 是由外部 Agent 通过 API 和 MCP 操作的自动化沙箱，面向�
 
 | 目录 | 内容 | 工作流 |
 | --- | --- | --- |
-| `go.mod`、`Makefile`、`Dockerfile`、`.github/`、`server/cmd/`、`server/internal/{app,config,logging,buildinfo}/` | 工程基础、服务端入口 | W0 |
+| `go.mod`、`Makefile`、`Dockerfile`、`.gitea/`、`server/cmd/`、`server/internal/{app,config,logging,buildinfo}/` | 工程基础、服务端入口 | W0 |
 | `api/`、`server/internal/httpapi/` | OpenAPI 规范、runner 协议、生成的接口 | W1 |
 | `server/internal/store/`、`server/migrations/`、`server/internal/blob/` | 存储 | W2 |
 | `server/internal/runner/`、`server/internal/executor/`、`runtimes/` | 执行内核 | W3 |

@@ -5,23 +5,25 @@ on:
     branches: [main]
   pull_request:
 
-permissions:
-  contents: read
-
 jobs:
   go:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
+      - uses: https://github.com/actions/setup-go@v7
         with:
           # go.mod only sets the minimum language version; build with the
           # newest 1.27 patch so govulncheck sees current standard library fixes.
           go-version: "1.27.x"
           check-latest: true
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.15.0
+      - name: Install golangci-lint and lint
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/v2.15.0/install.sh -o "$RUNNER_TEMP/install-golangci-lint.sh"
+          sh "$RUNNER_TEMP/install-golangci-lint.sh" -b "$RUNNER_TEMP/lerryn-bin" v2.15.0
+          PATH="$RUNNER_TEMP/lerryn-bin:$PATH" make lint
       - run: make vet
       - run: make test-sqlite
       - run: make vulncheck
@@ -30,17 +32,20 @@ jobs:
   # the spec (Node), oapi-codegen produces the Go server, openapi-typescript
   # the TS types.
   api:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
+      - uses: https://github.com/actions/setup-go@v7
         with:
           # go.mod only sets the minimum language version; build with the
           # newest 1.27 patch so govulncheck sees current standard library fixes.
           go-version: "1.27.x"
           check-latest: true
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: https://github.com/pnpm/action-setup@v6
+      - uses: https://github.com/actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -49,9 +54,10 @@ jobs:
         run: make generate-check
       - name: Spectral
         run: make api-lint
+      - run: make notices-check
 
   go-postgres:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     services:
       postgres:
         image: postgres:17
@@ -66,8 +72,11 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
+      - uses: https://github.com/actions/setup-go@v7
         with:
           # go.mod only sets the minimum language version; build with the
           # newest 1.27 patch so govulncheck sees current standard library fixes.
@@ -78,10 +87,13 @@ jobs:
   # Container executor tests against the runner's own dockerd. Native Linux
   # enforces inter-container isolation, so the test requires it here.
   go-integration:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
+      - uses: https://github.com/actions/setup-go@v7
         with:
           # go.mod only sets the minimum language version; build with the
           # newest 1.27 patch so govulncheck sees current standard library fixes.
@@ -96,9 +108,12 @@ jobs:
   # host daemon, checking that the data directory keeps the same path inside
   # and outside (tech design 15.2).
   go-integration-in-container:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     steps:
-      - uses: actions/checkout@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
       - run: docker pull busybox:1.37.0
       - name: Runner in a container, same-path data directory
         run: |
@@ -109,24 +124,34 @@ jobs:
             golang:1.27 go test -race -count=1 -tags integration ./server/internal/executor/... ./server/internal/runner/... ./server/cmd/...
 
   web:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
+      - uses: https://github.com/pnpm/action-setup@v6
+      - uses: https://github.com/actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: make typecheck
+      - run: make test-web
       - run: make website-check
 
   image:
-    runs-on: ubuntu-latest
+    runs-on: lerryn-linux
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v7
+      - uses: https://github.com/actions/checkout@v7
+        with:
+          github-server-url: ${{ gitea.server_url }}
+          token: ${{ gitea.token }}
+      - uses: https://github.com/docker/setup-buildx-action@v4
+      - uses: https://github.com/docker/build-push-action@v7
+        env:
+          # Build records use GitHub's artifact service.
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
         with:
           context: .
           platforms: linux/amd64
