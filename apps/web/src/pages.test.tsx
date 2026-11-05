@@ -129,7 +129,7 @@ const NEW_RUN = {
   error: null,
   links: { console: "http://lerryn.test/runs/0192f3a1-0000-7000-8000-0000000000r5" },
 };
-const TRIGGERS = {
+const TRIGGERS: Schemas["TriggerSet"] = {
   task_id: TASK.id,
   revision: 1,
   dry_run: false,
@@ -244,6 +244,9 @@ interface FakeOptions {
   manualRun?: boolean;
   /** An error code startRun answers with instead of a run. */
   startError?: string;
+  task?: Partial<Schemas["Task"]>;
+  triggerItems?: Schemas["Trigger"][];
+  taskControlSubmit?: (path: string, body: unknown) => Promise<Response>;
   admin?: boolean;
   tasks?: Schemas["TaskSummary"][];
   adminSubmit?: (body: unknown) => Promise<Response>;
@@ -254,6 +257,8 @@ interface FakeOptions {
 }
 
 function fakeServer(opts: FakeOptions = {}) {
+  let task = { ...TASK, ...opts.task, console: { manual_run: opts.manualRun ?? true } };
+  let triggerItems = opts.triggerItems ?? TRIGGERS.triggers;
   const credentials = [...(opts.credentials ?? [CREDENTIAL])];
   const channels: Schemas["NotificationChannel"][] = [];
   const requests: { method: string; path: string; body?: unknown; idempotencyKey?: string | null }[] = [];
@@ -303,7 +308,20 @@ function fakeServer(opts: FakeOptions = {}) {
         return response;
       }
       case `GET /api/v1/tasks/${TASK.id}`:
-        return json({ ...TASK, console: { manual_run: opts.manualRun ?? true } });
+        return json(task);
+      case `POST /api/v1/tasks/${TASK.id}/activation`: {
+        if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
+        const input = body as Schemas["SetTaskActivationRequest"];
+        task = { ...task, state: input.active ? "active" : "inactive", active_version: input.version ?? task.active_version };
+        return json(task);
+      }
+      case `POST /api/v1/tasks/${TASK.id}/skip-next-run`: {
+        if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
+        const input = body as Schemas["SkipNextRunRequest"];
+        triggerItems = triggerItems.map((tr) => tr.next_fire_at === input.scheduled_at
+          ? { ...tr, next_fire_at: iso(90 + 24 * 60) } : tr);
+        return json({ ...TRIGGERS, triggers: triggerItems });
+      }
       case `POST /api/v1/tasks/${TASK.id}/runs`:
         return opts.startError ? problem(409, opts.startError) : json(NEW_RUN, 202);
       case `GET /api/v1/runs/${FAILED_RUN.id}`:
@@ -324,7 +342,7 @@ function fakeServer(opts: FakeOptions = {}) {
       case `GET /api/v1/runs/${NEW_RUN.id}`:
         return json(NEW_RUN);
       case `GET /api/v1/tasks/${TASK.id}/triggers`:
-        return json(TRIGGERS);
+        return json({ ...TRIGGERS, task_active: task.state === "active", triggers: triggerItems.map((tr) => ({ ...tr, next_fire_at: task.state === "active" ? tr.next_fire_at : null })) });
       case `GET /api/v1/tasks/${TASK.id}/credentials`:
         return json({ version: 2, items: [{ name: "LLM_API_KEY", as: "env", optional: false, status: "missing", credential: null, expires_at: null, pending_request_id: "0192f3a1-0000-7000-8000-0000000000c1" }] });
       case "GET /api/v1/credentials": {
@@ -569,6 +587,72 @@ describe("admin passwords", () => {
 });
 
 describe("task page", () => {
+  it("disables and enables the previously active version, independently of manual runs", async () => {
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", manualRun: false, task: { active_version: 1 } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "停用任务" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/已排队和正在执行的运行继续完成/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "停用任务" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("已暂停")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "跳过下次" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "启用任务" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/启用 v1/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "启用任务" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(server.requests.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ active: false }, { active: true, version: 1 }]);
+  });
+
+  it("confirms the exact next time and refreshes the displayed schedule after skipping", async () => {
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "owner" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "跳过下次" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "取消" }));
+    expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "跳过下次" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "跳过下次" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const post = server.requests.find((r) => r.method === "POST")!;
+    expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/skip-next-run`);
+    expect(post.body).toEqual({ scheduled_at: TRIGGERS.triggers[0]!.next_fire_at });
+    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(server.requests.filter((r) => r.path.endsWith("/triggers"))).toHaveLength(2);
+  });
+
+  it("keeps the confirmation open and submits once while waiting", async () => {
+    let finish: ((response: Response) => void) | undefined;
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "owner", taskControlSubmit: () => new Promise((resolve) => { finish = resolve; }) });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "停用任务" }));
+    const dialog = await screen.findByRole("dialog");
+    const button = within(dialog).getByRole("button", { name: "停用任务" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await waitFor(() => expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(1));
+    await act(async () => finish!(json({ ...TASK, state: "inactive" })));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("explains when a version cannot be enabled", async () => {
+    renderApp(`/tasks/${TASK.id}`, { role: "owner", task: { state: "inactive", active_version: null }, taskControlSubmit: async () => problem(409, "version_not_tested") });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "启用任务" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "启用任务" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("还没有通过测试");
+  });
+
+  it.each(["viewer", "archived"])("hides lifecycle controls for %s tasks", async (state) => {
+    renderApp(`/tasks/${TASK.id}`, { role: state === "viewer" ? "viewer" : "owner", task: state === "archived" ? { archived_at: iso(-10) } : {} });
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    await screen.findByRole("img", { name: "有凭证不可用" });
+    for (const name of ["停用任务", "启用任务", "跳过下次"]) expect(screen.queryByRole("button", { name })).toBeNull();
+  });
+
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
     renderApp(`/tasks/${TASK.id}`);
     await screen.findByRole("heading", { name: "weekday-digest" });

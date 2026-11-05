@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -14,6 +15,55 @@ import (
 	"github.com/niltavi/lerryn/server/internal/store"
 	"github.com/niltavi/lerryn/server/internal/store/storetest"
 )
+
+func TestSkipNextTaskRunEndpoint(t *testing.T) {
+	c := newTriggerClient(t)
+	agent, project := c.agent("alice")
+	task := decode[ApplyTaskResult](t, c.apply(agent, project, "digest", digestRequest(), "", "")).Task
+	path := "/api/v1/tasks/" + task.ID.String()
+	set := decode[TriggerSet](t, c.as(agent, http.MethodPut, path+"/triggers", map[string]any{"triggers": []any{
+		map[string]any{"name": "hourly", "type": "cron", "schedule": "0 * * * *", "timezone": "UTC"},
+	}}))
+	c.activate(agent, task.ID)
+	// next_fires is available before activation too.
+	expected := set.Triggers[0].Cron.NextFires[0]
+	endpoint := path + "/skip-next-run"
+	c.want(c.as(agent, http.MethodPost, endpoint, map[string]any{}), http.StatusBadRequest, ErrorCodeValidationFailed)
+	c.want(c.as(agent, http.MethodPost, endpoint, map[string]any{"scheduled_at": "invalid"}), http.StatusBadRequest, ErrorCodeValidationFailed)
+	bob, _ := c.agent("bob")
+	body := map[string]any{"scheduled_at": expected}
+	c.want(c.as(bob, http.MethodPost, endpoint, body), http.StatusNotFound, ErrorCodeNotFound)
+	// A visible task still requires modification permission.
+	var user store.User
+	if err := c.db.NewSelect().Model(&user).Where("username = ?", "bob").Scan(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	now := store.Now()
+	if _, err := c.db.NewInsert().Model(&store.RoleBinding{
+		ID: store.NewID(), ProjectID: project, UserID: user.ID, Role: service.RoleViewer, CreatedAt: now, UpdatedAt: now,
+	}).Exec(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	c.want(c.as(bob, http.MethodPost, endpoint, body), http.StatusForbidden, ErrorCodePermissionDenied)
+	_, err := c.db.NewUpdate().Model((*store.RoleBinding)(nil)).Set("role = ?", service.RoleMaintainer).
+		Where("project_id = ? AND user_id = ?", project, user.ID).Exec(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := c.as(bob, http.MethodPost, endpoint, body)
+	c.want(rec, http.StatusOK, "")
+	after := decode[TriggerSet](t, rec)
+	if after.Triggers[0].NextFireAt == nil || !after.Triggers[0].NextFireAt.Equal(expected.Add(time.Hour)) {
+		t.Fatalf("next time after skip = %+v", after)
+	}
+	c.want(c.as(bob, http.MethodPost, endpoint, body), http.StatusUnprocessableEntity, ErrorCodeValidationFailed)
+	rec = c.as(agent, http.MethodGet, "/api/v1/runs?task_id="+task.ID.String(), nil)
+	c.want(rec, http.StatusOK, "")
+	runs := decode[RunPage](t, rec)
+	if len(runs.Items) != 1 || runs.Items[0].SkipReason == nil || *runs.Items[0].SkipReason != SkipReasonManual {
+		t.Fatalf("skip run = %+v", runs)
+	}
+}
 
 type triggerClient struct {
 	*taskClient

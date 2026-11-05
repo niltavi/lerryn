@@ -144,8 +144,8 @@ SkipReason:
   type: string
   description: |
     已跳过的原因。overlap：任务不允许重叠，上一个运行仍未结束；queue_full：队列已满；
-    missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档。
-  enum: [overlap, queue_full, missed, inactive]
+    missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档；manual：用户主动跳过。
+  enum: [overlap, queue_full, missed, inactive, manual]
 
 Canceller:
   type: object

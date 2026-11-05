@@ -528,7 +528,8 @@ func (r *Runs) plannedFires(ctx context.Context, projects []uuid.UUID, only *uui
 	for _, tr := range triggers {
 		var times []time.Time
 		if r.planner != nil {
-			times, err = r.planner.Fires(tr.Schedule, tr.Timezone, from, to, min(keep, maxPlannedPerWindow))
+			// A user may have skipped an occurrence ahead of the clock.
+			times, err = r.planner.Fires(tr.Schedule, tr.Timezone, maxTime(from, tr.NextFireAt), to, min(keep, maxPlannedPerWindow))
 			if err != nil {
 				r.log.WarnContext(ctx, "plan cron fires", "trigger_id", tr.ID, "error", err)
 				continue

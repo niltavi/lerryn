@@ -19,10 +19,27 @@ import (
 // Triggers is the trigger service the API calls. *service.Triggers
 // implements it.
 type Triggers interface {
+	SkipNext(ctx context.Context, p *auth.Principal, taskID uuid.UUID, expected time.Time) (service.TriggerSet, error)
 	List(ctx context.Context, p *auth.Principal, taskID uuid.UUID) (service.TriggerSet, error)
 	Set(ctx context.Context, p *auth.Principal, taskID uuid.UUID, in service.SetTriggersInput) (service.TriggerSet, error)
 	RotateToken(ctx context.Context, p *auth.Principal, triggerID uuid.UUID) (service.TriggerView, error)
 	Webhook(ctx context.Context, call service.WebhookCall) (service.WebhookResult, error)
+}
+
+// SkipNextTaskRun skips the pending cron time the caller confirmed.
+func (h *handler) SkipNextTaskRun(ctx context.Context, req SkipNextTaskRunRequestObject) (SkipNextTaskRunResponseObject, error) {
+	if h.triggers == nil {
+		return nil, errNoTriggers
+	}
+	var expected time.Time
+	if req.Body != nil {
+		expected = req.Body.ScheduledAt
+	}
+	set, err := h.triggers.SkipNext(ctx, auth.PrincipalFrom(ctx), req.TaskID, expected)
+	if err != nil {
+		return errorResponse[SkipNextTaskRundefaultApplicationProblemPlusJSONResponse](ctx, err)
+	}
+	return SkipNextTaskRun200JSONResponse(h.toTriggerSet(set)), nil
 }
 
 var errNoTriggers = errors.New("httpapi: no trigger service configured")
