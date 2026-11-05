@@ -16,6 +16,7 @@
   --water:#4f6b8c;--water-cut:#a3b8ce;--leaf:#7d9670;--leaf-deep:#3f5f4f;--cut-soft:#e9eedd;--stone:#b7b8a8;--stone-dark:#8d917f;
   --trunk:#6b5440;--boat:#a0743a;--boat-cut:#e8c98e;--note:#fffcf3;--note-fold:#e6dcc4;--spark:#a77b3a;
   --night:#2c4650;--night-hill:#3a5a5e;--night-cut:#4f7172;--moon:#f1dca0;--moon-cut:#d2b46c;--star:#f1dca0;--glow:#ffd16d;--lantern:#fff1c4;
+  --mark-side:#245761;--mark-top:#428c9a;--nv-ink:#1b2235;--nv-accent:#3a5cf4;--nv-dot:#dd6300;
   --clearing:#e7e4d2;--branch:#5b4636;--key:#b98a3c;--key-cut:#f3dfae;--thread:#5b4636;
   --card:#fffcf3;--card-shadow:#ddd6c2;--card-rule:#d6d6cb;--log:#7a8a80;--stamp:#3a5cf4;--stamp-cut:#ffffff;
   --serif:'Cormorant Garamond','Songti SC','Noto Serif SC','Source Han Serif SC','STSong',Georgia,serif;
@@ -24,26 +25,28 @@
 }
 :root[data-theme='dark']{
   color-scheme:dark;
-  --paper:#0b1224;--surface:#101729;--surface-2:#131c2f;--surface-3:#151c2f;--ink:#f5f1e6;--muted:#a1a6b3;--link:#b2c3d9;--line:#1f2638;--separator:#151c2f;
+  --paper:#0b1224;--surface:#111a2e;--surface-2:#18223a;--surface-3:#1c2741;--ink:#f5f1e6;--muted:#a7adbb;--link:#b2c3d9;--line:#28324b;--separator:#18223a;
     --accent:#79a4ff;--on-accent:#0b0938;--ochre:#e2b866;--focus:#79a4ff;
-    --sky:#111a2f;--sun:#25304a;--sun-cut:#0b1224;--hill:#18223a;--hill-cut:#232f4b;--bank:#131c30;--bank-cut:#1d2842;
+    --sky:#131d35;--sun:#27334f;--sun-cut:#0b1224;--hill:#18223a;--hill-cut:#232f4b;--bank:#131c30;--bank-cut:#1d2842;
     --water:#2f4d7a;--water-cut:#6888bb;--leaf:#4f7a62;--leaf-deep:#2f5546;--cut-soft:#9cc3a9;--stone:#2c3850;--stone-dark:#3b4967;
-    --trunk:#4f4036;--boat:#c08a44;--boat-cut:#f0cf91;--note:#f5f1e6;--note-fold:#cfc6b0;--spark:#e2b866;
+    --trunk:#5c4a3c;--boat:#c08a44;--boat-cut:#f0cf91;--note:#f5f1e6;--note-fold:#cfc6b0;--spark:#e2b866;
     --night:#16203a;--night-hill:#1f2c48;--night-cut:#2d3d60;--moon:#e8cf8a;--moon-cut:#b89a54;--star:#e8cf8a;--glow:#ffd16d;--lantern:#fff1c4;
+    --mark-side:#3f8794;--mark-top:#7cc2cd;--nv-ink:#f7f9ff;--nv-accent:#79a4ff;--nv-dot:#ffad5a;
     --clearing:#111a2e;--branch:#6b5543;--key:#d9a957;--key-cut:#8a6420;--thread:#a1a6b3;
-    --card:#151c2f;--card-shadow:#070b16;--card-rule:#293143;--log:#a1a6b3;--stamp:#79a4ff;--stamp-cut:#0b0938
+    --card:#18223a;--card-shadow:#070b16;--card-rule:#2c3750;--log:#a1a6b3;--stamp:#79a4ff;--stamp-cut:#0b0938
 }
 @media(prefers-color-scheme:dark){
   :root:not([data-theme='light']){
     color-scheme:dark;
-    --paper:#0b1224;--surface:#101729;--surface-2:#131c2f;--surface-3:#151c2f;--ink:#f5f1e6;--muted:#a1a6b3;--link:#b2c3d9;--line:#1f2638;--separator:#151c2f;
+    --paper:#0b1224;--surface:#111a2e;--surface-2:#18223a;--surface-3:#1c2741;--ink:#f5f1e6;--muted:#a7adbb;--link:#b2c3d9;--line:#28324b;--separator:#18223a;
     --accent:#79a4ff;--on-accent:#0b0938;--ochre:#e2b866;--focus:#79a4ff;
-    --sky:#111a2f;--sun:#25304a;--sun-cut:#0b1224;--hill:#18223a;--hill-cut:#232f4b;--bank:#131c30;--bank-cut:#1d2842;
+    --sky:#131d35;--sun:#27334f;--sun-cut:#0b1224;--hill:#18223a;--hill-cut:#232f4b;--bank:#131c30;--bank-cut:#1d2842;
     --water:#2f4d7a;--water-cut:#6888bb;--leaf:#4f7a62;--leaf-deep:#2f5546;--cut-soft:#9cc3a9;--stone:#2c3850;--stone-dark:#3b4967;
-    --trunk:#4f4036;--boat:#c08a44;--boat-cut:#f0cf91;--note:#f5f1e6;--note-fold:#cfc6b0;--spark:#e2b866;
+    --trunk:#5c4a3c;--boat:#c08a44;--boat-cut:#f0cf91;--note:#f5f1e6;--note-fold:#cfc6b0;--spark:#e2b866;
     --night:#16203a;--night-hill:#1f2c48;--night-cut:#2d3d60;--moon:#e8cf8a;--moon-cut:#b89a54;--star:#e8cf8a;--glow:#ffd16d;--lantern:#fff1c4;
+    --mark-side:#3f8794;--mark-top:#7cc2cd;--nv-ink:#f7f9ff;--nv-accent:#79a4ff;--nv-dot:#ffad5a;
     --clearing:#111a2e;--branch:#6b5543;--key:#d9a957;--key-cut:#8a6420;--thread:#a1a6b3;
-    --card:#151c2f;--card-shadow:#070b16;--card-rule:#293143;--log:#a1a6b3;--stamp:#79a4ff;--stamp-cut:#0b0938
+    --card:#18223a;--card-shadow:#070b16;--card-rule:#2c3750;--log:#a1a6b3;--stamp:#79a4ff;--stamp-cut:#0b0938
   }
 }
 
@@ -66,10 +69,9 @@ h1,h2,p,figure{margin:0}
 /* Masthead floats over the slides. */
 .masthead{position:fixed;inset:0 0 auto;z-index:5;display:flex;align-items:center;height:64px;padding:0 max(48px,calc((100vw - 1280px) / 2 + 48px));background:color-mix(in srgb,var(--paper) 88%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;line-height:1}
-.mark-plate{display:grid;place-items:center;border-radius:8px}
 .mark{display:block;width:40px;height:auto}
+.mark-side{fill:var(--mark-side)}.mark-top{fill:var(--mark-top)}
 .wordmark{font-weight:500;font-size:20px;letter-spacing:-.5px}
-.family-tag{font-size:13px;color:var(--muted);padding-top:3px}
 .masthead a{text-decoration:none}
 /* Same as ui.niltavi.com: borderless 32px round icon buttons. */
 .tools{display:flex;align-items:center;gap:4px;margin-left:auto}
@@ -78,8 +80,6 @@ h1,h2,p,figure{margin:0}
 .icon-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .theme-switch .sun-icon,.theme-switch[aria-pressed='true'] .moon{display:none}
 .theme-switch[aria-pressed='true'] .sun-icon{display:block}
-:root[data-theme='dark'] .mark-plate{background:#fef8ef;padding:4px 5px}
-@media(prefers-color-scheme:dark){:root:not([data-theme='light']) .mark-plate{background:#fef8ef;padding:4px 5px}}
 
 /* Slides: one sentence, one line, one scene per screen. */
 .slide{position:relative;min-height:100vh;min-height:100svh;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:center;padding:96px 0 48px;scroll-snap-align:start}
@@ -119,7 +119,11 @@ pre{margin:0;padding:22px 22px 22px;border-radius:14px;background:var(--surface-
 .copy:hover{background:var(--surface-2)}
 .copy-message:not(:empty){position:absolute;right:20px;bottom:-30px;font-size:13px;color:var(--muted)}
 
-footer{padding:24px 0 32px;font-size:13px;color:var(--muted);text-align:center}
+footer{display:flex;justify-content:center;padding:24px 0 36px}
+.niltavi{display:block;border-radius:4px;opacity:.72;transition:opacity .15s ease}
+.niltavi:hover{opacity:1}
+.niltavi-wordmark{display:block;width:60px;height:auto}
+.nv-ink{fill:var(--nv-ink)}.nv-accent{fill:var(--nv-accent)}.nv-dot{fill:var(--nv-dot)}
 
 /* Scene colors */
 .c-sky{fill:var(--sky)}.c-sun{fill:var(--sun)}.c-sun-cut{fill:var(--sun-cut)}
@@ -178,7 +182,6 @@ footer{padding:24px 0 32px;font-size:13px;color:var(--muted);text-align:center}
 @media(max-width:560px){
   .shell{padding:0 16px}
   .masthead{padding:0 16px;height:56px}
-  .family-tag{display:none}
   .slide-art:not(.code-example){margin:0 -16px}
   .code-example{padding:8px}
   pre{padding:16px;font-size:12.5px}

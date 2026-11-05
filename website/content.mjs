@@ -7,7 +7,7 @@ export const languages = {
     lang: 'en', path: '', alternate: 'zh/', alternateLabel: '简体中文',
     title: 'Lerryn — A self-hosted sandbox for agent work',
     description: 'Hand routine work to your agent. Lerryn runs it on your own machines, on schedule, with credentials kept close and every run on record.',
-    skip: 'Skip to content', github: 'GitHub repository', family: 'by niltavi.',
+    skip: 'Skip to content', github: 'GitHub repository',
     cover: {
       heading: 'Hand off the routine.\nKeep the *morning*.',
       text: 'Lerryn gives your agent a place to run the repetitive work, on your own machines.',
@@ -34,7 +34,7 @@ export const languages = {
     lang: 'zh-CN', path: 'zh/', alternate: '', alternateLabel: 'English',
     title: 'Lerryn — 为 Agent 任务提供稳定的执行空间',
     description: '把重复的工作交给 Agent。Lerryn 在你自己的机器上按时运行，凭证留在身边，每一次运行都有记录。',
-    skip: '跳到正文', github: 'GitHub 仓库', family: 'by niltavi.',
+    skip: '跳到正文', github: 'GitHub 仓库',
     cover: {
       heading: '把重复的事交出去，\n把*清晨*留给自己。',
       text: 'Lerryn 让 Agent 在你自己的机器上，替你跑完那些反复的工作。',
