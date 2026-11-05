@@ -14,7 +14,7 @@ export function AuthFrame({ title, badge, children }: { title: string; badge?: R
         <div className="auth-col">
           <div className="stack" style={{ alignItems: "center", gap: 14 }}>
             <span className="auth-logo">
-              <Logo size={17} />
+              <Logo size={20} />
             </span>
             <h1 className="h2">{title}</h1>
             {badge}

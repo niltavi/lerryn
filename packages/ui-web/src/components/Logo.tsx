@@ -10,19 +10,23 @@ export interface LogoProps {
   className?: string;
 }
 
-function Mark() {
+// themed: the mark sits on the page, so it takes the theme's mark colours
+// (brighter on dark surfaces, as on the website). On a plate it keeps the brand colours.
+function Mark({ themed }: { themed: boolean }) {
+  const side = themed ? `var(--mark-side, ${LOGO_MARK.bark.fill})` : LOGO_MARK.bark.fill;
+  const top = themed ? `var(--mark-top, ${LOGO_MARK.kraft.fill})` : LOGO_MARK.kraft.fill;
   return (
     <>
-      <path fill={LOGO_MARK.bark.fill} d={LOGO_MARK.bark.d} />
-      <path fill={LOGO_MARK.kraft.fill} d={LOGO_MARK.kraft.d} />
+      <path style={{ fill: side }} d={LOGO_MARK.bark.d} />
+      <path style={{ fill: top }} d={LOGO_MARK.kraft.d} />
     </>
   );
 }
 
 /**
- * The Lerryn mark, drawn as vectors in its fixed brand colours (they do not
- * follow the theme). On dark surfaces use square or circle, or place the
- * horizontal mark on the `plate` colour as the rail does.
+ * The Lerryn mark, drawn as vectors. horizontal follows the theme through the
+ * mark-side / mark-top tokens and needs no plate; square and circle keep the
+ * brand colours on the paper plate.
  */
 export function Logo({ variant = "horizontal", size = 32, label = "Lerryn", className }: LogoProps) {
   const { width: mw, height: mh } = LOGO_MARK;
@@ -30,7 +34,7 @@ export function Logo({ variant = "horizontal", size = 32, label = "Lerryn", clas
   if (variant === "horizontal") {
     return (
       <svg className={className} width={Math.round(size * (mw / mh))} height={size} viewBox={`0 0 ${mw} ${mh}`} {...a11y}>
-        <Mark />
+        <Mark themed />
       </svg>
     );
   }
@@ -46,7 +50,7 @@ export function Logo({ variant = "horizontal", size = 32, label = "Lerryn", clas
         <rect width={1024} height={1024} rx={225} fill={LOGO_PLATE} />
       )}
       <g transform={`translate(${tx} ${ty}) scale(${s})`}>
-        <Mark />
+        <Mark themed={false} />
       </g>
     </svg>
   );
