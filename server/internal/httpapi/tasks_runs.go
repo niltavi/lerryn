@@ -42,6 +42,7 @@ type Tasks interface {
 
 // Runs is the run service the API calls. *service.Runs implements it.
 type Runs interface {
+	SetArchived(ctx context.Context, p *auth.Principal, id uuid.UUID, archived bool) (service.RunDetail, error)
 	Start(ctx context.Context, p *auth.Principal, taskID uuid.UUID, in service.StartRunInput) (service.RunDetail, error)
 	Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.RunDetail, error)
 	Wait(ctx context.Context, p *auth.Principal, id uuid.UUID, wait time.Duration) (service.RunDetail, error)
@@ -288,6 +289,7 @@ func (h *handler) toRun(d service.RunDetail) (Run, error) {
 		LogLines:        r.LogLines,
 		DroppedLogLines: r.DroppedLines,
 		LogsExpiredAt:   optionalTime(r.LogsExpiredAt),
+		ArchivedAt:      optionalTime(r.ArchivedAt),
 		Links:           Links{Console: h.consoleLink("/runs/" + r.ID.String())},
 	}
 	if !out.Trigger.Kind.Valid() {

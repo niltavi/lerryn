@@ -31,6 +31,7 @@ import { shortWhen, skipReasonLabel } from "../lib/present";
 import { Board, ListColumn, LoadError, LoadMore, usePageTitle } from "../shell/layout";
 import { NotFoundBody } from "./NotFoundPage";
 import { RetryButton } from "./run/RunActions";
+import { ArchiveRunButton } from "./run/ArchiveRunButton";
 
 export interface RunsSearch {
   run?: string;
@@ -41,12 +42,12 @@ export interface RunsSearch {
 export function validateRunsSearch(s: Record<string, unknown>): RunsSearch {
   const out: RunsSearch = {};
   if (typeof s.run === "string" && s.run) out.run = s.run;
-  if (s.filter === "failed" || s.filter === "active") out.filter = s.filter;
+  if (s.filter === "failed" || s.filter === "active" || s.filter === "archived") out.filter = s.filter;
   if (typeof s.task === "string" && s.task) out.task = s.task;
   return out;
 }
 
-const FILTERS: RunFilter[] = ["all", "failed", "active"];
+const FILTERS: RunFilter[] = ["all", "failed", "active", "archived"];
 
 /**
  * Runs (prototype Runs.dc.html): a list of runs, newest first, beside a
@@ -58,7 +59,7 @@ export function RunsPage() {
   const search = useSearch({ from: "/app/runs" });
   const navigate = useNavigate();
   const filter = search.filter ?? "all";
-  const runs = useRunList({ status: RUN_FILTER_STATUSES[filter], taskId: search.task });
+  const runs = useRunList({ status: RUN_FILTER_STATUSES[filter], taskId: search.task, archived: filter === "archived" });
   const items = runs.data?.items ?? [];
   const selected = search.run ?? items[0]?.id;
   const now = useNow(30_000);
@@ -186,6 +187,8 @@ function PreviewBody({ run }: { run: Run }) {
       <div className="board-top">
         <span className="eyebrow mono-sm">{shortId(run.id)}</span>
         <div className="tools" style={{ gap: 8 }}>
+          <ArchiveRunButton key={run.id} run={run} />
+          {run.archived_at ? <span className="tag">{t("run.archived")}</span> : null}
           {isAttentionStatus(run.status) && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
           <CopyButton value={run.id} label={t("run.copyId")} icon={Hash} />
           <Link to="/runs/$runId" params={{ runId: run.id }} className="chip" style={{ height: 36 }}>

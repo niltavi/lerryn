@@ -813,7 +813,8 @@ export interface paths {
         };
         /**
          * 列出运行
-         * @description 列出调用者能查看的运行，按排队时间从新到旧排列。可以按项目、任务、状态、来源和时间筛选。
+         * @description 列出调用者能查看的运行，按排队时间从新到旧排列。默认不含手动归档的运行，archived=true 只返回已归档记录。
+         *     可以按项目、任务、状态、来源和时间筛选。
          */
         get: operations["listRuns"];
         put?: never;
@@ -859,6 +860,29 @@ export interface paths {
          *     对已结束的运行调用不会改变状态。
          */
         post: operations["cancelRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runs/{runId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 归档或恢复运行记录
+         * @description 需要运行控制权限。只允许归档已结束的运行；归档不改变执行状态，也不停止自动重试。
+         *     归档后移出默认列表、概览和日历，记录、事件、日志及产物不再自动清理。
+         *     完整日志存入数据库；此前已转存对象存储的日志会读回数据库，已清理的日志返回 410 expired，不能恢复。
+         *     重复设置相同状态没有额外影响。archived=false 恢复到默认列表，并重新适用部署的保留策略。
+         */
+        put: operations["setRunArchive"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3029,7 +3053,17 @@ export interface components {
              * @description 日志按保留策略清理的时间，未清理时为 null。清理后 `log_lines` 保留原来的行数，读取日志返回 410 `expired`。
              */
             logs_expired_at: string | null;
+            /**
+             * Format: date-time
+             * @description 手动归档的时间，未归档时为 null。归档后完整日志保存在数据库中，不再自动清理。
+             */
+            archived_at?: string | null;
             links: components["schemas"]["Links"];
+        };
+        /** @description 设置运行记录的手动归档状态。 */
+        SetRunArchiveRequest: {
+            /** @description true 归档并长期保留，false 恢复到默认列表和原保留策略。 */
+            archived: boolean;
         };
         /** @description 对 runner 的简短引用。 */
         RunnerRef: {
@@ -3059,6 +3093,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             task: components["schemas"]["TaskRef"];
+            /**
+             * Format: date-time
+             * @description 手动归档时间，未归档时为 null。
+             */
+            archived_at?: string | null;
             version: number;
             status: components["schemas"]["RunStatus"];
             test: boolean;
@@ -4158,6 +4197,7 @@ export type SchemaRunTrigger = components['schemas']['RunTrigger'];
 export type SchemaSkipReason = components['schemas']['SkipReason'];
 export type SchemaCanceller = components['schemas']['Canceller'];
 export type SchemaRun = components['schemas']['Run'];
+export type SchemaSetRunArchiveRequest = components['schemas']['SetRunArchiveRequest'];
 export type SchemaRunnerRef = components['schemas']['RunnerRef'];
 export type SchemaRunBrief = components['schemas']['RunBrief'];
 export type SchemaRunSummary = components['schemas']['RunSummary'];
@@ -5461,6 +5501,8 @@ export interface operations {
             query?: {
                 /** @description 只返回这个项目中的数据。省略时返回调用者能查看的全部项目。 */
                 project_id?: components["parameters"]["ProjectFilter"];
+                /** @description true 只返回手动归档的运行，false 或省略时只返回未归档的运行。 */
+                archived?: boolean;
                 /** @description 只返回这个任务的运行。 */
                 task_id?: string;
                 /** @description 只返回这些状态的运行，可以重复给出，例如 `status=failed&status=timed_out`。 */
@@ -5541,6 +5583,34 @@ export interface operations {
         responses: {
             /** @description 已接受取消请求。 */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setRunArchive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 运行 ID。 */
+                runId: components["parameters"]["RunID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetRunArchiveRequest"];
+            };
+        };
+        responses: {
+            /** @description 更新后的运行记录。 */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

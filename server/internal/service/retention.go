@@ -175,6 +175,7 @@ func drain(ctx context.Context, step func(context.Context) (bool, error)) error 
 // automatic retry the scheduler has yet to decide.
 func endedRun(q *bun.SelectQuery) *bun.SelectQuery {
 	return q.Where("run.status NOT IN (?)", bun.List(activeStatuses)).
+		Where("run.archived_at IS NULL").
 		Where("run.finished_at IS NOT NULL").
 		Where("NOT (run.retry_decided_at IS NULL AND run.attempt < run.max_attempts)")
 }
@@ -251,7 +252,7 @@ func (r *Retention) expireOldLogs(ctx context.Context, res *CleanupResult) (bool
 func (r *Retention) capLogs(ctx context.Context, res *CleanupResult) (bool, error) {
 	var total int64
 	if err := r.db.NewSelect().Model((*store.Run)(nil)).ColumnExpr("COALESCE(SUM(log_bytes), 0)").
-		Where("logs_expired_at IS NULL").Scan(ctx, &total); err != nil {
+		Where("logs_expired_at IS NULL AND archived_at IS NULL").Scan(ctx, &total); err != nil {
 		return false, fmt.Errorf("sum log sizes: %w", err)
 	}
 	excess := total - r.policy.LogsMaxBytes
@@ -291,6 +292,9 @@ func (r *Retention) expireLogs(ctx context.Context, ids []uuid.UUID, res *Cleanu
 		n, size = 0, 0
 		now := r.now()
 		var runs []store.Run
+		if err := lockRetentionRuns(ctx, tx, ids); err != nil {
+			return err
+		}
 		// Read again inside the transaction: the run may have been
 		// expired or deleted meanwhile.
 		err := endedRun(tx.NewSelect().Model(&runs).Column("run.id", "run.log_blob", "run.log_bytes")).
@@ -352,7 +356,7 @@ func (r *Retention) expireOldArtifacts(ctx context.Context, res *CleanupResult) 
 func (r *Retention) capArtifacts(ctx context.Context, res *CleanupResult) (bool, error) {
 	var total int64
 	if err := r.db.NewSelect().Model((*store.Artifact)(nil)).ColumnExpr("COALESCE(SUM(size), 0)").
-		Where("expired_at IS NULL").Scan(ctx, &total); err != nil {
+		Where("expired_at IS NULL AND run_id IN (SELECT id FROM runs WHERE archived_at IS NULL)").Scan(ctx, &total); err != nil {
 		return false, fmt.Errorf("sum artifact sizes: %w", err)
 	}
 	excess := total - r.policy.ArtifactsMaxBytes
@@ -398,8 +402,15 @@ func (r *Retention) expireArtifacts(ctx context.Context, ids []uuid.UUID, res *C
 		n, size = 0, 0
 		now := r.now()
 		var rows []store.Artifact
-		if err := tx.NewSelect().Model(&rows).Column("id", "blob_key", "size").
-			Where("id IN (?) AND expired_at IS NULL", bun.List(ids)).Scan(ctx); err != nil || len(rows) == 0 {
+		var runIDs []uuid.UUID
+		if err := tx.NewSelect().Model((*store.Artifact)(nil)).Column("run_id").Where("id IN (?)", bun.List(ids)).Scan(ctx, &runIDs); err != nil {
+			return err
+		}
+		if err := lockRetentionRuns(ctx, tx, runIDs); err != nil {
+			return err
+		}
+		if err := r.keptArtifacts(tx.NewSelect().Model(&rows).Column("artifact.id", "artifact.blob_key", "artifact.size")).
+			Where("artifact.id IN (?)", bun.List(ids)).Scan(ctx); err != nil || len(rows) == 0 {
 			return err
 		}
 		keep := make([]uuid.UUID, len(rows))
@@ -427,7 +438,7 @@ func (r *Retention) expireArtifacts(ctx context.Context, ids []uuid.UUID, res *C
 // latest non-test run of each task.
 func deletableRuns(q *bun.SelectQuery, idb bun.IDB) *bun.SelectQuery {
 	newer := idb.NewSelect().TableExpr("runs AS r2").ColumnExpr("1").
-		Where("r2.task_id = run.task_id AND r2.is_test = ?", false).
+		Where("r2.task_id = run.task_id AND r2.is_test = ? AND r2.archived_at IS NULL", false).
 		Where("(r2.queued_at > run.queued_at OR (r2.queued_at = run.queued_at AND r2.id > run.id))")
 	return endedRun(q).WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
 		return q.Where("run.is_test = ?", true).WhereOr("EXISTS (?)", newer)
@@ -452,6 +463,9 @@ func (r *Retention) deleteOldRuns(ctx context.Context, res *CleanupResult) (bool
 		n, logs, artifacts, logBytes, artifactBytes = 0, 0, 0, 0, 0
 		now := r.now()
 		var runs []store.Run
+		if err := lockRetentionRuns(ctx, tx, ids); err != nil {
+			return err
+		}
 		err := deletableRuns(tx.NewSelect().Model(&runs).
 			Column("run.id", "run.log_blob", "run.log_bytes", "run.logs_expired_at", "run.input_key"), tx).
 			Where("run.id IN (?)", bun.List(ids)).Scan(ctx)
@@ -512,4 +526,15 @@ func (r *Retention) deleteOldRuns(ctx context.Context, res *CleanupResult) (bool
 	res.Artifacts += artifacts
 	res.ArtifactBytes += artifactBytes
 	return len(ids) == retentionBatch, nil
+}
+
+// Serialise cleanup with manual archiving before rechecking eligibility.
+// SQLite serialises writers; this no-op update supplies the row lock on PostgreSQL.
+func lockRetentionRuns(ctx context.Context, tx bun.Tx, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := tx.NewUpdate().Model((*store.Run)(nil)).Set("archived_at = archived_at").
+		Where("id IN (?)", bun.List(ids)).Exec(ctx)
+	return err
 }

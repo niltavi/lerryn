@@ -393,6 +393,8 @@ type Run struct {
 	LogBytes *int64 `bun:"log_bytes"`
 	// LogsExpiredAt is when retention removed the run's log.
 	LogsExpiredAt time.Time `bun:"logs_expired_at,nullzero"`
+	// ArchivedAt pins this run and its database logs against retention.
+	ArchivedAt time.Time `bun:"archived_at,nullzero"`
 	// RetryDecidedAt is when the scheduler decided whether this ended
 	// attempt is retried; zero while undecided (tech design 8.5).
 	RetryDecidedAt time.Time `bun:"retry_decided_at,nullzero"`

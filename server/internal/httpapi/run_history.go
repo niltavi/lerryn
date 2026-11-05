@@ -33,6 +33,9 @@ func (h *handler) ListRuns(ctx context.Context, req ListRunsRequestObject) (List
 		ProjectID: pr.ProjectID, TaskID: pr.TaskID, Test: pr.Test, RerunOf: pr.RerunOf,
 		Since: pr.Since, Until: pr.Until, Limit: pr.Limit,
 	}
+	if pr.Archived != nil {
+		in.Archived = *pr.Archived
+	}
 	if pr.Status != nil {
 		for _, s := range *pr.Status {
 			in.Statuses = append(in.Statuses, string(s))
@@ -57,6 +60,7 @@ func (h *handler) ListRuns(ctx context.Context, req ListRunsRequestObject) (List
 		status, summary := resultFields(r.Result)
 		items[i] = RunSummary{
 			ID:            r.ID,
+			ArchivedAt:    optionalTime(r.ArchivedAt),
 			Task:          TaskRef{ID: r.TaskID, Name: it.TaskName, ProjectID: r.ProjectID},
 			Version:       r.VersionSeq,
 			Status:        RunStatus(r.Status),
@@ -77,6 +81,25 @@ func (h *handler) ListRuns(ctx context.Context, req ListRunsRequestObject) (List
 		}
 	}
 	return ListRuns200JSONResponse{Items: items, NextCursor: optional(page.NextCursor)}, nil
+}
+
+// SetRunArchive changes list visibility and durable log retention.
+func (h *handler) SetRunArchive(ctx context.Context, req SetRunArchiveRequestObject) (SetRunArchiveResponseObject, error) {
+	if h.runs == nil {
+		return nil, errNoRuns
+	}
+	if req.Body == nil {
+		return problemResponse[SetRunArchivedefaultApplicationProblemPlusJSONResponse](ctx, http.StatusBadRequest, ErrorCodeValidationFailed, "需要提供 archived 字段"), nil
+	}
+	d, err := h.runs.SetArchived(ctx, auth.PrincipalFrom(ctx), req.RunID, req.Body.Archived)
+	if err != nil {
+		return errorResponse[SetRunArchivedefaultApplicationProblemPlusJSONResponse](ctx, err)
+	}
+	run, err := h.toRun(d)
+	if err != nil {
+		return nil, err
+	}
+	return SetRunArchive200JSONResponse(run), nil
 }
 
 // RerunRun starts a new run modelled on a finished one.

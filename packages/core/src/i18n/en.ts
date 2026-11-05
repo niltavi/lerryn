@@ -88,6 +88,14 @@ export const en: Messages = {
     adminLogin: "Admin sign-in",
   },
   run: {
+    archive: "Archive record",
+    unarchive: "Unarchive record",
+    archived: "Archived",
+    archiveBody: "Move this run to Archived. Its record, full log and remaining artifacts will be kept without automatic cleanup. Task schedules and automatic retries continue.",
+    unarchiveBody: "Return this run to the default list. Records, logs and artifacts will follow the deployment's retention policy again.",
+    archiveExpired: "This log was already removed by retention and cannot be archived in full.",
+    archiveActive: "Wait for the run to finish before archiving it.",
+    archiveFailed: "The archive state could not be updated. Refresh and try again.",
     status: {
       queued: "Queued",
       preparing: "Preparing",
@@ -197,6 +205,8 @@ export const en: Messages = {
     tasks: "Tasks",
     copyLink: "Copy task link",
     runNow: "Run now",
+    delete: "Delete task",
+    deleteBody: "Deleting “{name}” stops its triggers and removes it from the task list. Started runs will finish. History remains available; archive records and logs you want to keep permanently.",
     skipNext: "Skip next run",
     stop: "Disable task",
     enable: "Enable task",
@@ -313,6 +323,7 @@ export const en: Messages = {
     filterLabel: "Filter by status",
     filter: {
       all: "All",
+      archived: "Archived",
       failed: "Failed",
       active: "Active",
     },

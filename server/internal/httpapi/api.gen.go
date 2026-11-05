@@ -2651,6 +2651,9 @@ type RetryPolicyOn string
 
 // Run 一次运行。
 type Run struct {
+	// ArchivedAt 手动归档的时间，未归档时为 null。归档后完整日志保存在数据库中，不再自动清理。
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
 	// Attempt 第几次尝试。自动重试时递增，手动发起和重跑从 1 开始。
 	Attempt         int  `json:"attempt"`
 	CancelRequested bool `json:"cancel_requested"`
@@ -2847,7 +2850,9 @@ type RunStatus string
 
 // RunSummary 运行列表中的一项。
 type RunSummary struct {
-	Attempt int `json:"attempt"`
+	// ArchivedAt 手动归档时间，未归档时为 null。
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+	Attempt    int        `json:"attempt"`
 
 	// CurrentStage 运行中时正在进行的阶段的显示名，其他为 null。
 	CurrentStage *string            `json:"current_stage"`
@@ -3037,6 +3042,12 @@ type SetMemberRequest struct {
 	// Role 项目角色（技术设计第 12.2 节）。viewer 查看任务、运行、日志和产物；maintainer 另外可以运行控制、
 	// 修改任务和触发器；owner 另外可以管理成员和项目设置。
 	Role ProjectRole `json:"role"`
+}
+
+// SetRunArchiveRequest 设置运行记录的手动归档状态。
+type SetRunArchiveRequest struct {
+	// Archived true 归档并长期保留，false 恢复到默认列表和原保留策略。
+	Archived bool `json:"archived"`
 }
 
 // SetTaskActivationRequest 激活或暂停任务。
@@ -4025,6 +4036,9 @@ type ListRunsParams struct {
 	// ProjectID 只返回这个项目中的数据。省略时返回调用者能查看的全部项目。
 	ProjectID *ProjectFilter `form:"project_id,omitempty" json:"project_id,omitempty"`
 
+	// Archived true 只返回手动归档的运行，false 或省略时只返回未归档的运行。
+	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
+
 	// TaskID 只返回这个任务的运行。
 	TaskID *openapi_types.UUID `form:"task_id,omitempty" json:"task_id,omitempty"`
 
@@ -4282,6 +4296,9 @@ type ApplyTaskJSONRequestBody = ApplyTaskRequest
 // RegisterToolJSONRequestBody defines body for RegisterTool for application/json ContentType.
 type RegisterToolJSONRequestBody = RegisterToolRequest
 
+// SetRunArchiveJSONRequestBody defines body for SetRunArchive for application/json ContentType.
+type SetRunArchiveJSONRequestBody = SetRunArchiveRequest
+
 // RerunRunJSONRequestBody defines body for RerunRun for application/json ContentType.
 type RerunRunJSONRequestBody = RerunRequest
 
@@ -4479,6 +4496,9 @@ type ServerInterface interface {
 	// GetRun 读取运行
 	// (GET /api/v1/runs/{runId})
 	GetRun(w http.ResponseWriter, r *http.Request, runID RunID, params GetRunParams)
+	// SetRunArchive 归档或恢复运行记录
+	// (PUT /api/v1/runs/{runId}/archive)
+	SetRunArchive(w http.ResponseWriter, r *http.Request, runID RunID)
 	// ListArtifacts 列出产物
 	// (GET /api/v1/runs/{runId}/artifacts)
 	ListArtifacts(w http.ResponseWriter, r *http.Request, runID RunID, params ListArtifactsParams)
@@ -6483,6 +6503,19 @@ func (siw *ServerInterfaceWrapper) ListRuns(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// ------------- Optional query parameter "archived" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "archived", r.URL.Query(), &params.Archived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "archived"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "archived", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "task_id" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "task_id", r.URL.Query(), &params.TaskID, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
@@ -6657,6 +6690,32 @@ func (siw *ServerInterfaceWrapper) GetRun(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetRun(w, r, runID, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRunArchive operation middleware
+func (siw *ServerInterfaceWrapper) SetRunArchive(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runID RunID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRunArchive(w, r, runID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8136,6 +8195,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs", wrapper.ListRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{runId}", wrapper.GetRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{runId}/cancel", wrapper.CancelRun)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{runId}/archive", wrapper.SetRunArchive)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{runId}/rerun", wrapper.RerunRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{runId}/events", wrapper.ListRunEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{runId}/logs", wrapper.ReadRunLogs)
@@ -10680,6 +10740,46 @@ func (response GetRundefaultApplicationProblemPlusJSONResponse) VisitGetRunRespo
 	return err
 }
 
+type SetRunArchiveRequestObject struct {
+	RunID RunID `json:"runId"`
+	Body  *SetRunArchiveJSONRequestBody
+}
+
+type SetRunArchiveResponseObject interface {
+	VisitSetRunArchiveResponse(w http.ResponseWriter) error
+}
+
+type SetRunArchive200JSONResponse Run
+
+func (response SetRunArchive200JSONResponse) VisitSetRunArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunArchivedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetRunArchivedefaultApplicationProblemPlusJSONResponse) VisitSetRunArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListArtifactsRequestObject struct {
 	RunID  RunID `json:"runId"`
 	Params ListArtifactsParams
@@ -12127,6 +12227,9 @@ type StrictServerInterface interface {
 	// GetRun 读取运行
 	// (GET /api/v1/runs/{runId})
 	GetRun(ctx context.Context, request GetRunRequestObject) (GetRunResponseObject, error)
+	// SetRunArchive 归档或恢复运行记录
+	// (PUT /api/v1/runs/{runId}/archive)
+	SetRunArchive(ctx context.Context, request SetRunArchiveRequestObject) (SetRunArchiveResponseObject, error)
 	// ListArtifacts 列出产物
 	// (GET /api/v1/runs/{runId}/artifacts)
 	ListArtifacts(ctx context.Context, request ListArtifactsRequestObject) (ListArtifactsResponseObject, error)
@@ -13898,6 +14001,39 @@ func (sh *strictHandler) GetRun(w http.ResponseWriter, r *http.Request, runID Ru
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetRunResponseObject); ok {
 		if err := validResponse.VisitGetRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetRunArchive operation middleware
+func (sh *strictHandler) SetRunArchive(w http.ResponseWriter, r *http.Request, runID RunID) {
+	var request SetRunArchiveRequestObject
+
+	request.RunID = runID
+
+	var body SetRunArchiveJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRunArchive(ctx, request.(SetRunArchiveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRunArchive")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRunArchiveResponseObject); ok {
+		if err := validResponse.VisitSetRunArchiveResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
