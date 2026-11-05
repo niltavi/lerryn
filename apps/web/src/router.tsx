@@ -26,7 +26,7 @@ import { AccountPage } from "./pages/settings/AccountPage";
 import { CredentialsPage } from "./pages/settings/CredentialsPage";
 import { NotificationsPage } from "./pages/settings/NotificationsPage";
 import { PairingPage } from "./pages/settings/PairingPage";
-import { SettingsLayout } from "./pages/settings/SettingsLayout";
+import { AccountSettingsLayout, KeySettingsLayout } from "./pages/settings/SettingsLayout";
 import { TokensPage } from "./pages/settings/TokensPage";
 import { ToolsPage } from "./pages/settings/ToolsPage";
 import { TaskPage } from "./pages/task/TaskPage";
@@ -104,7 +104,10 @@ const runsRoute = createRoute({ getParentRoute: () => appRoute, path: "runs", va
 const runRoute = createRoute({ getParentRoute: () => appRoute, path: "runs/$runId", component: RunPage });
 const taskRoute = createRoute({ getParentRoute: () => appRoute, path: "tasks/$taskId", component: TaskPage });
 
-const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings", component: SettingsLayout });
+const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings", component: Outlet });
+// Pathless groups keep existing console links while separating the two menus.
+const keySettingsRoute = createRoute({ getParentRoute: () => settingsRoute, id: "_key", component: KeySettingsLayout });
+const accountSettingsRoute = createRoute({ getParentRoute: () => settingsRoute, id: "_account", component: AccountSettingsLayout });
 const settingsIndexRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/",
@@ -113,20 +116,20 @@ const settingsIndexRoute = createRoute({
   },
 });
 const tokensRoute = createRoute({
-  getParentRoute: () => settingsRoute,
+  getParentRoute: () => keySettingsRoute,
   path: "tokens",
   validateSearch: (s: Record<string, unknown>): { new?: boolean } => (s.new ? { new: true } : {}),
   component: TokensPage,
 });
-const credentialsRoute = createRoute({ getParentRoute: () => settingsRoute, path: "credentials", component: CredentialsPage });
+const credentialsRoute = createRoute({ getParentRoute: () => keySettingsRoute, path: "credentials", component: CredentialsPage });
 const notificationsRoute = createRoute({
-  getParentRoute: () => settingsRoute,
+  getParentRoute: () => accountSettingsRoute,
   path: "notifications",
   component: NotificationsPage,
 });
-const pairingRoute = createRoute({ getParentRoute: () => settingsRoute, path: "pairing", component: PairingPage });
-const accountRoute = createRoute({ getParentRoute: () => settingsRoute, path: "account", component: AccountPage });
-const toolsRoute = createRoute({ getParentRoute: () => settingsRoute, path: "tools", component: ToolsPage });
+const pairingRoute = createRoute({ getParentRoute: () => accountSettingsRoute, path: "pairing", component: PairingPage });
+const accountRoute = createRoute({ getParentRoute: () => accountSettingsRoute, path: "account", component: AccountPage });
+const toolsRoute = createRoute({ getParentRoute: () => keySettingsRoute, path: "tools", component: ToolsPage });
 
 // Admin pages answer "not found" to everyone else, like the API does.
 const adminRoute = createRoute({
@@ -159,12 +162,8 @@ const routeTree = rootRoute.addChildren([
     taskRoute,
     settingsRoute.addChildren([
       settingsIndexRoute,
-      tokensRoute,
-      credentialsRoute,
-      notificationsRoute,
-      pairingRoute,
-      toolsRoute,
-      accountRoute,
+      keySettingsRoute.addChildren([tokensRoute, credentialsRoute, toolsRoute]),
+      accountSettingsRoute.addChildren([notificationsRoute, pairingRoute, accountRoute]),
     ]),
     adminRoute.addChildren([adminIndexRoute, adminUsersRoute, adminLoginRoute, adminRunnersRoute, adminAuditRoute]),
   ]),

@@ -297,6 +297,9 @@ function fakeServer(opts: FakeOptions = {}) {
         return json({ items: opts.role ? [{ ...PROJECT, role: opts.role }] : [], next_cursor: null });
       case "GET /api/v1/credential-requests":
         return json({ items: opts.pendingCredentialRequests ?? [], next_cursor: null });
+      case "GET /api/v1/me/tokens":
+      case "GET /api/v1/me/devices":
+        return json({ items: [], next_cursor: null });
       case "GET /api/v1/notification-channels":
         return json({ items: channels });
       case "POST /api/v1/notification-channels": {
@@ -380,6 +383,87 @@ function renderApp(path: string, opts: FakeOptions = {}) {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("settings navigation", () => {
+  it("opens Key from the key icon and Account from the avatar", async () => {
+    const { router, server } = renderApp("/");
+    const user = userEvent.setup();
+    const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
+    await user.click(rail.getByRole("link", { name: "密钥" }));
+    await screen.findByRole("main", { name: "访问令牌" });
+    expect(router.state.location.pathname).toBe("/settings/tokens");
+    const keyMenu = screen.getByRole("region", { name: "密钥" });
+    expect(within(keyMenu).getAllByRole("link").map((link) => link.querySelector(".li-name")?.textContent)).toEqual(["访问令牌", "凭证", "工具"]);
+    expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBe("page");
+    expect(server.requests.some((req) => ["/api/v1/notification-channels", "/api/v1/me/devices"].includes(req.path))).toBe(false);
+
+    await user.click(rail.getByRole("link", { name: "张林 · 账号" }));
+    await screen.findByRole("heading", { level: 1, name: "账号" });
+    expect(router.state.location.pathname).toBe("/settings/account");
+    expect(screen.queryByRole("region", { name: "密钥" })).toBeNull();
+    const accountMenu = within(screen.getByRole("region", { name: "账号" }));
+    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["通知", "手机", "账号"]);
+    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
+    expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBeNull();
+
+    await user.click(accountMenu.getByRole("link", { name: "通知" }));
+    await screen.findByRole("main", { name: "通知" });
+    expect(router.state.location.pathname).toBe("/settings/notifications");
+    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
+    await user.click(accountMenu.getByRole("link", { name: "手机" }));
+    await screen.findByRole("main", { name: "手机" });
+    expect(router.state.location.pathname).toBe("/settings/pairing");
+  });
+
+  it.each([
+    ["/settings/tokens?new=true", "密钥", "访问令牌", "密钥"],
+    ["/settings/credentials", "密钥", "凭证", "密钥"],
+    ["/settings/tools", "密钥", "工具", "密钥"],
+    ["/settings/notifications", "账号", "通知", "张林 · 账号"],
+    ["/settings/pairing", "账号", "手机", "张林 · 账号"],
+    ["/settings/account", "账号", "账号", "张林 · 账号"],
+  ])("keeps the menu and rail selection on a direct visit to %s", async (path, menu, section, entry) => {
+    const { server } = renderApp(path);
+    if (path.includes("?new")) {
+      const dialog = await screen.findByRole("dialog", { name: "新建令牌" });
+      await userEvent.setup().click(within(dialog).getByRole("button", { name: "取消" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    }
+    const list = within(await screen.findByRole("region", { name: menu }));
+    const selected = list.getAllByRole("link").find((link) => link.getAttribute("aria-current") === "page");
+    expect(selected?.textContent).toContain(section);
+    const rail = within(screen.getByRole("navigation", { name: "主导航" }));
+    expect(rail.getByRole("link", { name: entry }).getAttribute("aria-current")).toBe("page");
+    expect(rail.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(1);
+    if (menu === "账号") {
+      expect(server.requests.some((req) => ["/api/v1/me/tokens", "/api/v1/tools"].includes(req.path))).toBe(false);
+    }
+  });
+
+  it("places the admin entry immediately above the avatar and opens organization settings", async () => {
+    const { router } = renderApp("/settings/account", { admin: true });
+    const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
+    const admin = rail.getByRole("link", { name: "管理" });
+    expect(admin.parentElement?.className).toBe("rail-foot");
+    expect(admin.nextElementSibling).toBe(rail.getByRole("link", { name: "张林 · 账号" }));
+    await userEvent.setup().click(admin);
+    const menu = within(await screen.findByRole("region", { name: "管理" }));
+    expect(router.state.location.pathname).toBe("/admin/users");
+    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "登录", "执行节点", "审计"]);
+    expect(admin.getAttribute("aria-current")).toBe("page");
+    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBeNull();
+  });
+
+  it.each(["/admin", "/admin/users", "/admin/login", "/admin/runners", "/admin/audit"])("hides the admin entry and rejects a non-admin visit to %s", async (path) => {
+    const { router, server } = renderApp("/settings/account");
+    const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
+    expect(rail.queryByRole("link", { name: "管理" })).toBeNull();
+    await act(() => router.navigate({ to: path }));
+    await screen.findByText("找不到");
+    expect(screen.queryByRole("region", { name: "管理" })).toBeNull();
+    expect(server.requests.some((req) => req.path.startsWith("/api/v1/admin/"))).toBe(false);
+  });
+});
 
 const createdChannel = (body: Schemas["CreateNotificationChannelRequest"]): Schemas["CreatedNotificationChannel"] => ({
   channel: {

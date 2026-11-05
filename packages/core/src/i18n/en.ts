@@ -14,6 +14,8 @@ export const en: Messages = {
     admin: "Admin",
     settings: "Settings",
     settingsOf: "{name} · Settings",
+    accountOf: "{name} · Account",
+    keysPending: "Key, {count} credentials to fill in",
     credentialsPending: "Credentials, {count} to fill in",
     wrongOrigin: "Read-only at this address. Make changes at the deployment's address",
     openDeployment: "Open the deployment's address {expected}",
@@ -311,6 +313,7 @@ export const en: Messages = {
   },
   settings: {
     title: "Settings",
+    keyTitle: "Key",
     tokens: "Access tokens",
     credentials: "Credentials",
     notifications: "Notifications",

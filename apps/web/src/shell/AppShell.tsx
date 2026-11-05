@@ -1,6 +1,6 @@
 import { LiveModeProvider, useDiscovery, useEventStream, useI18n, usePendingCredentialRequests, type Me } from "@lerryn/core";
 import { Logo } from "@lerryn/ui-web";
-import { Link, Outlet, useRouteContext } from "@tanstack/react-router";
+import { Link, Outlet, useMatch, useRouteContext } from "@tanstack/react-router";
 import { ArrowUpRight, Eye, History, KeyRound, LayoutDashboard, Shield, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -23,6 +23,7 @@ function RailLink({
   tip,
   icon: Icon,
   exact,
+  active,
   pip,
   children,
 }: {
@@ -31,6 +32,7 @@ function RailLink({
   tip?: string;
   icon?: LucideIcon;
   exact?: boolean;
+  active?: boolean;
   pip?: boolean;
   children?: ReactNode;
 }) {
@@ -41,7 +43,8 @@ function RailLink({
       aria-label={label}
       data-tip={tip ?? label}
       activeOptions={{ exact: !!exact }}
-      activeProps={{ "aria-current": "page" }}
+      aria-current={active ? "page" : undefined}
+      activeProps={active === undefined ? { "aria-current": "page" } : {}}
     >
       {Icon ? <Icon className="wl-icon" width={22} height={22} aria-hidden="true" /> : null}
       {children}
@@ -59,6 +62,8 @@ function RailLink({
 export function AppShell() {
   const { t } = useI18n();
   const me = useCurrentUser();
+  const inKeySettings = !!useMatch({ from: "/app/settings/_key", shouldThrow: false });
+  const inAccountSettings = !!useMatch({ from: "/app/settings/_account", shouldThrow: false });
   const mode = useEventStream({ enabled: true });
   const requests = usePendingCredentialRequests();
   const pending = requests.data?.items.length ?? 0;
@@ -76,15 +81,16 @@ export function AppShell() {
             <RailLink to="/" exact label={t("nav.overview")} icon={LayoutDashboard} />
             <RailLink to="/runs" label={t("nav.runs")} icon={History} />
             <RailLink
-              to="/settings/credentials"
-              label={pending ? t("nav.credentialsPending", { count: requests.hasNextPage ? `${pending}+` : pending }) : t("nav.credentials")}
-              tip={t("nav.credentials")}
+              to="/settings/tokens"
+              label={pending ? t("nav.keysPending", { count: requests.hasNextPage ? `${pending}+` : pending }) : t("settings.keyTitle")}
+              tip={t("settings.keyTitle")}
               icon={KeyRound}
+              active={inKeySettings}
               pip={pending > 0}
             />
-            {me.is_admin ? <RailLink to="/admin" label={t("nav.admin")} icon={Shield} /> : null}
             <div className="rail-foot">
-              <RailLink to="/settings/tokens" label={t("nav.settingsOf", { name })}>
+              {me.is_admin ? <RailLink to="/admin" label={t("nav.admin")} icon={Shield} /> : null}
+              <RailLink to="/settings/account" label={t("nav.accountOf", { name })} active={inAccountSettings}>
                 <span className="avatar" aria-hidden="true">
                   {initialOf(me)}
                 </span>

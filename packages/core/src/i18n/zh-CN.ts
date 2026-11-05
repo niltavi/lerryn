@@ -15,6 +15,8 @@ export const zhCN = {
     admin: "管理",
     settings: "个人设置",
     settingsOf: "{name} · 个人设置",
+    accountOf: "{name} · 账号",
+    keysPending: "密钥，{count} 个凭证待填写",
     credentialsPending: "凭证，{count} 个待填写",
     wrongOrigin: "当前地址只能查看，修改请改用部署地址",
     openDeployment: "改用部署地址 {expected}",
@@ -311,6 +313,7 @@ export const zhCN = {
   },
   settings: {
     title: "个人设置",
+    keyTitle: "密钥",
     tokens: "访问令牌",
     credentials: "凭证",
     notifications: "通知",

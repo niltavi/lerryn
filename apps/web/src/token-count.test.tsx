@@ -81,7 +81,7 @@ function renderTokens(items: AccessToken[], options: {
 }
 
 function sidebarCount() {
-  const settings = screen.getByRole("region", { name: /^(个人设置|Settings)$/ });
+  const settings = screen.getByRole("region", { name: /^(密钥|Key)$/ });
   const link = within(settings).getByRole("link", { name: /^(访问令牌|Access tokens)/ });
   return link.querySelector(".li-meta")?.textContent;
 }
