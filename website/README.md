@@ -23,6 +23,8 @@ The build writes `website/dist/`. Open its `index.html` directly for a local rev
 
 The build copies the current logo from `design/brand/logo/` and inlines `lerryn-mark.svg` in the header with theme colors, so dark pages need no light plate; do not edit a separate logo copy. Fonts and other assets are served locally. The pages have no analytics, account forms, runtime API calls, or framework dependencies.
 
+The favicon uses `lerryn-icon-circle.svg`: the original wave on a warm-paper circle with a fine border, following niltavi.com. A matching 32px PNG provides a fallback, and a 180px PNG serves as the Apple touch icon. Run `pnpm design:logo` to regenerate these assets from the logo master before building the website.
+
 ## Hosting
 
 Configure a static host with the repository root as its working directory, Node.js 24, build command `pnpm website:build`, and output directory `website/dist`. The build itself uses only Node built-ins and does not require dependency installation. `_headers` applies the supplied security policy on hosts that support the format, including Cloudflare Pages; use equivalent host settings elsewhere. Preserve `/zh/` as a directory route.
