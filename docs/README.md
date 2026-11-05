@@ -11,6 +11,7 @@ Lerryn 是由外部 Agent 通过 HTTP API、MCP 和 CLI 操作的自部署自动
 | [Repository overview and documentation index](en/README.md) | [仓库介绍与文档目录](README.zh-CN.md) |
 | [Deployment and operations](en/deploy.md) | [部署与运维](deploy.md) |
 | [CLI and agent access](en/cli.md) | [CLI 与 Agent 接入](cli.md) |
+| [Tools integration](en/tools.md) | [Tools 接入](tools.md) |
 | [Getting started](en/getting-started.md) | [快速入门](getting-started.md) |
 | [Day-to-day operations](en/operations.md) | [日常运维](operations.md) |
 

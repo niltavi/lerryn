@@ -1,16 +1,33 @@
 import { groupToolsByProject, toolLocation, useI18n, useProjects, useTools, type Tool, type ToolGroup } from "@lerryn/core";
 import { CopyButton, StateCard } from "@lerryn/ui-web";
-import { Copy, FileCode, Globe, Plug } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { BookOpen, Copy, FileCode, Globe, Plug } from "lucide-react";
 
-import { Board, BoardTop, LoadError, usePageTitle } from "../../shell/layout";
+import guideZh from "../../../../../docs/tools.md?url";
+import guideEn from "../../../../../docs/en/tools.md?url";
+import { origin } from "../../lib/hooks";
+import { Board, LoadError, usePageTitle } from "../../shell/layout";
 
-/**
- * Tools registered in the projects the user can see (tech design 7.8),
- * read-only: agents register and remove them through the API, and the
- * console does not edit what tasks run with (tech design 13.3).
- */
+// These are Lerryn's own MCP tools, separate from the project registry.
+const BUILTIN_TOOLS = [
+  ["discover", "read"],
+  ["task_get", "read"],
+  ["task_apply", "write"],
+  ["task_validate", "read"],
+  ["trigger_set", "write"],
+  ["task_set_active", "execute"],
+  ["run_start", "execute"],
+  ["run_get", "read"],
+  ["run_logs", "read"],
+  ["run_cancel", "execute"],
+  ["run_rerun", "execute"],
+  ["credential_request", "write"],
+  ["api_describe", "read"],
+  ["api_call", "perOperation"],
+] as const;
+
 export function ToolsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   usePageTitle(t("tools.title"));
   const tools = useTools(null);
   const projects = useProjects();
@@ -18,15 +35,76 @@ export function ToolsPage() {
 
   return (
     <Board label={t("tools.title")}>
-      <BoardTop title={t("tools.title")} />
-      {tools.isError ? (
-        <LoadError error={tools.error} onRetry={() => void tools.refetch()} />
-      ) : tools.data && groups.length === 0 ? (
-        <StateCard icon={Plug} title={t("tools.empty")} />
-      ) : (
-        groups.map((g) => <Group key={g.projectId} group={g} labelled={groups.length > 1} />)
-      )}
+      <div className="board-top">
+        <h1 className="h2">{t("tools.title")}</h1>
+        <a href={locale === "en" ? guideEn : guideZh} download="lerryn-tools.md" className="row">
+          <BookOpen className="wl-icon" aria-hidden="true" />
+          {t("tools.guide")}
+        </a>
+      </div>
+      <p className="body-sm muted">{t("tools.intro")}</p>
+      <Interfaces />
+      <section className="stack" aria-labelledby="builtin-tools-title" style={{ gap: "var(--space-3)" }}>
+        <h2 className="sec-label" id="builtin-tools-title">{t("tools.builtins")}</h2>
+        <p className="body-sm muted">{t("tools.builtinsHelp")}</p>
+        <div className="rows" role="list" aria-label={t("tools.builtins")}>
+          {BUILTIN_TOOLS.map(([name, scope]) => (
+            <div className="rowi" role="listitem" key={name}>
+              <span className="ic-box" aria-hidden="true"><Plug className="wl-icon" /></span>
+              <div style={{ minWidth: 0 }}>
+                <code className="rowi-name">{name}</code>
+                <p className="body-sm muted">{t(`tools.builtin.${name}`)}</p>
+              </div>
+              <span className="tag tag--mono">{scope === "perOperation" ? t("tools.perOperation") : scope}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="stack" aria-labelledby="sdk-title" style={{ gap: "var(--space-3)" }}>
+        <h2 className="sec-label" id="sdk-title">{t("tools.sdk")}</h2>
+        <p className="body-sm muted">{t("tools.sdkHelp")}</p>
+        <pre className="data-pre"><code>{`sbx stage start fetch
+sbx stage done fetch
+sbx result --status ok --summary "Done" --data-json '{"count": 1}'`}</code></pre>
+      </section>
+      <section className="stack" aria-labelledby="project-tools-title" style={{ gap: "var(--space-3)" }}>
+        <h2 className="sec-label" id="project-tools-title">{t("tools.registered")}</h2>
+        <p className="body-sm muted">{t("tools.registeredHelp")}</p>
+        {tools.isError ? (
+          <LoadError error={tools.error} onRetry={() => void tools.refetch()} />
+        ) : tools.data && groups.length === 0 ? (
+          <StateCard icon={Plug} title={t("tools.empty")} />
+        ) : (
+          groups.map((g) => <Group key={g.projectId} group={g} labelled={groups.length > 1} />)
+        )}
+      </section>
     </Board>
+  );
+}
+
+function Interfaces() {
+  const { t } = useI18n();
+  const base = origin();
+  const lines = [
+    ["MCP", `${base}/mcp`, "tokens.copyMcp"],
+    ["HTTP API", `${base}/api/v1`, "tokens.copyApi"],
+    ["CLI", `lerryn login ${base}`, "tokens.copyCli"],
+    ["Skill", "lerryn skills install", "tokens.copySkills"],
+  ] as const;
+  return (
+    <section className="stack" aria-labelledby="tool-interfaces-title" style={{ gap: "var(--space-3)" }}>
+      <h2 className="sec-label" id="tool-interfaces-title">{t("tools.interfaces")}</h2>
+      <p className="body-sm muted">{t("tools.authHelp")} <Link to="/settings/tokens">{t("tools.manageTokens")}</Link></p>
+      <div className="copygrid">
+        {lines.map(([name, value, label]) => (
+          <div className="copyline copyline--wrap" key={name}>
+            <span className="tag tag--mono">{name}</span>
+            <code>{value}</code>
+            <CopyButton value={value} label={t(label)} icon={Copy} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
