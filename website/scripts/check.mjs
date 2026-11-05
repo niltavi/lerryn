@@ -63,14 +63,16 @@ const paletteBlocks = [
 ];
 for (const block of paletteBlocks) {
   const palette = Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[\da-f]{6}|#[\da-f]{3})(?![\da-f])/gi)].map((m) => [m[1], m[2]]));
-  for (const background of [palette.paper, palette.surface]) {
-    for (const color of [palette.ink, palette.muted, palette.stream]) {
-      const a = luminance(background), b = luminance(color);
-      assert((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5, `Text contrast failed: ${color} on ${background}`);
-    }
+  const contrast = (x, y) => { const a = luminance(palette[x]), b = luminance(palette[y]); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
+  for (const background of ['paper', 'surface']) {
+    for (const color of ['ink', 'muted', 'link']) assert(contrast(color, background) >= 4.5, `Text contrast failed: ${color} on ${background}`);
+    // Ochre only colors large serif heading words, which need 3:1.
+    assert(contrast('ochre', background) >= 3, `Heading accent contrast failed on ${background}`);
   }
-  const a = luminance(palette.stream), b = luminance(palette['on-stream']);
-  assert((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5, 'Button contrast failed');
+  for (const color of ['ink', 'link']) assert(contrast(color, 'surface-2') >= 4.5, `Text contrast failed: ${color} on surface-2`);
+  assert(contrast('ink', 'surface-3') >= 4.5, 'Code contrast failed');
+  assert(contrast('accent', 'on-accent') >= 4.5, 'Button contrast failed');
+  assert(contrast('success', 'success-soft') >= 4.5, 'Status chip contrast failed');
 }
 assert((await readFile(resolve(dist, 'robots.txt'), 'utf8')).includes(`${origin}/sitemap.xml`));
 console.log('Local font assets, sitemap discovery, and light/dark text contrast passed');

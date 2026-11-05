@@ -13,9 +13,10 @@ The build writes `website/dist/`. Open its `index.html` directly for a local rev
 
 - `content.mjs`: both languages, interface examples, and canonical domain.
 - `scripts/build.mjs`: semantic HTML, metadata, sitemap, and security headers.
-- `assets/site.css`: responsive Niltavi paper / forest palette with Lerryn stream accents.
+- `assets/site.css`: responsive layout on the Niltavi UI palette (`design/niltavi-ui/tokens.json`), Cormorant Garamond headings, and DM Sans text.
+- `scripts/plate.mjs`: the hero illustration, inline SVG colored through CSS classes so it follows the theme.
 - `assets/site.js`: optional theme selection, accessible code tabs, and clipboard actions. All content stays available without JavaScript.
-- `assets/fonts/`: DM Sans 5.3.0 files already used by the application, with their original OFL license.
+- `assets/fonts/`: DM Sans 5.3.0 files already used by the application and Cormorant Garamond 5.3.0, each with its original OFL license.
 
 The build copies the current logo from `design/brand/logo/`; do not edit a separate logo copy. Fonts and other assets are served locally. The pages have no analytics, account forms, runtime API calls, or framework dependencies.
 
