@@ -1,5 +1,5 @@
 .git
-.github
+.gitea
 .claude
 node_modules
 **/node_modules

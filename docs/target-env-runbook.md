@@ -2,7 +2,7 @@
 
 这份手册写给在目标 Linux 主机上做发布前验证的人：每一步要执行的命令、预期结果，以及结果记到哪里。它对应实施规划"首个企业试用版"中还差的几项：本地以外的完整检查、B01 的 24 小时运行、带真实容器的容量复测、原生 dockerd 上的容器间隔离、rootless Docker 和 Podman 的兼容情况，以及和企业 OIDC 提供方的联调。
 
-GitHub Actions 关闭期间，这里的结果就是发布的依据。每次验证都针对一个确定的提交或候选 tag（例如 `v0.9.0-rc.1`），记录时写明。
+Gitea Actions 的 runner 配置见 [CI 配置](ci.md)。CI 首次运行通过前，以本地检查和本手册的验证结果作为发布依据；启用 CI 后，目标环境验证仍需完成。每次验证都针对一个确定的提交或候选 tag（例如 `v0.9.0-rc.1`），记录时写明。
 
 ## 1 主机准备
 
@@ -40,7 +40,7 @@ grep -s iptables /etc/docker/daemon.json                        # 没有 "iptabl
 取代码并安装依赖：
 
 ```bash
-git clone https://github.com/niltavi/lerryn.git && cd lerryn
+git clone https://git.yarinz.com/niltavi/lerryn.git && cd lerryn
 git checkout v0.9.0-rc.1                                       # 被验证的候选版本
 pnpm install --frozen-lockfile
 go mod download

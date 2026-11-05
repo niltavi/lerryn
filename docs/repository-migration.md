@@ -10,6 +10,8 @@
 - 镜像目标：`ghcr.io/niltavi/lerryn`
 - 官网目标：`https://lerryn.niltavi.com`
 
+CI 与镜像发布使用 Gitea Actions，工作流位于 `.gitea/workflows/`；GitHub 远端不运行工作流。Runner 与发布凭证的配置见 [Gitea Actions 配置](ci.md)。
+
 两个远端使用同一个 `main` 分支和相同的提交。Git 提交标题与正文使用英文，按 Git 命令式标题风格书写。仓库隐私沿用原项目的私有设置，公开发布由维护者另行决定。
 
 本次搬迁不发布容器镜像、不修改域名 DNS，也不部署官网。已有部署的配置、协议前缀与兼容格式见[改名与升级](rename-to-lerryn.md)。原仓库只保留作为搬迁来源，不再同步新项目提交。
