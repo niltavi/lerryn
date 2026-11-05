@@ -91,6 +91,8 @@ export function errorCodeLabel(code: string | null | undefined, t: Translate): s
 /** The words for why a run was skipped. */
 export function skipReasonLabel(reason: string | null | undefined, t: Translate): string | null {
   switch (reason) {
+    case "manual":
+      return t("run.skip.manual");
     case "overlap":
       return t("run.skip.overlap");
     case "queue_full":

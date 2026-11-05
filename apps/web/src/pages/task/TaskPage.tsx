@@ -54,6 +54,7 @@ import { NotFoundBody } from "../NotFoundPage";
 import { RunNowButton } from "../run/RunActions";
 import { TaskListColumn } from "../TaskListColumn";
 import { VersionDiffDialog } from "./VersionDiffDialog";
+import { TaskActions } from "./TaskActions";
 
 export function TaskPage() {
   const { taskId } = useParams({ from: "/app/tasks/$taskId" });
@@ -89,6 +90,7 @@ function TaskBoard({ task }: { task: Task }) {
   const active = task.state === "active" && !task.archived_at;
   const allTriggers = triggers.data?.triggers ?? [];
   const nextFire = allTriggers
+    .filter((tr) => tr.enabled && tr.type === "cron")
     .map((tr) => tr.next_fire_at)
     .filter((x): x is string => !!x)
     .sort()[0];
@@ -122,6 +124,7 @@ function TaskBoard({ task }: { task: Task }) {
           )}
         </span>
         <div className="tools">
+          <TaskActions key={task.id} task={task} nextFire={nextFire} />
           <RunNowButton task={task} />
           <CopyButton value={task.links.console} label={t("task.copyLink")} icon={Link2} />
         </div>

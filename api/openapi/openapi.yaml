@@ -123,6 +123,8 @@ paths:
     $ref: ./tasks/paths.yaml#/taskExport
   /api/v1/tasks/{taskId}/triggers:
     $ref: ./triggers/paths.yaml#/taskTriggers
+  /api/v1/tasks/{taskId}/skip-next-run:
+    $ref: ./triggers/paths.yaml#/skipNextRun
   /api/v1/tasks/{taskId}/runs:
     $ref: ./runs/paths.yaml#/taskRuns
   /api/v1/triggers/{triggerId}/rotate-token:
@@ -557,6 +559,8 @@ components:
       $ref: ./triggers/schemas.yaml#/Trigger
     TriggerSet:
       $ref: ./triggers/schemas.yaml#/TriggerSet
+    SkipNextRunRequest:
+      $ref: ./triggers/schemas.yaml#/SkipNextRunRequest
     WebhookAccepted:
       $ref: ./triggers/schemas.yaml#/WebhookAccepted
     Overview:

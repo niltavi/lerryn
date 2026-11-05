@@ -1,9 +1,8 @@
-// Reads about one task: its runs, triggers, credentials, versions and diffs.
-// The console never edits a task (tech design 13.3), so there are no writes.
+// Task reads and lifecycle controls shared by the console clients.
 import type { Schemas } from "@lerryn/api";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { unwrap, useApi } from "../client";
+import { unwrap, useApi, useApiSession } from "../client";
 import { shouldRetry } from "../errors";
 import { usePollInterval } from "../live/live";
 import { isRunActive } from "../status";
@@ -17,6 +16,38 @@ export type TaskDiff = Schemas["TaskDiff"];
 export type FileDiff = Schemas["FileDiff"];
 
 const ACTIVE_POLL_MS = 3_000;
+
+export type TaskControl =
+  | { action: "pause" }
+  | { action: "resume"; version: number }
+  | { action: "skip"; scheduledAt: string };
+
+/** Refresh even after a lost response: the server may have committed the change. */
+export function useTaskControl(taskId: string) {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: TaskControl): Promise<Schemas["Task"] | TriggerSet> => input.action === "skip"
+      ? unwrap(session.client.POST("/api/v1/tasks/{taskId}/skip-next-run", {
+          params: { path: { taskId } }, body: { scheduled_at: input.scheduledAt },
+        }))
+      : unwrap(session.client.POST("/api/v1/tasks/{taskId}/activation", {
+          params: { path: { taskId } },
+          body: input.action === "resume" ? { active: true, version: input.version } : { active: false },
+        })),
+    onMutate: session.capture,
+    onSettled: (_data, _error, _input, isCurrent) => {
+      if (!isCurrent?.()) return;
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.overviewAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.calendarAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.runListAll }),
+      ]);
+    },
+  });
+}
 
 /** The latest runs of a task, newest first. */
 export function useTaskRuns(taskId: string, limit = 30) {
