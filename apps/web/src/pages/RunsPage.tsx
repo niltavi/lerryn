@@ -1,49 +1,38 @@
 import {
   RUN_FILTER_STATUSES,
-  elapsedMs,
-  formatDuration,
-  formatLogTime,
-  isAttentionStatus,
-  isNotFound,
   isRunActive,
-  runCause,
-  runStatusMeta,
   shortId,
-  shouldRetry,
-  unwrap,
-  useApi,
   useI18n,
-  useReruns,
-  useRun,
   useRunList,
-  useTask,
-  type Run,
   type RunFilter,
   type RunSummary,
 } from "@lerryn/core";
-import { CopyButton, RunStages, StatusGlyph, StatusIcon } from "@lerryn/ui-web";
-import { useQuery } from "@tanstack/react-query";
+import { StatusGlyph } from "@lerryn/ui-web";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowUpRight, CircleAlert, Hash, RotateCcw } from "lucide-react";
+import { Kanban, List } from "lucide-react";
+import { useEffect } from "react";
 
 import { useNow } from "../lib/hooks";
 import { shortWhen, skipReasonLabel } from "../lib/present";
-import { Board, ListColumn, LoadError, LoadMore, usePageTitle } from "../shell/layout";
-import { NotFoundBody } from "./NotFoundPage";
-import { RetryButton } from "./run/RunActions";
-import { ArchiveRunButton } from "./run/ArchiveRunButton";
+import { Board, ListColumn, LoadMore, usePageTitle } from "../shell/layout";
+import { RunPreview } from "./RunPreview";
+import { RunsBoard } from "./RunsBoard";
 
 export interface RunsSearch {
   run?: string;
   filter?: RunFilter;
   task?: string;
+  view?: RunsView;
 }
+
+export type RunsView = "list" | "board";
 
 export function validateRunsSearch(s: Record<string, unknown>): RunsSearch {
   const out: RunsSearch = {};
   if (typeof s.run === "string" && s.run) out.run = s.run;
   if (s.filter === "failed" || s.filter === "active" || s.filter === "archived") out.filter = s.filter;
   if (typeof s.task === "string" && s.task) out.task = s.task;
+  if (s.view === "board" || s.view === "list") out.view = s.view;
   return out;
 }
 
@@ -59,17 +48,29 @@ export function RunsPage() {
   const search = useSearch({ from: "/app/runs" });
   const navigate = useNavigate();
   const filter = search.filter ?? "all";
-  const runs = useRunList({ status: RUN_FILTER_STATUSES[filter], taskId: search.task, archived: filter === "archived" });
+  const view = search.view ?? storedRunsView();
+  useEffect(() => {
+    if (search.view) storeRunsView(search.view);
+  }, [search.view]);
+  const runs = useRunList(
+    { status: RUN_FILTER_STATUSES[filter], taskId: search.task, archived: filter === "archived" },
+    { enabled: view === "list" },
+  );
   const items = runs.data?.items ?? [];
   const selected = search.run ?? items[0]?.id;
   const now = useNow(30_000);
 
   const setFilter = (f: RunFilter) =>
     void navigate({ to: "/runs", search: { ...(f === "all" ? {} : { filter: f }), ...(search.task ? { task: search.task } : {}) }, replace: true });
+  const viewSwitch = <ViewSwitch view={view} task={search.task} />;
+
+  if (view === "board") {
+    return <RunsBoard taskId={search.task} runId={search.run} viewSwitch={viewSwitch} />;
+  }
 
   return (
     <>
-      <ListColumn title={t("runs.title")} label={t("runs.list")}>
+      <ListColumn title={t("runs.title")} label={t("runs.list")} tools={viewSwitch} inlineTools>
         <div className="list-seg">
           <div className="seg seg--block" role="group" aria-label={t("runs.filterLabel")}>
             {FILTERS.map((f) => (
@@ -109,6 +110,44 @@ export function RunsPage() {
   );
 }
 
+const VIEW_KEY = "lerryn.runs.view";
+
+/** The view last chosen on this browser; the list when none was or storage is off. */
+export function storedRunsView(): RunsView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "board" ? "board" : "list";
+  } catch {
+    return "list";
+  }
+}
+
+function storeRunsView(view: RunsView) {
+  try {
+    localStorage.setItem(VIEW_KEY, view);
+  } catch {
+    // Remembering the view is a convenience; private windows may refuse it.
+  }
+}
+
+/** List / Board as plain links, so each view has its own address. */
+function ViewSwitch({ view, task }: { view: RunsView; task?: string }) {
+  const { t } = useI18n();
+  const views: [RunsView, typeof List, string][] = [
+    ["list", List, t("runs.view.list")],
+    ["board", Kanban, t("runs.view.board")],
+  ];
+  return (
+    <nav className="seg" aria-label={t("runs.view.label")}>
+      {views.map(([v, Icon, label]) => (
+        <Link key={v} to="/runs" search={{ view: v, ...(task ? { task } : {}) }} aria-current={view === v ? "page" : undefined}>
+          <Icon className="wl-icon" width={16} height={16} aria-hidden="true" />
+          {label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function RunItem({ run, current, now }: { run: RunSummary; current: boolean; now: number }) {
   const { t, locale } = useI18n();
   const search = useSearch({ from: "/app/runs" });
@@ -144,120 +183,5 @@ function RunItem({ run, current, now }: { run: RunSummary; current: boolean; now
       </span>
       <span className={bad ? "li-meta bad" : "li-meta"}>{shortWhen(run.started_at ?? run.queued_at, locale, now)}</span>
     </Link>
-  );
-}
-
-/** The last lines of a run's log, for the preview. */
-function useLogTail(runId: string, active: boolean, expired: boolean) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ["runs", runId, "logs", "tail"],
-    queryFn: () => unwrap(api.GET("/api/v1/runs/{runId}/logs", { params: { path: { runId }, query: { tail: 8 } } })),
-    refetchInterval: active ? 3_000 : false,
-    enabled: !expired,
-    retry: shouldRetry,
-  });
-}
-
-function RunPreview({ runId }: { runId: string }) {
-  const run = useRun(runId);
-  if (run.isPending) return null;
-  if (run.isError) {
-    return isNotFound(run.error) ? <NotFoundBody /> : <LoadError error={run.error} onRetry={() => void run.refetch()} />;
-  }
-  return <PreviewBody run={run.data} />;
-}
-
-function PreviewBody({ run }: { run: Run }) {
-  const { t, locale } = useI18n();
-  const active = isRunActive(run.status);
-  const now = useNow(1000, active);
-  const meta = runStatusMeta(run.status);
-  const cause = runCause(run);
-  const logsExpired = !!run.logs_expired_at;
-  const tail = useLogTail(run.id, active, logsExpired);
-  const task = useTask(run.task_id);
-  const reruns = useReruns(run.id, isAttentionStatus(run.status));
-  const rerun = reruns.data?.items[0];
-  const duration = run.started_at ? elapsedMs(run.started_at, run.finished_at, now) : null;
-  const lines = tail.data?.lines ?? [];
-
-  return (
-    <>
-      <div className="board-top">
-        <span className="eyebrow mono-sm">{shortId(run.id)}</span>
-        <div className="tools" style={{ gap: 8 }}>
-          <ArchiveRunButton key={run.id} run={run} />
-          {run.archived_at ? <span className="tag">{t("run.archived")}</span> : null}
-          {isAttentionStatus(run.status) && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
-          <CopyButton value={run.id} label={t("run.copyId")} icon={Hash} />
-          <Link to="/runs/$runId" params={{ runId: run.id }} className="chip" style={{ height: 36 }}>
-            {t("runs.open")}
-            <ArrowUpRight className="wl-icon" aria-hidden="true" />
-          </Link>
-        </div>
-      </div>
-
-      <div className="stack" style={{ gap: 16 }}>
-        <Link to="/tasks/$taskId" params={{ taskId: run.task_id }} className="h3" style={{ color: "var(--ink)", textDecoration: "none" }}>
-          {task.data?.name ?? t("run.taskLink")}
-        </Link>
-        <div className={`verdict verdict--${meta.tone}`}>
-          <div className="verdict-main">
-            <span className={`g g--${meta.tone} g--lg`} aria-hidden="true">
-              <StatusIcon icon={meta.icon} size="md" />
-            </span>
-            <span className="verdict-word">{t(meta.label)}</span>
-          </div>
-          {duration !== null ? <span className="verdict-time">{formatDuration(duration, { whole: active })}</span> : null}
-          <span className="muted">
-            {shortWhen(run.started_at ?? run.queued_at, locale, now)} · v{run.version}
-          </span>
-        </div>
-      </div>
-
-      {cause ? (
-        <div className={meta.tone === "warn" ? "cause cause--warn" : "cause"} role="status">
-          <CircleAlert className="wl-icon" aria-hidden="true" />
-          <span>
-            {cause.stage ? (
-              <>
-                <b>{cause.stage}</b>
-                {" · "}
-              </>
-            ) : null}
-            {cause.message}
-          </span>
-        </div>
-      ) : null}
-
-      <RunStages stages={run.stages} now={now} />
-
-      {logsExpired ? <span className="caption muted">{t("log.expired")}</span> : null}
-      {lines.length > 0 ? (
-        <section className="log" aria-label={t("runs.logTail")}>
-          <div className="log-body" role="log" style={{ maxHeight: 240 }}>
-            {lines.map((l) => (
-              <div key={l.seq} className={`ll ll--${l.stream}`}>
-                <span className="n">{l.seq}</span>
-                <span className="t">{formatLogTime(l.ts)}</span>
-                <span className="m">{l.text}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {rerun ? (
-        <Link to="/runs/$runId" params={{ runId: rerun.id }} className="chip" style={{ alignSelf: "flex-start" }}>
-          <RotateCcw className="wl-icon" aria-hidden="true" />
-          {t("run.rerunDone")}
-          <StatusGlyph status={rerun.status} />
-          <span className="mono-sm muted">
-            {shortWhen(rerun.started_at ?? rerun.queued_at, locale, now)} · v{rerun.version}
-          </span>
-        </Link>
-      ) : null}
-    </>
   );
 }

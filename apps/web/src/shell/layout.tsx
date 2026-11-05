@@ -10,12 +10,15 @@ export function ListColumn({
   count,
   label,
   tools,
+  inlineTools,
   children,
 }: {
   title: string;
   count?: ReactNode;
   label: string;
   tools?: ReactNode;
+  /** Put the tools right after the title instead of at the far end. */
+  inlineTools?: boolean;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -33,7 +36,7 @@ export function ListColumn({
 
   return (
     <section className="list" aria-label={label} data-expanded={expanded}>
-      <div className="list-head">
+      <div className={inlineTools ? "list-head list-head--inline" : "list-head"}>
         <h2 className="list-title">
           <span className="list-heading">{heading}</span>
           <button
@@ -93,9 +96,10 @@ export function SectionLink({
 }
 
 /** The board: the page's main area. */
-export function Board({ children, center, label }: { children: ReactNode; center?: boolean; label?: string }) {
+export function Board({ children, center, wide, label }: { children: ReactNode; center?: boolean; wide?: boolean; label?: string }) {
+  const className = ["board", center && "board--center", wide && "board--wide"].filter(Boolean).join(" ");
   return (
-    <main className={center ? "board board--center" : "board"} aria-label={label}>
+    <main className={className} aria-label={label}>
       {children}
     </main>
   );

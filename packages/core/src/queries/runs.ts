@@ -78,17 +78,26 @@ export interface RunListFilter {
   projectId?: string | null;
   taskId?: string;
   status?: RunStatus[];
+  /** Only runs queued at or after this instant (RFC 3339). */
+  since?: string;
 }
 
 const RUN_PAGE = 50;
 
 /** Runs across the user's tasks, newest first, a page at a time. */
-export function useRunList(filter: RunListFilter) {
+export function useRunList(filter: RunListFilter, options: { enabled?: boolean } = {}) {
   const api = useApi();
   const poll = usePollInterval(10_000);
-  const key = { projectId: filter.projectId ?? null, taskId: filter.taskId ?? null, status: filter.status ?? [], archived: filter.archived ?? false };
+  const key = {
+    projectId: filter.projectId ?? null,
+    taskId: filter.taskId ?? null,
+    status: filter.status ?? [],
+    archived: filter.archived ?? false,
+    since: filter.since ?? null,
+  };
   return useInfiniteQuery({
     queryKey: queryKeys.runList(key),
+    enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       unwrap(
@@ -100,6 +109,7 @@ export function useRunList(filter: RunListFilter) {
               ...(key.projectId ? { project_id: key.projectId } : {}),
               ...(key.taskId ? { task_id: key.taskId } : {}),
               ...(key.status.length ? { status: key.status } : {}),
+              ...(key.since ? { since: key.since } : {}),
               ...(pageParam ? { cursor: pageParam } : {}),
             },
           },
@@ -109,6 +119,7 @@ export function useRunList(filter: RunListFilter) {
     select: (data: InfiniteData<RunPage, string | null>) => ({
       items: data.pages.flatMap((p) => p.items),
       hasMore: data.pages.at(-1)?.next_cursor != null,
+      pageCount: data.pages.length,
     }),
     retry: shouldRetry,
     refetchInterval: poll,

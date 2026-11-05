@@ -1198,3 +1198,126 @@ describe("helpers", () => {
     expect(consolePath("https://evil.test/runs/r1", "http://lerryn.test")).toBeNull();
   });
 });
+
+describe("runs board", () => {
+  const summary = (n: number, name: string, status: Schemas["RunStatus"], queuedMin: number): Schemas["RunSummary"] => ({
+    ...NEW_RUN,
+    id: `0192f3a1-0000-7000-8000-0000000b${String(n).padStart(4, "0")}`,
+    task: { ...TASK_REF, name },
+    trigger: { ...NEW_RUN.trigger, kind: "manual" },
+    status,
+    queued_at: iso(queuedMin),
+    started_at: status === "queued" ? null : iso(queuedMin + 1),
+    finished_at: null,
+    result_status: null,
+    result_summary: null,
+    current_stage: null,
+  });
+
+  it("sorts the last 48 hours of runs into four columns by status", async () => {
+    const runs = [
+      summary(1, "scheduled-run", "queued", -1),
+      summary(2, "preparing-run", "preparing", -2),
+      summary(3, "running-run", "running", -3),
+      summary(4, "completed-run", "completed", -60),
+      summary(5, "failed-run", "failed", -120),
+      summary(6, "cancelled-run", "cancelled", -180),
+      summary(7, "stale-run", "completed", -49 * 60),
+    ];
+    const { server } = renderApp("/runs?view=board", { runs });
+    const board = await screen.findByRole("main", { name: "运行看板" });
+    const column = (name: string) => within(within(board).getByRole("region", { name }));
+    await waitFor(() => expect(column("已排期").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["scheduled-run"]));
+    expect(column("进行中").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["preparing-run", "running-run"]);
+    expect(column("已完成").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["completed-run"]);
+    expect(column("待处理").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["failed-run", "cancelled-run"]);
+    expect(within(board).queryByText("stale-run")).toBeNull();
+
+    const listCall = server.fetch.mock.calls.map(([req]) => new URL(req.url)).find((u) => u.pathname === "/api/v1/runs");
+    const since = Date.parse(listCall!.searchParams.get("since")!);
+    expect(Math.abs(Date.now() - 48 * 3_600_000 - since)).toBeLessThan(60_000);
+  });
+
+  it("carries a card to its new column when the run's status changes", async () => {
+    const animate = vi.fn(() => ({ onfinish: null, oncancel: null, cancel() {} }) as unknown as Animation);
+    Object.assign(HTMLElement.prototype, { animate, getAnimations: () => [] });
+    const runs = [summary(1, "moving-run", "queued", -1), summary(2, "steady-run", "completed", -5)];
+    const { queryClient } = renderApp("/runs?view=board", { runs });
+    const board = await screen.findByRole("main", { name: "运行看板" });
+    const column = (name: string) => within(within(board).getByRole("region", { name }));
+    await waitFor(() => expect(column("已排期").getByText("moving-run")).toBeTruthy());
+    expect(animate).not.toHaveBeenCalled();
+
+    runs[0] = { ...runs[0]!, status: "running" };
+    await act(() => queryClient.invalidateQueries());
+    await waitFor(() => expect(column("进行中").getByText("moving-run")).toBeTruthy());
+    expect(animate).toHaveBeenCalledTimes(1);
+    const item = column("进行中").getByText("moving-run").closest("li")!;
+    expect(animate.mock.contexts[0]).toBe(item);
+    expect(item.classList.contains("kb-item--moving")).toBe(true);
+    delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+    delete (HTMLElement.prototype as Partial<HTMLElement>).getAnimations;
+  });
+
+  it("switches views by link, next to the title, and remembers the choice", async () => {
+    localStorage.removeItem("lerryn.runs.view");
+    const { router } = renderApp("/runs", { runs: [summary(1, "scheduled-run", "queued", -1)] });
+    const user = userEvent.setup();
+    await screen.findByRole("region", { name: "运行列表" });
+    const views = () => within(screen.getByRole("navigation", { name: "视图" }));
+    expect(views().getByRole("link", { name: "列表" }).getAttribute("aria-current")).toBe("page");
+    await user.click(views().getByRole("link", { name: "看板" }));
+    await screen.findByRole("main", { name: "运行看板" });
+    expect(router.state.location.search).toEqual({ view: "board" });
+    expect(views().getByRole("link", { name: "看板" }).getAttribute("aria-current")).toBe("page");
+
+    // The rail's plain /runs comes back to the board.
+    await act(() => router.navigate({ to: "/runs" }));
+    await screen.findByRole("main", { name: "运行看板" });
+    await user.click(views().getByRole("link", { name: "列表" }));
+    await screen.findByRole("region", { name: "运行列表" });
+    expect(router.state.location.search).toEqual({ view: "list" });
+    await act(() => router.navigate({ to: "/runs" }));
+    await screen.findByRole("region", { name: "运行列表" });
+  });
+
+  it("shows a card's run beside the board and closes it by link", async () => {
+    const { router } = renderApp("/runs?view=board", { runs: [{ ...summary(1, "failed-run", "failed", -5), id: FAILED_RUN.id }] });
+    const user = userEvent.setup();
+    const board = await screen.findByRole("main", { name: "运行看板" });
+    await user.click(await within(board).findByRole("link", { name: /failed-run/ }));
+    expect(router.state.location.pathname).toBe("/runs");
+    expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
+    const preview = await screen.findByRole("complementary", { name: "运行预览" });
+    expect(await within(preview).findByRole("link", { name: /打开/ })).toBeTruthy();
+    expect(within(board).getByRole("link", { name: /failed-run/ }).getAttribute("aria-current")).toBe("page");
+    expect(within(preview).getByRole("link", { name: "关闭" }).getAttribute("aria-current")).toBeNull();
+    await user.click(within(preview).getByRole("link", { name: "关闭" }));
+    await waitFor(() => expect(screen.queryByRole("complementary", { name: "运行预览" })).toBeNull());
+    expect(router.state.location.search).toEqual({ view: "board" });
+  });
+
+  it("shows the newest finished runs and the rest on request", async () => {
+    const runs = Array.from({ length: 11 }, (_, n) => summary(n + 1, `done-${n + 1}`, "completed", -n - 1));
+    renderApp("/runs?view=board", { runs });
+    const user = userEvent.setup();
+    const done = within(await screen.findByRole("region", { name: "已完成" }));
+    await waitFor(() => expect(done.getAllByRole("link")).toHaveLength(8));
+    expect(done.getByText("11")).toBeTruthy();
+    await user.click(done.getByRole("button", { name: "显示全部 11 条" }));
+    expect(done.getAllByRole("link")).toHaveLength(11);
+    await user.click(done.getByRole("button", { name: "收起" }));
+    expect(done.getAllByRole("link")).toHaveLength(8);
+  });
+
+  it("leads back from a run's page to the runs view last used", async () => {
+    localStorage.setItem("lerryn.runs.view", "board");
+    const { router } = renderApp(`/runs/${FAILED_RUN.id}`);
+    const user = userEvent.setup();
+    const crumbs = within(await screen.findByRole("navigation", { name: "位置" }));
+    await user.click(crumbs.getByRole("link", { name: "运行" }));
+    expect(router.state.location.pathname).toBe("/runs");
+    expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
+    localStorage.removeItem("lerryn.runs.view");
+  });
+});
