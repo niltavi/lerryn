@@ -737,6 +737,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{taskId}/skip-next-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 跳过下一次定时执行
+         * @description 需要修改任务权限。跳过任务下一次定时执行，之后自动按原计划执行；不影响 webhook 和已有运行。
+         *     scheduled_at 必须等于当前最早的 next_fire_at，且晚于当前时间，否则返回 422 validation_failed，调用方应刷新后重新确认。
+         *     同时到期的全部启用 cron 触发器一起跳过，各记录一条 skip_reason 为 manual 的已跳过运行及审计记录。
+         *     跳过立即生效，不支持撤回；相同 scheduled_at 的重复请求不会跳过后续计划。
+         */
+        post: operations["skipNextTaskRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{taskId}/runs": {
         parameters: {
             query?: never;
@@ -2915,10 +2938,10 @@ export interface components {
         };
         /**
          * @description 已跳过的原因。overlap：任务不允许重叠，上一个运行仍未结束；queue_full：队列已满；
-         *     missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档。
+         *     missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档；manual：用户主动跳过。
          * @enum {string}
          */
-        SkipReason: "overlap" | "queue_full" | "missed" | "inactive";
+        SkipReason: "overlap" | "queue_full" | "missed" | "inactive" | "manual";
         /** @description 请求取消的人。 */
         Canceller: {
             /** Format: uuid */
@@ -3314,6 +3337,14 @@ export interface components {
             /** @description 任务是否已激活。未激活时触发器不会产生运行，next_fire_at 为 null，但 cron.next_fires 仍给出预计时间。 */
             task_active: boolean;
             triggers: components["schemas"]["Trigger"][];
+        };
+        /** @description 用户确认跳过的下一次定时执行时间，防止重复请求跳过后续计划。 */
+        SkipNextRunRequest: {
+            /**
+             * Format: date-time
+             * @description 任务当前最早的 next_fire_at。
+             */
+            scheduled_at: string;
         };
         /** @description webhook 触发的结果。 */
         WebhookAccepted: {
@@ -4150,6 +4181,7 @@ export type SchemaCronDetail = components['schemas']['CronDetail'];
 export type SchemaWebhookDetail = components['schemas']['WebhookDetail'];
 export type SchemaTrigger = components['schemas']['Trigger'];
 export type SchemaTriggerSet = components['schemas']['TriggerSet'];
+export type SchemaSkipNextRunRequest = components['schemas']['SkipNextRunRequest'];
 export type SchemaWebhookAccepted = components['schemas']['WebhookAccepted'];
 export type SchemaOverview = components['schemas']['Overview'];
 export type SchemaOverviewCounts = components['schemas']['OverviewCounts'];
@@ -5335,6 +5367,34 @@ export interface operations {
                 };
             };
             412: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    skipNextTaskRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 任务 ID。 */
+                taskId: components["parameters"]["TaskID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkipNextRunRequest"];
+            };
+        };
+        responses: {
+            /** @description 跳过后的触发计划。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerSet"];
+                };
+            };
             default: components["responses"]["Problem"];
         };
     };

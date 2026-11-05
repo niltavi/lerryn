@@ -11,7 +11,7 @@ import {
   type CredentialRequest,
 } from "@lerryn/core";
 import { Button, ConsoleDialog, Disclosure, IconButton, StateCard, ToneGlyph } from "@lerryn/ui-web";
-import { Ban, Check, ChevronRight, Clock, KeyRound, RefreshCw, Unlink } from "lucide-react";
+import { Ban, Check, ChevronRight, Clock, KeyRound, Pencil, Unlink } from "lucide-react";
 import { useState } from "react";
 
 import { useNow } from "../../lib/hooks";
@@ -179,7 +179,7 @@ function CredentialRow({ credential: c, now, onRevoke }: { credential: Credentia
             <IconButton
               label={t("credentials.updateNamed", { name: c.name })}
               tip={t("credentials.update")}
-              icon={RefreshCw}
+              icon={Pencil}
               isPending={update.isPending}
               onPress={() =>
                 update.mutate(c, {
