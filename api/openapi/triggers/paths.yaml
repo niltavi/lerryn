@@ -61,6 +61,37 @@ taskTriggers:
       default:
         $ref: "../common/responses.yaml#/Problem"
 
+skipNextRun:
+  post:
+    operationId: skipNextTaskRun
+    tags: [triggers]
+    summary: 跳过下一次定时执行
+    description: |
+      需要修改任务权限。跳过任务下一次定时执行，之后自动按原计划执行；不影响 webhook 和已有运行。
+      scheduled_at 必须等于当前最早的 next_fire_at，且晚于当前时间，否则返回 422 validation_failed，调用方应刷新后重新确认。
+      同时到期的全部启用 cron 触发器一起跳过，各记录一条 skip_reason 为 manual 的已跳过运行及审计记录。
+      跳过立即生效，不支持撤回；相同 scheduled_at 的重复请求不会跳过后续计划。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/SkipNextRunRequest"
+    responses:
+      "200":
+        description: 跳过后的触发计划。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TriggerSet"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
 rotateToken:
   post:
     operationId: rotateTriggerToken

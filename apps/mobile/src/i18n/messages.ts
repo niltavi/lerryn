@@ -75,6 +75,7 @@ export const zhCN = {
       queue_full: '队列已满',
       missed: '错过了计划时间',
       inactive: '触发时任务已暂停或归档',
+      manual: '用户手动跳过',
     },
   },
   account: {
@@ -171,6 +172,7 @@ export const en: MobileMessages = {
       queue_full: 'The queue was full',
       missed: 'The scheduled time was missed',
       inactive: 'The task was paused or archived',
+      manual: 'Skipped by a user',
     },
   },
   account: {

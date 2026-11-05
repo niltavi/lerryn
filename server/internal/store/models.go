@@ -369,8 +369,8 @@ type Run struct {
 	NotBefore time.Time `bun:"not_before,nullzero"`
 	// RerunOf is the run a rerun was modelled on.
 	RerunOf uuid.UUID `bun:"rerun_of,nullzero"`
-	// SkipReason is set on skipped runs: overlap, queue_full, missed or
-	// inactive.
+	// SkipReason is set on skipped runs: overlap, queue_full, missed,
+	// inactive or manual.
 	SkipReason string `bun:"skip_reason,nullzero"`
 	// ClaimedAt is when a runner claimed the run; RunnerName is copied at
 	// claim time so the run still names its runner after it is gone.
@@ -412,6 +412,7 @@ const (
 	SkipQueueFull = "queue_full"
 	SkipMissed    = "missed"
 	SkipInactive  = "inactive"
+	SkipManual    = "manual"
 )
 
 // Run event kinds (the API's RunEventKind). Stage and result events come

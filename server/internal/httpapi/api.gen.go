@@ -937,6 +937,7 @@ func (e RuntimeSpecVersion) Valid() bool {
 // Defines values for SkipReason.
 const (
 	SkipReasonInactive  SkipReason = "inactive"
+	SkipReasonManual    SkipReason = "manual"
 	SkipReasonMissed    SkipReason = "missed"
 	SkipReasonOverlap   SkipReason = "overlap"
 	SkipReasonQueueFull SkipReason = "queue_full"
@@ -946,6 +947,8 @@ const (
 func (e SkipReason) Valid() bool {
 	switch e {
 	case SkipReasonInactive:
+		return true
+	case SkipReasonManual:
 		return true
 	case SkipReasonMissed:
 		return true
@@ -3151,8 +3154,14 @@ type SkillSummary struct {
 	Name string `json:"name"`
 }
 
+// SkipNextRunRequest 用户确认跳过的下一次定时执行时间，防止重复请求跳过后续计划。
+type SkipNextRunRequest struct {
+	// ScheduledAt 任务当前最早的 next_fire_at。
+	ScheduledAt time.Time `json:"scheduled_at"`
+}
+
 // SkipReason 已跳过的原因。overlap：任务不允许重叠，上一个运行仍未结束；queue_full：队列已满；
-// missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档。
+// missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档；manual：用户主动跳过。
 type SkipReason string
 
 // StageSpec defines model for StageSpec.
@@ -4285,6 +4294,9 @@ type SetTaskConsoleJSONRequestBody = SetTaskConsoleRequest
 // StartRunJSONRequestBody defines body for StartRun for application/json ContentType.
 type StartRunJSONRequestBody = StartRunRequest
 
+// SkipNextTaskRunJSONRequestBody defines body for SkipNextTaskRun for application/json ContentType.
+type SkipNextTaskRunJSONRequestBody = SkipNextRunRequest
+
 // SetTriggersJSONRequestBody defines body for SetTriggers for application/json ContentType.
 type SetTriggersJSONRequestBody = SetTriggersRequest
 
@@ -4518,6 +4530,9 @@ type ServerInterface interface {
 	// StartRun 发起运行
 	// (POST /api/v1/tasks/{taskId}/runs)
 	StartRun(w http.ResponseWriter, r *http.Request, taskID TaskID, params StartRunParams)
+	// SkipNextTaskRun 跳过下一次定时执行
+	// (POST /api/v1/tasks/{taskId}/skip-next-run)
+	SkipNextTaskRun(w http.ResponseWriter, r *http.Request, taskID TaskID)
 	// ListTriggers 读取触发器
 	// (GET /api/v1/tasks/{taskId}/triggers)
 	ListTriggers(w http.ResponseWriter, r *http.Request, taskID TaskID)
@@ -7419,6 +7434,32 @@ func (siw *ServerInterfaceWrapper) StartRun(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// SkipNextTaskRun operation middleware
+func (siw *ServerInterfaceWrapper) SkipNextTaskRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskID TaskID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", r.PathValue("taskId"), &taskID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SkipNextTaskRun(w, r, taskID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTriggers operation middleware
 func (siw *ServerInterfaceWrapper) ListTriggers(w http.ResponseWriter, r *http.Request) {
 
@@ -8089,6 +8130,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/export", wrapper.ExportTask)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/triggers", wrapper.ListTriggers)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/tasks/{taskId}/triggers", wrapper.SetTriggers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/tasks/{taskId}/skip-next-run", wrapper.SkipNextTaskRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/tasks/{taskId}/runs", wrapper.StartRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/triggers/{triggerId}/rotate-token", wrapper.RotateTriggerToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs", wrapper.ListRuns)
@@ -11379,6 +11421,46 @@ func (response StartRundefaultApplicationProblemPlusJSONResponse) VisitStartRunR
 	return err
 }
 
+type SkipNextTaskRunRequestObject struct {
+	TaskID TaskID `json:"taskId"`
+	Body   *SkipNextTaskRunJSONRequestBody
+}
+
+type SkipNextTaskRunResponseObject interface {
+	VisitSkipNextTaskRunResponse(w http.ResponseWriter) error
+}
+
+type SkipNextTaskRun200JSONResponse TriggerSet
+
+func (response SkipNextTaskRun200JSONResponse) VisitSkipNextTaskRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SkipNextTaskRundefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SkipNextTaskRundefaultApplicationProblemPlusJSONResponse) VisitSkipNextTaskRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTriggersRequestObject struct {
 	TaskID TaskID `json:"taskId"`
 }
@@ -12096,6 +12178,9 @@ type StrictServerInterface interface {
 	// StartRun 发起运行
 	// (POST /api/v1/tasks/{taskId}/runs)
 	StartRun(ctx context.Context, request StartRunRequestObject) (StartRunResponseObject, error)
+	// SkipNextTaskRun 跳过下一次定时执行
+	// (POST /api/v1/tasks/{taskId}/skip-next-run)
+	SkipNextTaskRun(ctx context.Context, request SkipNextTaskRunRequestObject) (SkipNextTaskRunResponseObject, error)
 	// ListTriggers 读取触发器
 	// (GET /api/v1/tasks/{taskId}/triggers)
 	ListTriggers(ctx context.Context, request ListTriggersRequestObject) (ListTriggersResponseObject, error)
@@ -14294,6 +14379,39 @@ func (sh *strictHandler) StartRun(w http.ResponseWriter, r *http.Request, taskID
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(StartRunResponseObject); ok {
 		if err := validResponse.VisitStartRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SkipNextTaskRun operation middleware
+func (sh *strictHandler) SkipNextTaskRun(w http.ResponseWriter, r *http.Request, taskID TaskID) {
+	var request SkipNextTaskRunRequestObject
+
+	request.TaskID = taskID
+
+	var body SkipNextTaskRunJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SkipNextTaskRun(ctx, request.(SkipNextTaskRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SkipNextTaskRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SkipNextTaskRunResponseObject); ok {
+		if err := validResponse.VisitSkipNextTaskRunResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
