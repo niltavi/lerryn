@@ -167,6 +167,32 @@ test("main pages fit a 375 px phone without horizontal scroll", async ({ page, s
   }
 });
 
+test("task details stay above the fold across the compact layout breakpoint", async ({ page, state }) => {
+  for (const width of [320, 788, 960, 961, 1280]) {
+    await page.setViewportSize({ width, height: 812 });
+    await page.goto(`/tasks/${state.tasks.dailyReport}`);
+    const heading = page.getByRole("heading", { name: "daily-report", level: 1 });
+    const list = page.getByRole("region", { name: "任务列表" });
+    await expect(heading).toBeInViewport();
+    await expectNoHorizontalScroll(page);
+    const boardBox = await page.getByRole("main", { name: "daily-report" }).boundingBox();
+    expect(boardBox!.y).toBeLessThan(100);
+    const toggle = list.getByRole("button", { name: /^任务/ });
+    if (width <= 960) {
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await list.getByRole("link", { name: /daily-report/ }).click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(heading).toBeInViewport();
+    } else {
+      await expect(toggle).toBeHidden();
+      const listBox = await list.boundingBox();
+      expect(boardBox!.x).toBeGreaterThanOrEqual(listBox!.x + listBox!.width);
+    }
+  }
+});
+
 for (const scheme of ["light", "dark"] as const) {
   test(`main pages pass an axe scan (${scheme})`, async ({ page, state }) => {
     await page.emulateMedia({ colorScheme: scheme });

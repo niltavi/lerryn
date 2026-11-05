@@ -568,6 +568,40 @@ describe("admin passwords", () => {
   });
 });
 
+describe("compact list navigation", () => {
+  it("toggles the compact task list by keyboard and closes it after selecting the current task", async () => {
+    const user = userEvent.setup();
+    renderApp(`/tasks/${TASK.id}`, { tasks: [{
+      id: TASK.id, project_id: PROJECT.id, name: TASK.name, description: TASK.description,
+      state: "inactive", active_version: null, latest_version: 2, last_run: null, next_run_at: null,
+      active_runs: 0, updated_at: iso(0), links: TASK.links,
+    }] });
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    const list = screen.getByRole("region", { name: "任务列表" });
+    const toggle = within(list).getByRole("button", { expanded: false });
+    const body = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(body.className).toBe("list-body");
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(list.getAttribute("data-expanded")).toBe("true");
+    await user.click(within(body).getByRole("link", { name: /weekday-digest/ }));
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(list.getAttribute("data-expanded")).toBe("false");
+    expect(screen.getByRole("heading", { name: "weekday-digest" })).toBeTruthy();
+  });
+
+  it("closes a compact settings list when the selected section changes", async () => {
+    const { router } = renderApp("/settings/tokens");
+    const list = await screen.findByRole("region", { name: "个人设置" });
+    const toggle = within(list).getByRole("button", { expanded: false });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => { await router.navigate({ to: "/settings/account" }); });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
 describe("task page", () => {
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
     renderApp(`/tasks/${TASK.id}`);
