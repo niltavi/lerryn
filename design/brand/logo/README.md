@@ -8,7 +8,7 @@
 | `svg/` `png/lerryn-logo-horizontal` | 1224 × 522（PNG 2448 × 1044） | 透明，四周留 48 | 页眉、登录页、文档 |
 | `svg/` `png/lerryn-logo-square` | 1024 × 1024 | 纸色 `#fef8ef` 铺满 | App 图标、社交头像（平台自己切圆角） |
 | `svg/` `png/lerryn-logo-circle` | 1024 × 1024 | 纸色圆形，圆外透明 | Agent 头像、圆形头像位 |
-| `svg/` `png/lerryn-icon-circle` | 1024 × 1024；另有 32、180 像素 PNG | 暖纸色 `#f5f1e6` 圆底、`#dfd8c7` 细边框，圆外透明 | 官网 favicon、Apple touch icon |
+| `svg/` `png/lerryn-icon-circle` | 1024 × 1024；另有 32、180 像素 PNG | 暖纸色 `#f5f1e6` 圆底、`#dfd8c7` 细边框，圆外透明 | 官网及自部署站点 favicon、官网 Apple touch icon |
 
 - 横向版是透明底，放在浅色底上。暗色底上用正方形或圆形版，或者垫一块纸色底板（`plate` token）。
 - 不要改色、描边、拉伸或加阴影。最小显示宽度：横向 24px 高，正方形 / 圆形 20px。
