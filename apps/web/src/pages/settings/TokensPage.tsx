@@ -50,7 +50,7 @@ export function tokenState(token: AccessToken, now = Date.now()): TokenState {
 export function TokensPage() {
   const { t } = useI18n();
   usePageTitle(t("tokens.title"));
-  const search = useSearch({ from: "/app/settings/tokens" });
+  const search = useSearch({ from: "/app/settings/_key/tokens" });
   const navigate = useNavigate();
   const tokens = useAccessTokens();
   const [creating, setCreating] = useState(!!search.new);
