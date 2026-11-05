@@ -698,11 +698,11 @@ describe("compact list navigation", () => {
 
   it("closes a compact settings list when the selected section changes", async () => {
     const { router } = renderApp("/settings/tokens");
-    const list = await screen.findByRole("region", { name: "个人设置" });
+    const list = await screen.findByRole("region", { name: "密钥" });
     const toggle = within(list).getByRole("button", { expanded: false });
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    await act(async () => { await router.navigate({ to: "/settings/account" }); });
+    await act(async () => { await router.navigate({ to: "/settings/tools" }); });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 });
