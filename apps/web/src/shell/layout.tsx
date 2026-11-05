@@ -1,7 +1,8 @@
 import { useI18n } from "@lerryn/core";
 import { Button, ErrorState } from "@lerryn/ui-web";
-import { Link } from "@tanstack/react-router";
-import { useEffect, type ComponentType, type ReactNode } from "react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 
 /** The middle column: a titled list of items or sections. */
 export function ListColumn({
@@ -17,16 +18,51 @@ export function ListColumn({
   tools?: ReactNode;
   children: ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const bodyId = useId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const heading = (
+    <>
+      {title}
+      {count !== undefined && count !== null ? <span className="n">{count}</span> : null}
+    </>
+  );
+
+  useEffect(() => setExpanded(false), [pathname]);
+
   return (
-    <section className="list" aria-label={label}>
+    <section className="list" aria-label={label} data-expanded={expanded}>
       <div className="list-head">
         <h2 className="list-title">
-          {title}
-          {count !== undefined && count !== null ? <span className="n">{count}</span> : null}
+          <span className="list-heading">{heading}</span>
+          <button
+            ref={toggle}
+            type="button"
+            className="list-toggle"
+            aria-expanded={expanded}
+            aria-controls={bodyId}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {heading}
+            <ChevronDown className="wl-icon" aria-hidden="true" />
+          </button>
         </h2>
         {tools ? <div className="list-tools">{tools}</div> : null}
       </div>
-      {children}
+      <div
+        id={bodyId}
+        className="list-body"
+        onClick={(event) => {
+          // Selecting even the current link should return the compact view to its board.
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          if (!(event.target instanceof Element) || !event.target.closest("a[href]")) return;
+          setExpanded(false);
+          if (toggle.current?.getClientRects().length) toggle.current.focus({ preventScroll: true });
+        }}
+      >
+        {children}
+      </div>
     </section>
   );
 }

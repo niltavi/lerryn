@@ -1,6 +1,6 @@
 import { LiveModeProvider, useDiscovery, useEventStream, useI18n, usePendingCredentialRequests, type Me } from "@lerryn/core";
 import { Logo } from "@lerryn/ui-web";
-import { Link, Outlet, useMatch, useRouteContext } from "@tanstack/react-router";
+import { Link, Outlet, useLinkProps, useMatch, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, Eye, History, KeyRound, LayoutDashboard, Shield, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -22,8 +22,7 @@ function RailLink({
   label,
   tip,
   icon: Icon,
-  exact,
-  active,
+  active = false,
   pip,
   children,
 }: {
@@ -31,25 +30,23 @@ function RailLink({
   label: string;
   tip?: string;
   icon?: LucideIcon;
-  exact?: boolean;
   active?: boolean;
   pip?: boolean;
   children?: ReactNode;
 }) {
+  const linkProps = useLinkProps({ to, className: "ri", activeProps: {} });
   return (
-    <Link
-      to={to}
-      className="ri"
+    <a
+      {...linkProps}
       aria-label={label}
       data-tip={tip ?? label}
-      activeOptions={{ exact: !!exact }}
+      data-status={active ? "active" : undefined}
       aria-current={active ? "page" : undefined}
-      activeProps={active === undefined ? { "aria-current": "page" } : {}}
     >
       {Icon ? <Icon className="wl-icon" width={22} height={22} aria-hidden="true" /> : null}
       {children}
       {pip ? <span className="pip" aria-hidden="true" /> : null}
-    </Link>
+    </a>
   );
 }
 
@@ -61,6 +58,8 @@ function RailLink({
  */
 export function AppShell() {
   const { t } = useI18n();
+  // Rail selection follows the section, independently of each entry's destination.
+  const section = useRouterState({ select: ({ location }) => location.pathname.split("/")[1] });
   const me = useCurrentUser();
   const inKeySettings = !!useMatch({ from: "/app/settings/_key", shouldThrow: false });
   const inAccountSettings = !!useMatch({ from: "/app/settings/_account", shouldThrow: false });
@@ -78,8 +77,8 @@ export function AppShell() {
             <Link to="/" className="rail-logo" aria-label={t("app.brand")}>
               <Logo size={12} label="" />
             </Link>
-            <RailLink to="/" exact label={t("nav.overview")} icon={LayoutDashboard} />
-            <RailLink to="/runs" label={t("nav.runs")} icon={History} />
+            <RailLink to="/" active={section === "" || section === "tasks"} label={t("nav.overview")} icon={LayoutDashboard} />
+            <RailLink to="/runs" active={section === "runs"} label={t("nav.runs")} icon={History} />
             <RailLink
               to="/settings/tokens"
               label={pending ? t("nav.keysPending", { count: requests.hasNextPage ? `${pending}+` : pending }) : t("settings.keyTitle")}
@@ -89,7 +88,7 @@ export function AppShell() {
               pip={pending > 0}
             />
             <div className="rail-foot">
-              {me.is_admin ? <RailLink to="/admin" label={t("nav.admin")} icon={Shield} /> : null}
+              {me.is_admin ? <RailLink to="/admin" active={section === "admin"} label={t("nav.admin")} icon={Shield} /> : null}
               <RailLink to="/settings/account" label={t("nav.accountOf", { name })} active={inAccountSettings}>
                 <span className="avatar" aria-hidden="true">
                   {initialOf(me)}
