@@ -52,6 +52,7 @@ These documents have not yet been translated. Their recorded dates and validatio
 | Product and architecture | [Product requirements](../agent-automation-sandbox-prd.md), [technical design](../agent-automation-sandbox-tech-design.md), [implementation plan](../agent-automation-sandbox-implementation-plan.md) |
 | Design | [Design system](../design-system.md), [component development](../../design/README.md) |
 | Validation | [Acceptance matrix](../acceptance-matrix.md), [capacity results](../capacity.md), [review checklist](../review-checklist.md), [target-environment runbook](../target-env-runbook.md) |
+| CI and image publishing | [Gitea Actions setup](../ci.md) |
 | Releases | [Release process](../release.md), [0.9.0 release notes](../release-notes/0.9.0.md), [unreleased changes](../release-notes/unreleased.md) |
 | Migration | [Name migration](../rename-to-lerryn.md), [repository migration](../repository-migration.md) |
 | Technical spikes | [S1: dual-dialect storage](../spikes/s1-dual-dialect-storage.md), [S2: OpenAPI code generation](../spikes/s2-openapi-codegen.md), [S3: stateless MCP](../spikes/s3-mcp-stateless.md), [S4: container execution](../spikes/s4-container-execution.md) |

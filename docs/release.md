@@ -1,6 +1,6 @@
 # Lerryn 发布流程
 
-这份文档写给发布 Lerryn 的维护者：版本号怎么定、怎么打 tag、怎么在本地构建和发布镜像与二进制，以及第三方许可证声明怎么维护。GitHub Actions 关闭期间，本地脚本就是发布流水线。
+这份文档写给发布 Lerryn 的维护者：版本号怎么定、怎么打 tag、怎么在本地构建和发布镜像与二进制，以及第三方许可证声明怎么维护。镜像由 Gitea Actions 发布，也可以用本地脚本手动发布。Runner 与发布凭证的配置见 [Gitea Actions 配置](ci.md)。
 
 发布前要完成的检查在另外两份文档里：[人工审查清单](review-checklist.md)和[目标环境验证手册](target-env-runbook.md)。
 
@@ -50,14 +50,14 @@
 
    ```bash
    git tag -a v0.9.0 -m "Lerryn 0.9.0"
-   git push origin v0.9.0
+   git push gitea v0.9.0
    ```
 
-   `.github/workflows/release.yml` 会在推送 `v*` tag 时构建并推送镜像，标签规则与本地脚本相同。Actions 关闭期间它不会运行；重新开启 Actions 后，二者只用一个，避免同一个 tag 被推送两次。
+   `.gitea/workflows/release.yml` 会在 tag 推送到 Gitea 后构建并推送镜像；需要已启用仓库 Actions、配置 runner 与 GHCR 发布凭证。标签规则与本地脚本相同：正式版发布完整版本和次版本标签，候选版只发布完整候选标签，不发布 `latest`。自动发布与第 5 步的手动发布选一种，避免重复推送。若同时维护 GitHub 远端，可另行推送 tag，但那里不运行工作流。
 
    候选版本和正式版打在同一个提交上时，`git describe` 可能取到其中任意一个，所以下面的命令都显式写出 `VERSION`。
 
-5. 在 tag 对应的干净检出上构建并推送镜像。需要先 `docker login ghcr.io`，并有一个支持多架构的 buildx builder（`docker buildx create --use` 创建的 docker-container builder 即可）：
+5. 若使用手动发布，在 tag 对应的干净检出上构建并推送镜像。需要先 `docker login ghcr.io`，并有一个支持多架构的 buildx builder（`docker buildx create --use` 创建的 docker-container builder 即可）：
 
    ```bash
    git checkout v0.9.0

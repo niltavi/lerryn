@@ -21,7 +21,7 @@ PRD 说明要做什么，技术设计说明怎么做。这份文档回答剩下�
 | runner | 内嵌和独立部署两种模式；Python、Node、Shell 三种运行时；凭证经 stdin 注入、输出脱敏；脚本工具只读挂载，`sbx mcp call` 调用登记的 MCP 工具并记录调用。协议 2 增加跨运行 `/sbx/state`：领取时固定输入、成功事务发布、失败保留旧状态；双 server／双 runner 的真实容器验收见 `tests/acceptance/state_test.go`，协议升级边界见技术设计第 4.5 节 |
 | 控制台 | Web 控制台的全部页面已接入接口，经 SSE 实时更新；移动端为只读的 Expo 应用，扫码配对。A03、A04、A06、A13、A17 的界面部分已通过端到端测试；Android 未验证，详见[验收矩阵](acceptance-matrix.md) |
 | 验收 | A01 至 A18、B01 至 B03 的服务端部分都有真实进程和 Docker 上的测试，逐项结果和剩余缺口见[验收矩阵](acceptance-matrix.md) |
-| CI | GitHub Actions 的工作流文件保留 7 个作业：Go（lint、vet、测试、govulncheck）、契约（生成一致性、Spectral）、PostgreSQL、两个执行器集成测试、前端类型检查、镜像构建。为节省费用目前关闭，合并前在本地运行 `make check`、`make test-pg` 和 `make test-integration` |
+| CI | Gitea Actions 的工作流文件位于 `.gitea/workflows/`，保留 7 个作业：Go（lint、vet、测试、govulncheck）、契约（生成一致性、Spectral、许可证声明）、PostgreSQL、两个执行器集成测试、前端（类型检查、单元测试、官网检查）、镜像构建。实例启用与 runner 要求见 [Gitea Actions 配置](ci.md)；首次运行通过前，合并前仍在本地运行 `make check`、`make test-pg` 和 `make test-integration` |
 
 ## 2 规划原则
 
@@ -36,7 +36,7 @@ PRD 说明要做什么，技术设计说明怎么做。这份文档回答剩下�
 
 | 编号 | 工作流 | 范围 | 负责目录 |
 | --- | --- | --- | --- |
-| W0 | 工程基础 | 仓库布局、Go module、Makefile、CI、`AGENTS.md`、服务端入口骨架、镜像构建 | 根目录配置、`.github/`、`Makefile`、`Dockerfile`、`server/cmd/` |
+| W0 | 工程基础 | 仓库布局、Go module、Makefile、CI、`AGENTS.md`、服务端入口骨架、镜像构建 | 根目录配置、`.gitea/`、`Makefile`、`Dockerfile`、`server/cmd/` |
 | W1 | 契约 | OpenAPI 规范、runner 协议、任务清单 schema、错误码、`x-mcp` 约定、Spectral 规则、代码生成配置 | `api/` |
 | W2 | 存储 | 数据模型、两种数据库的存储层和迁移、存储契约测试、对象存储接口 | `server/internal/store/`、`server/migrations/`、`server/internal/blob/` |
 | W3 | 执行内核 | runner 主循环、Docker 执行器、运行状态机、环境准备、日志管道、取消和超时、对账、`sbx` 辅助工具、运行时镜像 | `server/internal/runner/`、`server/internal/executor/`、`runtimes/` |
@@ -103,7 +103,7 @@ S1 到 S4 是 M0 的完成条件。S5 需要先确定容量目标，最晚在 M5
 | 许可证 | 根目录 `LICENSE`（AGPL-3.0）；`runtimes/sdk/` 和 `skills/` 各放一份 Apache-2.0 的 `LICENSE` | W0 |
 | 统一命令 | `Makefile`：`generate`、`check`、`test`、`test-pg`、`test-sqlite`、`build`、`image` | W0 |
 | 协作规则 | `AGENTS.md`：分层、生成链路、目录所有权、第 7 节的约定；`CLAUDE.md` 指向它 | W0 |
-| CI | GitHub Actions：lint、生成物一致性检查、两种数据库的测试矩阵、Spectral | W0 |
+| CI | Gitea Actions：lint、生成物一致性检查、两种数据库的测试矩阵、Spectral | W0 |
 | 服务端骨架 | `lerryn` 入口和子命令（server、runner、all-in-one、migrate、version）、配置加载、结构化日志、健康检查、优雅退出 | W0 |
 | 镜像 | 多阶段构建、amd64 和 arm64，发布到 `ghcr.io/niltavi/lerryn` | W0 |
 | 契约骨架 | `api/openapi/` 根文件；通用组件：problem+json、游标分页、链接；`discover` 接口；Spectral 规则；Redocly 打包 | W1 |
@@ -228,7 +228,7 @@ S1 到 S4 是 M0 的完成条件。S5 需要先确定容量目标，最晚在 M5
 | 权限、凭证、脱敏、容器加固相关代码完成人工审查 | 已完成（2026年11月3日，维护者授权由 AI 会话进行）。[人工审查清单](review-checklist.md)全部 77 项通过；发现 6 个中等、十几个低危问题，都已修复并补了测试，记录在清单开头 |
 | 已知限制写进发布说明 | 已按审查和目标环境验证的结果更新，见[发布说明 0.9.0](release-notes/0.9.0.md)第 6 节 |
 
-首个试用版的版本号定为 0.9.0。版本方案、打 tag，以及在本地构建多架构镜像、四个平台的二进制和校验和的步骤见[发布流程](release.md)。GitHub Actions 关闭期间，发布候选版本前在本地和一台原生 Linux 主机上各跑一遍 `make check`、`make test-pg` 和 `make test-integration`，目标主机上的完整步骤，以及 rootless Docker、Podman 和 OIDC 提供方的联调，见[目标环境验证手册](target-env-runbook.md)。
+首个试用版的版本号定为 0.9.0。版本方案、打 tag，以及在本地构建多架构镜像、四个平台的二进制和校验和的步骤见[发布流程](release.md)。Gitea Actions 首次运行通过前，发布候选版本前在本地和一台原生 Linux 主机上各跑一遍 `make check`、`make test-pg` 和 `make test-integration`，目标主机上的完整步骤，以及 rootless Docker、Podman 和 OIDC 提供方的联调，见[目标环境验证手册](target-env-runbook.md)。
 
 ## 7 多会话协作约定
 
@@ -271,7 +271,7 @@ git 初始化后，M0 可以分成 5 个会话：
 
 | 会话 | 任务 | 负责目录 |
 | --- | --- | --- |
-| 1 | 仓库布局、Makefile、CI、`AGENTS.md`、服务端骨架、镜像 | 根目录配置、`.github/`、`server/cmd/` |
+| 1 | 仓库布局、Makefile、CI、`AGENTS.md`、服务端骨架、镜像 | 根目录配置、`.gitea/`、`server/cmd/` |
 | 2 | 契约骨架、生成链路、S2 | `api/` |
 | 3 | 存储骨架、S1 | `server/internal/store/`、`server/migrations/` |
 | 4 | S4 容器执行验证 | `server/internal/executor/`、`runtimes/` |
@@ -304,7 +304,7 @@ git 初始化后，M0 可以分成 5 个会话：
 | 多节点容量目标 | M5 前 | S5 |
 | Kubernetes 执行器 | M5 后 | 是否进入第二批 |
 
-已经确定的：产品名 Lerryn、仓库 github.com/niltavi/lerryn、许可证 AGPL-3.0（`runtimes/sdk/` 和 `skills/` 为 Apache-2.0）、CI 使用 GitHub Actions、沙箱采用加固的 Docker 容器、内置账号与 OIDC 并存、移动端首版只读。
+已经确定的：产品名 Lerryn、仓库 github.com/niltavi/lerryn、许可证 AGPL-3.0（`runtimes/sdk/` 和 `skills/` 为 Apache-2.0）、CI 使用 Gitea Actions、沙箱采用加固的 Docker 容器、内置账号与 OIDC 并存、移动端首版只读。
 
 ## 10 与技术设计的关系
 

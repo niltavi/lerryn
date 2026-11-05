@@ -164,7 +164,7 @@
 
 ## 9 未覆盖的部分
 
-- 没有在真正的 Linux 主机上运行。三种环境用的是同一个 OrbStack 内核（arm64）。建议在 CI 加两个作业：GitHub Actions 的 `ubuntu-latest`（amd64、systemd cgroup 驱动、Ubuntu 的 AppArmor）上直接跑 `make test-integration`，并设置 `LERRYN_TEST_REQUIRE_ICC=1`；再在 `golang:1.27` 容器里跑一遍，数据目录同路径挂载。
+- 没有在真正的 Linux 主机上运行。三种环境用的是同一个 OrbStack 内核（arm64）。建议在 CI 加两个作业：Gitea Actions 的 `lerryn-linux:host` runner（原生 Linux、systemd cgroup 驱动、Ubuntu 的 AppArmor，配置见 [CI 配置](../ci.md)）上直接跑 `make test-integration`，并设置 `LERRYN_TEST_REQUIRE_ICC=1`；再在 `golang:1.27` 容器里跑一遍，数据目录同路径挂载。
 - rootless Docker、Podman、userns-remap 没有验证。rootless 下 cgroup 控制器需要委派，否则会出现上面提到的"limit discarded"告警，执行器会拒绝运行。
 - 凭证注入、版本包和环境目录的挂载、状态目录、事件文件都属于后续里程碑，这里只预留了 `/run/secrets` tmpfs。
 - 执行器不负责拉取镜像。运行时镜像按 digest 由 runner 在准备阶段拉取。

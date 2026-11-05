@@ -24,6 +24,7 @@ Niltavi 产品线中的自动化沙箱，由外部 Agent 通过 API 和 MCP 操�
 | 产品与架构 | [产品需求](agent-automation-sandbox-prd.md)、[技术设计](agent-automation-sandbox-tech-design.md)、[实施规划](agent-automation-sandbox-implementation-plan.md) |
 | 设计 | [设计语言](design-system.md)、[组件开发](../design/README.md) |
 | 验证 | [验收矩阵](acceptance-matrix.md)、[容量结果](capacity.md)、[人工审查清单](review-checklist.md)、[目标环境验证手册](target-env-runbook.md) |
+| CI 与镜像发布 | [Gitea Actions 配置](ci.md) |
 | 发布 | [发布流程](release.md)、[0.9.0 发布说明](release-notes/0.9.0.md)、[未发布改动](release-notes/unreleased.md) |
 | 迁移 | [改名与升级](rename-to-lerryn.md)、[仓库搬迁](repository-migration.md) |
 | 技术验证 | [S1 双数据库](spikes/s1-dual-dialect-storage.md)、[S2 OpenAPI 生成链路](spikes/s2-openapi-codegen.md)、[S3 MCP 无状态模式](spikes/s3-mcp-stateless.md)、[S4 容器执行](spikes/s4-container-execution.md) |
