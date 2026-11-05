@@ -249,6 +249,9 @@ interface FakeOptions {
   task?: Partial<Schemas["Task"]>;
   triggerItems?: Schemas["Trigger"][];
   taskControlSubmit?: (path: string, body: unknown) => Promise<Response>;
+  run?: Partial<Schemas["Run"]>;
+  runArchiveSubmit?: (body: Schemas["SetRunArchiveRequest"]) => Promise<Response>;
+  showRunInList?: boolean;
   admin?: boolean;
   tasks?: Schemas["TaskSummary"][];
   adminSubmit?: (body: unknown) => Promise<Response>;
@@ -260,6 +263,7 @@ interface FakeOptions {
 }
 
 function fakeServer(opts: FakeOptions = {}) {
+  let failedRun = { ...FAILED_RUN, archived_at: null as string | null, ...opts.run };
   let task = { ...TASK, ...opts.task, console: { manual_run: opts.manualRun ?? true } };
   let triggerItems = opts.triggerItems ?? TRIGGERS.triggers;
   const credentials = [...(opts.credentials ?? [CREDENTIAL])];
@@ -315,6 +319,10 @@ function fakeServer(opts: FakeOptions = {}) {
       }
       case `GET /api/v1/tasks/${TASK.id}`:
         return json(task);
+      case `DELETE /api/v1/tasks/${TASK.id}`:
+        if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
+        task = { ...task, archived_at: iso(0), state: "inactive" };
+        return json(task);
       case `POST /api/v1/tasks/${TASK.id}/activation`: {
         if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
         const input = body as Schemas["SetTaskActivationRequest"];
@@ -331,7 +339,17 @@ function fakeServer(opts: FakeOptions = {}) {
       case `POST /api/v1/tasks/${TASK.id}/runs`:
         return opts.startError ? problem(409, opts.startError) : json(NEW_RUN, 202);
       case `GET /api/v1/runs/${FAILED_RUN.id}`:
-        return json(FAILED_RUN);
+        return json(failedRun);
+      case `PUT /api/v1/runs/${FAILED_RUN.id}/archive`: {
+        const input = body as Schemas["SetRunArchiveRequest"];
+        if (opts.runArchiveSubmit) {
+          const response = await opts.runArchiveSubmit(input);
+          if (response.ok) failedRun = { ...failedRun, ...await response.clone().json() };
+          return response;
+        }
+        failedRun = { ...failedRun, archived_at: input.archived ? iso(0) : null };
+        return json(failedRun);
+      }
       case `GET /api/v1/tasks/${TASK.id}/versions/2`:
         return json({ ...TASK.latest_version, active: true });
       case `GET /api/v1/runs/${FAILED_RUN.id}/logs`:
@@ -370,7 +388,8 @@ function fakeServer(opts: FakeOptions = {}) {
       case "DELETE /api/v1/credential-requests/req2":
         return json({ ...UPDATE_REQUEST, status: "cancelled" });
       case "GET /api/v1/runs":
-        return json({ items: [], next_cursor: null });
+        return json({ items: opts.showRunInList && !!failedRun.archived_at === (url.searchParams.get("archived") === "true")
+          ? [{ ...failedRun, task: TASK_REF, current_stage: null, result_status: null, result_summary: null }] : [], next_cursor: null });
       case "GET /api/v1/tools":
         return opts.toolsResponse?.() ?? json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
       default:
@@ -397,7 +416,7 @@ function renderApp(path: string, opts: FakeOptions = {}) {
       </I18nProvider>
     </LerrynThemeProvider>,
   );
-  return { router, server };
+  return { router, server, queryClient };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -674,6 +693,20 @@ describe("admin passwords", () => {
 });
 
 describe("task page", () => {
+  it("confirms deletion, preserves history and returns to the overview", async () => {
+    const { server, router } = renderApp(`/tasks/${TASK.id}`, { role: "owner" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "删除任务" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/历史运行仍可查看/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "取消" }));
+    expect(server.requests.some((r) => r.method === "DELETE")).toBe(false);
+    await user.click(screen.getByRole("button", { name: "删除任务" }));
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "删除任务" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(server.requests.filter((r) => r.method === "DELETE")).toEqual([expect.objectContaining({ path: `/api/v1/tasks/${TASK.id}` })]);
+  });
   it("disables and enables the previously active version, independently of manual runs", async () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", manualRun: false, task: { active_version: 1 } });
     const user = userEvent.setup();
@@ -737,7 +770,7 @@ describe("task page", () => {
     renderApp(`/tasks/${TASK.id}`, { role: state === "viewer" ? "viewer" : "owner", task: state === "archived" ? { archived_at: iso(-10) } : {} });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    for (const name of ["停用任务", "启用任务", "跳过下次"]) expect(screen.queryByRole("button", { name })).toBeNull();
+    for (const name of ["停用任务", "启用任务", "跳过下次", "删除任务"]) expect(screen.queryByRole("button", { name })).toBeNull();
   });
 
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
@@ -790,6 +823,67 @@ describe("task page", () => {
 });
 
 describe("run page", () => {
+  it("keeps the confirmed archive target when another client changes the record", async () => {
+    const { server, queryClient } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "owner" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "归档记录" }));
+    const dialog = await screen.findByRole("dialog");
+    await act(async () => { queryClient.setQueryData(["runs", FAILED_RUN.id], { ...FAILED_RUN, archived_at: iso(0) }); });
+    await user.click(within(dialog).getByRole("button", { name: "归档记录" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(server.requests.find((r) => r.path.endsWith("/archive"))?.body).toEqual({ archived: true });
+  });
+
+  it("submits archiving once and keeps failures in the confirmation", async () => {
+    let finish: ((response: Response) => void) | undefined;
+    const { server } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "owner", runArchiveSubmit: () => new Promise((resolve) => { finish = resolve; }) });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "归档记录" }));
+    const dialog = await screen.findByRole("dialog");
+    const button = within(dialog).getByRole("button", { name: "归档记录" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await waitFor(() => expect(server.requests.filter((r) => r.path.endsWith("/archive"))).toHaveLength(1));
+    await act(async () => finish!(problem(500, "internal_error")));
+    expect((await screen.findByRole("alert")).textContent).toContain("归档状态未更新");
+  });
+
+  it("archives and restores a run without hiding its readable history", async () => {
+    const { server } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "maintainer" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "归档记录" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/完整日志和现有产物长期保留/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "归档记录" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("已归档")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "取消归档" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/重新按部署的保留策略清理/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "取消归档" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(server.requests.filter((r) => r.path.endsWith("/archive")).map((r) => r.body)).toEqual([{ archived: true }, { archived: false }]);
+  });
+
+  it.each(["viewer", "running", "expired"])("prevents archiving for %s", async (state) => {
+    renderApp(`/runs/${FAILED_RUN.id}`, { role: state === "viewer" ? "viewer" : "owner", run: state === "running" ? { status: "running" } : state === "expired" ? { logs_expired_at: iso(0) } : {} });
+    await screen.findByRole("heading", { name: state === "running" ? "运行中" : "执行失败" });
+    await screen.findByRole("button", { name: "复制运行 ID" });
+    const button = screen.queryByRole("button", { name: "归档记录" });
+    if (state === "expired") expect(button?.hasAttribute("disabled")).toBe(true);
+    else expect(button).toBeNull();
+  });
+
+  it("opens the archived filter through the server query", async () => {
+    const { server } = renderApp("/runs", { role: "owner", showRunInList: true, run: { archived_at: iso(-5) } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "已归档" }));
+    expect(await screen.findByRole("button", { name: "取消归档" })).toBeTruthy();
+    expect(server.requests.some((r) => r.path === "/api/v1/runs")).toBe(true);
+    expect(server.fetch.mock.calls.some(([req]) => new URL(req.url).searchParams.get("archived") === "true")).toBe(true);
+  });
   it("retries a finished run whatever the task's manual run switch says", async () => {
     const { router, server } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "maintainer", manualRun: false });
     fireEvent.click(await screen.findByRole("button", { name: "重试" }));

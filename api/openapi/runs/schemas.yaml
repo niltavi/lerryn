@@ -162,6 +162,16 @@ Canceller:
       type: string
       format: date-time
 
+SetRunArchiveRequest:
+  type: object
+  description: 设置运行记录的手动归档状态。
+  required: [archived]
+  additionalProperties: false
+  properties:
+    archived:
+      type: boolean
+      description: true 归档并长期保留，false 恢复到默认列表和原保留策略。
+
 Run:
   type: object
   description: 一次运行。
@@ -270,6 +280,10 @@ Run:
       type: [string, "null"]
       format: date-time
       description: 日志按保留策略清理的时间，未清理时为 null。清理后 `log_lines` 保留原来的行数，读取日志返回 410 `expired`。
+    archived_at:
+      type: [string, "null"]
+      format: date-time
+      description: 手动归档的时间，未归档时为 null。归档后完整日志保存在数据库中，不再自动清理。
     links:
       $ref: "../common/schemas.yaml#/Links"
 
@@ -327,6 +341,10 @@ RunSummary:
       format: uuid
     task:
       $ref: "../common/schemas.yaml#/TaskRef"
+    archived_at:
+      type: [string, "null"]
+      format: date-time
+      description: 手动归档时间，未归档时为 null。
     version:
       type: integer
     status:

@@ -63,7 +63,7 @@ func (r *Runs) ArchiveLogs(ctx context.Context) (int, error) {
 	var runs []store.Run
 	err := r.db.NewSelect().Model(&runs).
 		Column("id", "status", "log_lines").
-		Where("log_archive IS NULL AND finished_at IS NOT NULL AND logs_expired_at IS NULL").
+		Where("log_archive IS NULL AND finished_at IS NOT NULL AND logs_expired_at IS NULL AND archived_at IS NULL").
 		Where("status NOT IN (?)", bun.List(activeStatuses)).
 		Order("finished_at").Limit(ArchiveBatch).Scan(ctx)
 	if err != nil {
@@ -136,7 +136,7 @@ func (r *Runs) archiveRun(ctx context.Context, run store.Run) error {
 			Set("log_archive = ?", string(data)).
 			Set("log_blob = ?", nullString(archive.Blob)).
 			Set("log_bytes = ?", archiveSize(archive)).
-			Where("id = ? AND log_archive IS NULL AND logs_expired_at IS NULL AND log_lines = ?", run.ID, run.LogLines).
+			Where("id = ? AND log_archive IS NULL AND logs_expired_at IS NULL AND archived_at IS NULL AND log_lines = ?", run.ID, run.LogLines).
 			Exec(ctx)
 		if err := changedOne(res, err); err != nil {
 			if errors.Is(err, errNotChanged) {
@@ -207,11 +207,30 @@ func (r *Runs) readLines(ctx context.Context, run store.Run, from, to int64) ([]
 			return nil, ErrExpired
 		}
 		if fresh.LogArchive == "" {
-			return lines, nil
+			return readLogLines(ctx, r.db, run.ID, from, to)
 		}
 		run = fresh
 	}
-	return r.readArchived(ctx, run.ID, run.LogArchive, from, to)
+	lines, err := r.readArchived(ctx, run.ID, run.LogArchive, from, to)
+	if err == nil && int64(len(lines)) == to-from+1 {
+		return lines, nil
+	}
+	// A user archive can move the log back into the database while a
+	// download still holds the former object reference.
+	fresh, reloadErr := r.reload(ctx, run.ID)
+	if reloadErr != nil {
+		return nil, reloadErr
+	}
+	if !fresh.LogsExpiredAt.IsZero() {
+		return nil, ErrExpired
+	}
+	if fresh.LogArchive == "" {
+		return readLogLines(ctx, r.db, run.ID, from, to)
+	}
+	if fresh.LogArchive != run.LogArchive {
+		return r.readArchived(ctx, run.ID, fresh.LogArchive, from, to)
+	}
+	return lines, err
 }
 
 // readArchived reads lines from to to from a run's archive.

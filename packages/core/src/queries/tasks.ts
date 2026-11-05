@@ -18,6 +18,7 @@ export type FileDiff = Schemas["FileDiff"];
 const ACTIVE_POLL_MS = 3_000;
 
 export type TaskControl =
+  | { action: "delete" }
   | { action: "pause" }
   | { action: "resume"; version: number }
   | { action: "skip"; scheduledAt: string };
@@ -27,7 +28,9 @@ export function useTaskControl(taskId: string) {
   const session = useApiSession();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: TaskControl): Promise<Schemas["Task"] | TriggerSet> => input.action === "skip"
+    mutationFn: async (input: TaskControl): Promise<Schemas["Task"] | TriggerSet> => input.action === "delete"
+      ? unwrap(session.client.DELETE("/api/v1/tasks/{taskId}", { params: { path: { taskId } } }))
+      : input.action === "skip"
       ? unwrap(session.client.POST("/api/v1/tasks/{taskId}/skip-next-run", {
           params: { path: { taskId } }, body: { scheduled_at: input.scheduledAt },
         }))

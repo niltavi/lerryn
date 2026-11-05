@@ -73,6 +73,7 @@ export function useRunLive(runId: string) {
 }
 
 export interface RunListFilter {
+  archived?: boolean;
   projectId?: string | null;
   taskId?: string;
   status?: RunStatus[];
@@ -84,7 +85,7 @@ const RUN_PAGE = 50;
 export function useRunList(filter: RunListFilter) {
   const api = useApi();
   const poll = usePollInterval(10_000);
-  const key = { projectId: filter.projectId ?? null, taskId: filter.taskId ?? null, status: filter.status ?? [] };
+  const key = { projectId: filter.projectId ?? null, taskId: filter.taskId ?? null, status: filter.status ?? [], archived: filter.archived ?? false };
   return useInfiniteQuery({
     queryKey: queryKeys.runList(key),
     initialPageParam: null as string | null,
@@ -94,6 +95,7 @@ export function useRunList(filter: RunListFilter) {
           params: {
             query: {
               limit: RUN_PAGE,
+              ...(key.archived ? { archived: true } : {}),
               ...(key.projectId ? { project_id: key.projectId } : {}),
               ...(key.taskId ? { task_id: key.taskId } : {}),
               ...(key.status.length ? { status: key.status } : {}),
@@ -109,6 +111,32 @@ export function useRunList(filter: RunListFilter) {
     }),
     retry: shouldRetry,
     refetchInterval: poll,
+  });
+}
+
+/** Archive visibility and retention are server state, shared across every view. */
+export function useSetRunArchive() {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, archived }: { runId: string; archived: boolean; taskId: string }) => unwrap(session.client.PUT("/api/v1/runs/{runId}/archive", {
+      params: { path: { runId } }, body: { archived },
+    })),
+    onMutate: session.capture,
+    onSuccess: (run, _input, isCurrent) => {
+      if (isCurrent?.()) queryClient.setQueryData(queryKeys.run(run.id), run);
+    },
+    onSettled: (_data, _error, input, isCurrent) => {
+      if (!isCurrent?.()) return;
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.run(input.runId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.task(input.taskId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.runListAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.overviewAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.calendarAll }),
+      ]);
+    },
   });
 }
 

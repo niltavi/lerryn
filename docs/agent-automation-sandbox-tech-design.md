@@ -364,7 +364,7 @@ Agent 面板只渲染五种声明式类型，平台不执行任务给出的 HTML
 | `environments` | runtime、image_digest、lockfile_hash | 主键即环境 ID（内容哈希） |
 | `triggers` | task_id、name、type、enabled、schedule、timezone、catch_up、params、max_body_bytes、token_hash、token_prefix、next_fire_at、last_fired_at | （task_id，name）唯一；token_hash 唯一 |
 | `trigger_fires` | trigger_id、scheduled_at、outcome、run_id（可空）、missed_count | （trigger_id，scheduled_at）唯一 |
-| `runs` | task_id、version_id、env_id、status、trigger_kind、trigger_id、trigger_fire_id、scheduled_at、client、attempt、max_attempts、retry_of、not_before、rerun_of、skip_reason、is_test、runner_id、runner_name、claimed_at、lease_expires_at、queued_at、started_at、finished_at、exit_code、error_code、error_stage、cancel_requested_by、input_key、concurrency_key、log_archive、log_blob、log_bytes、logs_expired_at | 部分唯一索引：concurrency_key 非空且状态为活动状态时唯一；（status，queued_at）索引；（status，lease_expires_at）索引，供对账扫描过期租约；log_archive 为空且已结束的运行按 finished_at 的部分索引，供日志归档扫描。重试和重跑分成 retry_of、rerun_of 两列，代替原来的 parent_run_id，控制台据此分别显示“重试”和“重跑自” |
+| `runs` | task_id、version_id、env_id、status、trigger_kind、trigger_id、trigger_fire_id、scheduled_at、client、attempt、max_attempts、retry_of、not_before、rerun_of、skip_reason、is_test、runner_id、runner_name、claimed_at、lease_expires_at、queued_at、started_at、finished_at、exit_code、error_code、error_stage、cancel_requested_by、input_key、concurrency_key、log_archive、log_blob、log_bytes、logs_expired_at、archived_at | 部分唯一索引：concurrency_key 非空且状态为活动状态时唯一；（status，queued_at）索引；（status，lease_expires_at）索引，供对账扫描过期租约；log_archive 为空且已结束的运行按 finished_at 的部分索引，供日志归档扫描。重试和重跑分成 retry_of、rerun_of 两列，代替原来的 parent_run_id，控制台据此分别显示“重试”和“重跑自” |
 | `run_required_labels` | run_id、label | （run_id，label）唯一 |
 | `run_events` | run_id、seq、kind、payload、ts | （run_id，seq）唯一 |
 | `log_chunks` | run_id、seq_from、seq_to、data | （run_id，seq_from）唯一 |
@@ -488,9 +488,11 @@ S3 兼容存储的实现在 `blob.S3`（M5）。对象布局与本地实现相�
 {"seq": 1024, "ts": "2026-11-02T00:00:01.234Z", "stream": "stdout", "stage": "fetch", "text": "fetched 120 records"}
 ```
 
-**运行结束后：** 主节点把分片合并为归档写入对象存储，再删除分片。归档按每 1000 行一个独立压缩帧组织，另存一份索引，记录每帧的起始序号和字节偏移。读取任意位置时只解压对应的帧，10 万行的日志也不需要整体加载。
+**运行结束后：** 未手动归档的运行由主节点把分片合并为归档写入对象存储，再删除分片。归档按每 1000 行一个独立压缩帧组织，另存一份索引，记录每帧的起始序号和字节偏移。读取任意位置时只解压对应的帧，10 万行的日志也不需要整体加载。
 
 M5 的实现（`service/logarchive.go`）：主节点每 10 秒找出已经结束、日志仍在分片表里的运行，每批最多 20 个，按结束时间先后归档；积压时连续处理。归档对象由若干个独立的 gzip 成员首尾相接组成，每个成员是 1000 行与分片相同的 NDJSON 记录。对象按内容哈希存放在 `blobs/sha256/` 下，与任务文件共用一套存储接口，不另设 `logs/<run_id>/` 前缀：内容寻址的对象写入即不可变，两个节点重复归档得到同一个对象，不需要额外的删除和覆盖语义。帧索引（每帧的起止序号、字节偏移和长度）和对象哈希存在 `runs.log_archive` 一列 JSON 里，只存不查，读取时按 Range 只取需要的帧。写入归档和删除分片在同一个事务里，条件是 `log_archive` 仍为空，两个主节点同时归档也只生效一次。读取日志时，如果先读到的运行还没有归档、读分片时分片已经被删除，就重新读一次运行，改从归档读取，所以归档过程中的翻页不会缺行。压缩用标准库的 gzip，不引入新的依赖。单机部署同样归档，写入本地对象存储。
+
+**用户手动归档。** `setRunArchive`（`PUT /api/v1/runs/{runId}/archive`，变更）需要运行控制权限，设置 `runs.archived_at`（迁移 20261111010000）。只允许归档已结束且日志未过期的运行，日志已清理返回 410 `expired`。先在事务外按每批 1000 行读取完整日志，写入立即取消文件链接的临时文件，内存只保留一批；再锁定运行行并复查状态、日志行数及清理标记，在一个事务内写入 `log_chunks`、清除对象归档引用并设置手动归档时间。此前已自动转存到对象存储的日志也会读回数据库，旧归档对象进入引用回收。后台日志转存及提交条件都排除手动归档的运行，因此完整日志持续留在数据库，分页、流和下载沿用现有读取路径。取消手动归档后恢复后台转存及保留策略。每次实际状态变更写 `run.archive` 审计，重复设置相同状态没有额外影响。
 
 **限制：** 单行超过 64 KiB 截断；单次运行的日志总量有上限，默认 20 万行或 100 MiB，部署可调。超出部分丢弃，同时写入一条截断事件，记录丢弃的行数和字节数，控制台和 API 都会显示。
 
@@ -499,6 +501,8 @@ M5 的实现（`service/logarchive.go`）：主节点每 10 秒找出已经结�
 运行记录、日志、产物分别设置保留期和容量上限，部署级给默认值，项目级可以收紧。清理由主节点定期执行，每次清理都留下记录。被清理的日志和产物，查询时返回"已过期"，而不是空内容。
 
 首个试用版的实现（`service/retention.go`、`service/blobgc.go`，迁移 20261108010000）：
+
+**手动保留优先。** 手动归档的运行不参加日志、运行记录和产物的时间清理，也不计入自动清理的容量上限。保留策略的事务与手动归档使用同一运行行锁，重新检查归档状态后才能清理，避免先选中旧记录、随后误删刚完成的归档。归档不停止自动重试；取消归档后，已经超期的内容可能在下一轮保留策略清理时被删除。
 
 **配置。** 部署级的五项，都在 `retention` 下，0 表示不限，默认全部为 0：部署者决定删什么，升级不会突然删掉数据。PRD 第 11 节的默认值待试用后按磁盘和使用频率确定。
 
@@ -1470,6 +1474,7 @@ Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由�
   - 运行页和运行列表预览里已结束的运行有“重试”，调用 `rerunRun`，用最新版本和原运行的参数。不受 `manual_run` 影响：重跑的是已经跑过的运行，Agent 关掉手动执行是不想让人凭空发起一次。
   - 每次按下“手动执行”或“重试”带一个新的 `Idempotency-Key`，请求被网络层重发不会多出运行；请求进行中按钮禁用，失败时按钮的提示写出原因（上一次运行未结束、队列已满、手动执行已关闭等）。
   - 会话发起的运行 `trigger.client` 为空，控制台据此把来源写成“控制台发起”，和 Agent 用令牌发起的区分开。
+- 任务页的“删除任务”复用 `archiveTask`（`DELETE /api/v1/tasks/{taskId}`），确认后停止触发并移出默认任务列表，保留历史，返回概览。归档任务不显示删除或启停操作。运行详情和列表预览提供手动归档／取消归档；默认列表、任务近期运行、概览和日历不展示手动归档的运行，运行列表的“已归档”筛选通过 `listRuns?archived=true` 读取，直接链接仍可查看完整历史。移动端保持只读。
 - 任务页提供“跳过下次”“停用任务”和“启用任务”，不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
 - `skipNextTaskRun`（`POST /api/v1/tasks/{taskId}/skip-next-run`，变更）需要修改任务权限，请求带用户确认的 `scheduled_at`。service 在事务内先锁任务、再锁触发器，核对任务仍激活且当前最早的 `next_fire_at` 等于请求时间并晚于当前时间；不匹配返回 422 `validation_failed`，不会跳过之后的计划。同一时间的启用 cron 触发器各记录一条 `manual` 原因的已跳过运行及触发实例，再推进到下一个 cron 时间；写入 `task.skip_next` 审计。立即生效，不支持撤回，不改触发器配置 revision，不影响 Webhook 和已有运行；调度器、日历与频率预览都尊重推进后的时间。不新增独立 MCP 工具，经 `api_call` 可调用。
 - 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用，保持第 10.2 节的 12 个工具。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。

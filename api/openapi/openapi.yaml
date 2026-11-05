@@ -135,6 +135,8 @@ paths:
     $ref: ./runs/paths.yaml#/run
   /api/v1/runs/{runId}/cancel:
     $ref: ./runs/paths.yaml#/cancel
+  /api/v1/runs/{runId}/archive:
+    $ref: ./runs/paths.yaml#/archive
   /api/v1/runs/{runId}/rerun:
     $ref: ./runs/paths.yaml#/rerun
   /api/v1/runs/{runId}/events:
@@ -513,6 +515,8 @@ components:
       $ref: ./runs/schemas.yaml#/Canceller
     Run:
       $ref: ./runs/schemas.yaml#/Run
+    SetRunArchiveRequest:
+      $ref: ./runs/schemas.yaml#/SetRunArchiveRequest
     RunnerRef:
       $ref: ./runs/schemas.yaml#/RunnerRef
     RunBrief:

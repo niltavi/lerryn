@@ -88,6 +88,14 @@ export const zhCN = {
     adminLogin: "管理员登录",
   },
   run: {
+    archive: "归档记录",
+    unarchive: "取消归档",
+    archived: "已归档",
+    archiveBody: "移到“已归档”，运行记录、完整日志和现有产物长期保留，不再自动清理。归档不会改变任务计划或停止自动重试。",
+    unarchiveBody: "恢复到默认列表，记录、日志和产物将重新按部署的保留策略清理。",
+    archiveExpired: "日志已按保留策略清理，无法归档完整日志。",
+    archiveActive: "运行尚未结束，请结束后再归档。",
+    archiveFailed: "归档状态未更新，请刷新后重试。",
     status: {
       queued: "排队中",
       preparing: "准备中",
@@ -197,6 +205,8 @@ export const zhCN = {
     tasks: "任务",
     copyLink: "复制任务链接",
     runNow: "手动执行",
+    delete: "删除任务",
+    deleteBody: "删除“{name}”后将停止触发并移出任务列表，已开始的运行继续完成。历史运行仍可查看；需要长期保留的记录和日志请归档。",
     skipNext: "跳过下次",
     stop: "停用任务",
     enable: "启用任务",
@@ -312,6 +322,7 @@ export const zhCN = {
     filterLabel: "按状态筛选",
     filter: {
       all: "全部",
+      archived: "已归档",
       failed: "失败",
       active: "进行中",
     },
