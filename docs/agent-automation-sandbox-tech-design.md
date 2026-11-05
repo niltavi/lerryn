@@ -1482,6 +1482,7 @@ Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由�
 - 管理员关闭本地密码登录后，`discover` 的 `login_methods` 不再包含 password，`capabilities.admin_password_login` 为 true。登录页读到 `discover` 后直接以企业账号登录为主，只在 `admin_password_login` 为 true 时留一个“管理员登录”的入口；两者都没有时不显示密码表单。不带这个字段的旧服务端仍按一次 `password_login_disabled` 切换版式。移动端没有单点登录，按同样的规则在填好服务器地址后隐藏密码表单，只留扫码配对和管理员入口。
 - 工具登记表（第 7.8 节）只做展示：任务页的运行环境里列出清单引用的工具和类型，项目中没有登记的名称标为未登记；个人设置的“工具”页按项目列出能查看的工具。登记和移除由 Agent 经 API 完成，控制台不提供，与不编辑任务的原则一致。
 - 访问令牌页的“接入”区除 MCP、API、CLI 地址外，给出 `lerryn skills install` 一行；MCP 客户端直接读取 `lerryn://skills/` 下的 resource，不需要另外说明。
+- Settings → Tools 展示 Lerryn 的内置 MCP 工具、令牌范围、MCP / HTTP API / CLI / Skill 接入方式和任务内的 `sbx` 能力，提供中英文 [Tools 接入文档](tools.md) 下载。项目登记的工具在独立分区展示；该列表为空或加载失败不影响内置能力和接入信息。
 - 概览今天的波纹日历里，计划触发的提示按任务列出服务端给的 `schedule_text`；任务页触发器的频率本来就取自触发器的 `schedule_text`。
 - 产物预览只渲染纯文本和结构化数据。HTML 和脚本类产物只提供下载，响应头强制作为附件。 预览按现有字符上限读取响应流，只多读用于判断截断的内容；确认超限或关闭预览时取消剩余读取。未截断的 JSON 仍做格式化；读取失败时返回错误，不展示部分结果。下载继续提供完整文件。
 - 首版语言为简体中文和英文。

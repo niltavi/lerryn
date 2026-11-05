@@ -11,6 +11,7 @@ Niltavi 产品线中的自动化沙箱，由外部 Agent 通过 API 和 MCP 操�
 | [快速入门](getting-started.md) | 选择部署方式、连接 Agent、提交并测试第一个任务 |
 | [部署与运维](deploy.md) | Linux 与 Mac mini 安装、多节点部署、全部配置项、指标、备份、迁移、升级和公网访问 |
 | [CLI 与 Agent 接入](cli.md) | 登录、配置、任务版本、运行、任务包、通用 API 命令、Skill 和 MCP stdio 代理 |
+| [Tools 接入](tools.md) | 内置能力、MCP、HTTP API、CLI、Skill 与项目工具接入 |
 | [日常运维](operations.md) | 健康检查、失败排查、备份安排、runner 维护与恢复 |
 
 以上用户文档均提供中英文版本。产品界面目前使用中文，文档语言不会改变界面语言。

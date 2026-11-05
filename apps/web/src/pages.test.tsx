@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import contract from "../../../api/bundled/openapi.yaml?raw";
 import { consolePath } from "./lib/links";
 import { countdown } from "./pages/settings/PairingPage";
 import { generatePassword } from "./pages/admin/AdminUsersPage";
@@ -234,6 +235,7 @@ const problem = (status: number, code: string) =>
 
 interface FakeOptions {
   signedIn?: boolean;
+  locale?: "zh-CN" | "en";
   overview?: unknown;
   methods?: string[];
   adminPasswordLogin?: boolean;
@@ -250,6 +252,7 @@ interface FakeOptions {
   credentials?: Schemas["Credential"][];
   credentialPage?: (url: URL) => Promise<Response>;
   pendingCredentialRequests?: Schemas["CredentialRequest"][];
+  toolsResponse?: () => Response;
   channelSubmit?: (body: Schemas["CreateNotificationChannelRequest"]) => Promise<Response>;
 }
 
@@ -351,7 +354,7 @@ function fakeServer(opts: FakeOptions = {}) {
       case "GET /api/v1/runs":
         return json({ items: [], next_cursor: null });
       case "GET /api/v1/tools":
-        return json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
+        return opts.toolsResponse?.() ?? json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
       default:
         return problem(404, "not_found");
     }
@@ -362,12 +365,12 @@ function fakeServer(opts: FakeOptions = {}) {
 function renderApp(path: string, opts: FakeOptions = {}) {
   const server = fakeServer(opts);
   const api = createLerrynClient({ baseUrl: "http://lerryn.test", fetch: server.fetch });
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0 } } });
   const router = createAppRouter({ api, queryClient });
   router.update({ history: createMemoryHistory({ initialEntries: [path] }) } as never);
   render(
     <LerrynThemeProvider>
-      <I18nProvider locale="zh-CN">
+      <I18nProvider locale={opts.locale ?? "zh-CN"}>
         <QueryClientProvider client={queryClient}>
           <ApiProvider client={api}>
             <RouterProvider router={router} />
@@ -721,6 +724,43 @@ describe("run page", () => {
 });
 
 describe("tools", () => {
+  it("shows built-in capabilities and connection details without registered project tools", async () => {
+    const user = userEvent.setup();
+    renderApp("/settings/tools", { toolsResponse: () => json({ items: [] }) });
+    const builtins = await screen.findByRole("list", { name: "内置 MCP 工具" });
+    const names = [...contract.matchAll(/^\s+tool: ([a-z_]+)$/gm)].map((match) => match[1]);
+    expect(within(builtins).getAllByRole("listitem").map((row) => row.querySelector("code")?.textContent).sort())
+      .toEqual([...names, "api_describe", "api_call"].sort());
+    expect(within(builtins).getByText("task_apply")).toBeTruthy();
+    expect(within(builtins).getByText("api_describe")).toBeTruthy();
+    expect(within(builtins).getByText("api_call")).toBeTruthy();
+    expect(await screen.findByText("尚无登记的工具")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "任务内置能力 · sbx" })).toBeTruthy();
+    const interfaces = screen.getByRole("region", { name: "接入方式" });
+    expect(within(interfaces).getByText(`${window.location.origin}/api/v1`)).toBeTruthy();
+    expect(within(interfaces).getByText(`lerryn login ${window.location.origin}`)).toBeTruthy();
+    await user.click(within(interfaces).getByRole("button", { name: "复制 MCP 地址" }));
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/mcp`);
+    const guide = screen.getByRole("link", { name: "下载接入文档" });
+    expect(guide.getAttribute("href")).toContain("tools.md");
+    expect(guide.getAttribute("download")).toBe("lerryn-tools.md");
+    expect(screen.getByRole("link", { name: "管理访问令牌" }).getAttribute("href")).toBe("/settings/tokens");
+  });
+
+  it("offers the English guide with the English interface", async () => {
+    renderApp("/settings/tools", { locale: "en", toolsResponse: () => json({ items: [] }) });
+    const guide = await screen.findByRole("link", { name: "Download integration guide" });
+    expect(guide.getAttribute("href")).toContain("/docs/en/tools.md");
+    expect(screen.getByRole("list", { name: "Built-in MCP tools" })).toBeTruthy();
+  });
+
+  it("keeps built-ins and the guide available when the project registry fails", async () => {
+    renderApp("/settings/tools", { toolsResponse: () => problem(500, "internal_error") });
+    expect(await screen.findByRole("button", { name: "重试" })).toBeTruthy();
+    expect(screen.getByRole("list", { name: "内置 MCP 工具" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "下载接入文档" })).toBeTruthy();
+  });
+
   it("shows the task's tools with their kind and marks a name the project never registered", async () => {
     renderApp(`/tasks/${TASK.id}`);
     await screen.findByRole("heading", { name: "weekday-digest" });
@@ -737,7 +777,7 @@ describe("tools", () => {
     expect(screen.getByRole("button", { name: /Python 3\.12/ }).querySelector(".dot--bad")).toBeTruthy();
   });
 
-  it("lists registered tools read-only in settings", async () => {
+  it("lists registered project tools in their own settings section", async () => {
     renderApp("/settings/tools");
     expect(await screen.findByText("查询客户和商机")).toBeTruthy();
     expect(screen.getByText("crm.example.com")).toBeTruthy();
