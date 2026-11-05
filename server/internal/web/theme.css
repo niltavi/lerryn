@@ -9,6 +9,8 @@
   --bark: #245761;
   --paper: #F5F1E6;
   --plate: #fef8ef;
+  --mark-side: #245761;
+  --mark-top: #428c9a;
   --liner: #F6F3EA;
   --liner-2: #EAE9E2;
   --liner-3: #E3E1D7;
@@ -65,6 +67,8 @@
       --bark: #245761;
       --paper: #0B1224;
       --plate: #fef8ef;
+      --mark-side: #3f8794;
+      --mark-top: #7cc2cd;
       --liner: #101729;
       --liner-2: #131C2F;
       --liner-3: #151C2F;

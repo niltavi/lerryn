@@ -10,6 +10,8 @@
   --color-bark: var(--bark);
   --color-paper: var(--paper);
   --color-plate: var(--plate);
+  --color-mark-side: var(--mark-side);
+  --color-mark-top: var(--mark-top);
   --color-liner: var(--liner);
   --color-liner-2: var(--liner-2);
   --color-liner-3: var(--liner-3);
@@ -113,6 +115,8 @@
   --bark: #245761;
   --paper: #F5F1E6;
   --plate: #fef8ef;
+  --mark-side: #245761;
+  --mark-top: #428c9a;
   --liner: #F6F3EA;
   --liner-2: #EAE9E2;
   --liner-3: #E3E1D7;
@@ -219,6 +223,8 @@
   --bark: #245761;
   --paper: #0B1224;
   --plate: #fef8ef;
+  --mark-side: #3f8794;
+  --mark-top: #7cc2cd;
   --liner: #101729;
   --liner-2: #131C2F;
   --liner-3: #151C2F;
@@ -326,6 +332,8 @@
       --bark: #245761;
       --paper: #0B1224;
       --plate: #fef8ef;
+      --mark-side: #3f8794;
+      --mark-top: #7cc2cd;
       --liner: #101729;
       --liner-2: #131C2F;
       --liner-3: #151C2F;

@@ -81,7 +81,7 @@
   /* ── 骨架：图标轨 + 列表 + 看板；窄屏时图标轨移到底部 ── */
   .shell { display: flex; align-items: stretch; min-height: 100vh; min-height: 100dvh; }
   .rail { position: sticky; top: 0; flex: none; width: 64px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 0; border-right: 1px solid var(--line); background: var(--paper); z-index: 20; }
-  .rail-logo { width: 44px; height: 44px; margin-bottom: 14px; border-radius: var(--radius-2xl); background: var(--plate); display: grid; place-items: center; }
+  .rail-logo { width: 44px; height: 44px; margin-bottom: 14px; display: grid; place-items: center; }
   .ri { position: relative; width: 44px; height: 44px; border-radius: var(--radius-2xl); display: grid; place-items: center; color: var(--ink-muted); text-decoration: none; border: 0; background: transparent; cursor: pointer; padding: 0; }
   .ri:hover { background: var(--liner-2); color: var(--ink); }
   .ri[aria-current="page"], .ri.is-on { background: var(--kraft-soft); color: var(--kraft-strong); }
@@ -392,7 +392,7 @@
   /* ── 居中单栏（登录、注册） ── */
   .auth { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-6); padding: 48px 16px; }
   .auth-col { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: var(--space-5); }
-  .auth-logo { width: 64px; height: 64px; border-radius: 20px; background: var(--plate); display: grid; place-items: center; }
+  .auth-logo { width: 64px; height: 64px; display: grid; place-items: center; }
   .or { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-muted); }
   .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .pw-wrap { position: relative; }
