@@ -145,17 +145,26 @@ const boat = (lantern = false) => `<g class="boat">
 const voyage = (path, dur, lantern = false) => `<g class="voyage" opacity="0"><g transform="scale(1.6)">${boat(lantern)}</g><animateMotion dur="${dur}s" repeatCount="indefinite" rotate="auto" path="${path}"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="${dur}s" repeatCount="indefinite"/></g>`;
 
 const birdSource = readFileSync(new URL('../art/niltavi-bird.svg', import.meta.url), 'utf8');
+// The vendored file carries its own twig; scenes supply the branch instead.
 const birdInner = birdSource
   .replace(/^[\s\S]*?<\/desc>/, '')
   .replace(/<\/svg>\s*$/, '')
+  .replace(/<g id="art-perch">[\s\S]*?<\/g>/, '')
   .replace(/<!--[\s\S]*?-->/g, '')
   .replace(/ id="[^"]*"/g, '')
   .replace(/\n\s*/g, '');
+// Where the toes close around the vendored twig, front foot first.
+const grips = [[420, 1040], [548, 985]];
 // The vendored bird faces left and keeps its own colors in both themes.
-const bird = (x, y, h, flip = false) => {
-  const w = (h * 1030) / 1380;
-  const flipped = flip ? ` transform="translate(${2 * x + w}) scale(-1 1)"` : '';
-  return `<g${flipped}><svg x="${x}" y="${y}" width="${r1(w)}" height="${h}" viewBox="20 80 1030 1380" aria-hidden="true">${birdInner}</svg></g>`;
+// Mirrored to face right, it is turned so both feet rest on the branch at
+// point p, whose direction there is d.
+const bird = ([px, py], [dx, dy], h) => {
+  const k = h / 1380;
+  const [[ax, ay], [bx, by]] = grips;
+  // Mirrored, the back foot lies to the left of the front foot.
+  const feet = Math.atan2(by - ay, -(bx - ax));
+  const turn = ((Math.atan2(-dy, -dx) - feet) * 180) / Math.PI;
+  return `<g transform="translate(${r1(px)} ${r1(py)}) rotate(${r1(turn)}) scale(${-r1(k * 1e4) / 1e4} ${r1(k * 1e4) / 1e4}) translate(${-(ax + bx) / 2} ${-(ay + by) / 2})">${birdInner}</g>`;
 };
 
 const sparkle = (x, y, s, delay, tone = 'c-spark') => `<path class="${tone} twinkle d${delay}" d="M${x} ${y - s}Q${x + s * 0.18} ${y - s * 0.18} ${x + s} ${y}Q${x + s * 0.18} ${y + s * 0.18} ${x} ${y + s}Q${x - s * 0.18} ${y + s * 0.18} ${x - s} ${y}Q${x - s * 0.18} ${y - s * 0.18} ${x} ${y - s}Z"/>`;
@@ -229,7 +238,8 @@ export function ground(label) {
 
 // The keys: hanging from your own branch, watched by the bird.
 export function keys(label) {
-  const branch = taper(sample(quad([-20, 230], [300, 150], [820, 196]), 0, 1, 30), 9, (t) => 1 - t * 0.6);
+  const bough = quad([-20, 230], [300, 150], [820, 196]);
+  const branch = taper(sample(bough, 0, 1, 30), 9, (t) => 1 - t * 0.6);
   const branchCut = taper(sample(quad([40, 216], [300, 146], [700, 180]), 0, 1, 24), 1.6);
   const leaves = [
     leaf([180, 192], [200, 120], [250, 90], 16), leaf([196, 190], [150, 150], [110, 120], 13, 'c-leaf-deep'),
@@ -246,7 +256,7 @@ export function keys(label) {
     <path class="c-branch" d="${branch}"/><path class="c-cut-soft" d="${branchCut}"/>
     ${leaves}
     <g transform="translate(330 312)">${key}</g>
-    ${bird(470, 30, 190, true)}`);
+    ${bird(bough(0.72), [bough(0.73)[0] - bough(0.71)[0], bough(0.73)[1] - bough(0.71)[1]], 190)}`);
 }
 
 // Morning: the night's run is on record, page after page.
