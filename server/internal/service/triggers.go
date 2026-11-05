@@ -365,7 +365,13 @@ func (t *Triggers) view(task store.Task, rows []store.Trigger, tokens map[uuid.U
 		if row.Type == store.TriggerTypeCron {
 			if c, err := scheduler.ParseCron(row.Schedule, row.Timezone); err == nil {
 				v.ScheduleText = c.Describe()
-				v.NextFires = c.NextN(now, nextFiresShown)
+				after := now
+				// A manual skip advances the stored time beyond the cron's
+				// next occurrence. Previews must honour that decision too.
+				if row.Enabled && row.NextFireAt.After(now) {
+					after = row.NextFireAt.Add(-time.Nanosecond)
+				}
+				v.NextFires = c.NextN(after, nextFiresShown)
 			} else {
 				// Stored schedules were validated; a zone dropped from the
 				// zone database is the only way to get here.

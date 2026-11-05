@@ -147,6 +147,16 @@ Trigger:
       type: string
       format: date-time
 
+SkipNextRunRequest:
+  type: object
+  description: 用户确认跳过的下一次定时执行时间，防止重复请求跳过后续计划。
+  required: [scheduled_at]
+  properties:
+    scheduled_at:
+      type: string
+      format: date-time
+      description: 任务当前最早的 next_fire_at。
+
 TriggerSet:
   type: object
   description: 一个任务的全部触发器。

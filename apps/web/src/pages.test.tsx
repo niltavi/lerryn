@@ -130,7 +130,7 @@ const NEW_RUN = {
   error: null,
   links: { console: "http://lerryn.test/runs/0192f3a1-0000-7000-8000-0000000000r5" },
 };
-const TRIGGERS = {
+const TRIGGERS: Schemas["TriggerSet"] = {
   task_id: TASK.id,
   revision: 1,
   dry_run: false,
@@ -246,6 +246,9 @@ interface FakeOptions {
   manualRun?: boolean;
   /** An error code startRun answers with instead of a run. */
   startError?: string;
+  task?: Partial<Schemas["Task"]>;
+  triggerItems?: Schemas["Trigger"][];
+  taskControlSubmit?: (path: string, body: unknown) => Promise<Response>;
   admin?: boolean;
   tasks?: Schemas["TaskSummary"][];
   adminSubmit?: (body: unknown) => Promise<Response>;
@@ -257,6 +260,8 @@ interface FakeOptions {
 }
 
 function fakeServer(opts: FakeOptions = {}) {
+  let task = { ...TASK, ...opts.task, console: { manual_run: opts.manualRun ?? true } };
+  let triggerItems = opts.triggerItems ?? TRIGGERS.triggers;
   const credentials = [...(opts.credentials ?? [CREDENTIAL])];
   const channels: Schemas["NotificationChannel"][] = [];
   const requests: { method: string; path: string; body?: unknown; idempotencyKey?: string | null }[] = [];
@@ -297,6 +302,9 @@ function fakeServer(opts: FakeOptions = {}) {
         return json({ items: opts.role ? [{ ...PROJECT, role: opts.role }] : [], next_cursor: null });
       case "GET /api/v1/credential-requests":
         return json({ items: opts.pendingCredentialRequests ?? [], next_cursor: null });
+      case "GET /api/v1/me/tokens":
+      case "GET /api/v1/me/devices":
+        return json({ items: [], next_cursor: null });
       case "GET /api/v1/notification-channels":
         return json({ items: channels });
       case "POST /api/v1/notification-channels": {
@@ -306,7 +314,20 @@ function fakeServer(opts: FakeOptions = {}) {
         return response;
       }
       case `GET /api/v1/tasks/${TASK.id}`:
-        return json({ ...TASK, console: { manual_run: opts.manualRun ?? true } });
+        return json(task);
+      case `POST /api/v1/tasks/${TASK.id}/activation`: {
+        if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
+        const input = body as Schemas["SetTaskActivationRequest"];
+        task = { ...task, state: input.active ? "active" : "inactive", active_version: input.version ?? task.active_version };
+        return json(task);
+      }
+      case `POST /api/v1/tasks/${TASK.id}/skip-next-run`: {
+        if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
+        const input = body as Schemas["SkipNextRunRequest"];
+        triggerItems = triggerItems.map((tr) => tr.next_fire_at === input.scheduled_at
+          ? { ...tr, next_fire_at: iso(90 + 24 * 60) } : tr);
+        return json({ ...TRIGGERS, triggers: triggerItems });
+      }
       case `POST /api/v1/tasks/${TASK.id}/runs`:
         return opts.startError ? problem(409, opts.startError) : json(NEW_RUN, 202);
       case `GET /api/v1/runs/${FAILED_RUN.id}`:
@@ -327,7 +348,7 @@ function fakeServer(opts: FakeOptions = {}) {
       case `GET /api/v1/runs/${NEW_RUN.id}`:
         return json(NEW_RUN);
       case `GET /api/v1/tasks/${TASK.id}/triggers`:
-        return json(TRIGGERS);
+        return json({ ...TRIGGERS, task_active: task.state === "active", triggers: triggerItems.map((tr) => ({ ...tr, next_fire_at: task.state === "active" ? tr.next_fire_at : null })) });
       case `GET /api/v1/tasks/${TASK.id}/credentials`:
         return json({ version: 2, items: [{ name: "LLM_API_KEY", as: "env", optional: false, status: "missing", credential: null, expires_at: null, pending_request_id: "0192f3a1-0000-7000-8000-0000000000c1" }] });
       case "GET /api/v1/credentials": {
@@ -380,6 +401,87 @@ function renderApp(path: string, opts: FakeOptions = {}) {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("settings navigation", () => {
+  it("opens Key from the key icon and Account from the avatar", async () => {
+    const { router, server } = renderApp("/");
+    const user = userEvent.setup();
+    const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
+    await user.click(rail.getByRole("link", { name: "密钥" }));
+    await screen.findByRole("main", { name: "访问令牌" });
+    expect(router.state.location.pathname).toBe("/settings/tokens");
+    const keyMenu = screen.getByRole("region", { name: "密钥" });
+    expect(within(keyMenu).getAllByRole("link").map((link) => link.querySelector(".li-name")?.textContent)).toEqual(["访问令牌", "凭证", "工具"]);
+    expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBe("page");
+    expect(server.requests.some((req) => ["/api/v1/notification-channels", "/api/v1/me/devices"].includes(req.path))).toBe(false);
+
+    await user.click(rail.getByRole("link", { name: "张林 · 账号" }));
+    await screen.findByRole("heading", { level: 1, name: "账号" });
+    expect(router.state.location.pathname).toBe("/settings/account");
+    expect(screen.queryByRole("region", { name: "密钥" })).toBeNull();
+    const accountMenu = within(screen.getByRole("region", { name: "账号" }));
+    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["通知", "手机", "账号"]);
+    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
+    expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBeNull();
+
+    await user.click(accountMenu.getByRole("link", { name: "通知" }));
+    await screen.findByRole("main", { name: "通知" });
+    expect(router.state.location.pathname).toBe("/settings/notifications");
+    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
+    await user.click(accountMenu.getByRole("link", { name: "手机" }));
+    await screen.findByRole("main", { name: "手机" });
+    expect(router.state.location.pathname).toBe("/settings/pairing");
+  });
+
+  it.each([
+    ["/settings/tokens?new=true", "密钥", "访问令牌", "密钥"],
+    ["/settings/credentials", "密钥", "凭证", "密钥"],
+    ["/settings/tools", "密钥", "工具", "密钥"],
+    ["/settings/notifications", "账号", "通知", "张林 · 账号"],
+    ["/settings/pairing", "账号", "手机", "张林 · 账号"],
+    ["/settings/account", "账号", "账号", "张林 · 账号"],
+  ])("keeps the menu and rail selection on a direct visit to %s", async (path, menu, section, entry) => {
+    const { server } = renderApp(path);
+    if (path.includes("?new")) {
+      const dialog = await screen.findByRole("dialog", { name: "新建令牌" });
+      await userEvent.setup().click(within(dialog).getByRole("button", { name: "取消" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    }
+    const list = within(await screen.findByRole("region", { name: menu }));
+    const selected = list.getAllByRole("link").find((link) => link.getAttribute("aria-current") === "page");
+    expect(selected?.textContent).toContain(section);
+    const rail = within(screen.getByRole("navigation", { name: "主导航" }));
+    expect(rail.getByRole("link", { name: entry }).getAttribute("aria-current")).toBe("page");
+    expect(rail.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(1);
+    if (menu === "账号") {
+      expect(server.requests.some((req) => ["/api/v1/me/tokens", "/api/v1/tools"].includes(req.path))).toBe(false);
+    }
+  });
+
+  it("places the admin entry immediately above the avatar and opens organization settings", async () => {
+    const { router } = renderApp("/settings/account", { admin: true });
+    const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
+    const admin = rail.getByRole("link", { name: "管理" });
+    expect(admin.parentElement?.className).toBe("rail-foot");
+    expect(admin.nextElementSibling).toBe(rail.getByRole("link", { name: "张林 · 账号" }));
+    await userEvent.setup().click(admin);
+    const menu = within(await screen.findByRole("region", { name: "管理" }));
+    expect(router.state.location.pathname).toBe("/admin/users");
+    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "登录", "执行节点", "审计"]);
+    expect(admin.getAttribute("aria-current")).toBe("page");
+    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBeNull();
+  });
+
+  it.each(["/admin", "/admin/users", "/admin/login", "/admin/runners", "/admin/audit"])("hides the admin entry and rejects a non-admin visit to %s", async (path) => {
+    const { router, server } = renderApp("/settings/account");
+    const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
+    expect(rail.queryByRole("link", { name: "管理" })).toBeNull();
+    await act(() => router.navigate({ to: path }));
+    await screen.findByText("找不到");
+    expect(screen.queryByRole("region", { name: "管理" })).toBeNull();
+    expect(server.requests.some((req) => req.path.startsWith("/api/v1/admin/"))).toBe(false);
+  });
+});
 
 const createdChannel = (body: Schemas["CreateNotificationChannelRequest"]): Schemas["CreatedNotificationChannel"] => ({
   channel: {
@@ -572,6 +674,72 @@ describe("admin passwords", () => {
 });
 
 describe("task page", () => {
+  it("disables and enables the previously active version, independently of manual runs", async () => {
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", manualRun: false, task: { active_version: 1 } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "停用任务" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/已排队和正在执行的运行继续完成/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "停用任务" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("已暂停")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "跳过下次" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "启用任务" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/启用 v1/)).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "启用任务" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(server.requests.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ active: false }, { active: true, version: 1 }]);
+  });
+
+  it("confirms the exact next time and refreshes the displayed schedule after skipping", async () => {
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "owner" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "跳过下次" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "取消" }));
+    expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "跳过下次" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "跳过下次" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const post = server.requests.find((r) => r.method === "POST")!;
+    expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/skip-next-run`);
+    expect(post.body).toEqual({ scheduled_at: TRIGGERS.triggers[0]!.next_fire_at });
+    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(server.requests.filter((r) => r.path.endsWith("/triggers"))).toHaveLength(2);
+  });
+
+  it("keeps the confirmation open and submits once while waiting", async () => {
+    let finish: ((response: Response) => void) | undefined;
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "owner", taskControlSubmit: () => new Promise((resolve) => { finish = resolve; }) });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "停用任务" }));
+    const dialog = await screen.findByRole("dialog");
+    const button = within(dialog).getByRole("button", { name: "停用任务" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await waitFor(() => expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(1));
+    await act(async () => finish!(json({ ...TASK, state: "inactive" })));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("explains when a version cannot be enabled", async () => {
+    renderApp(`/tasks/${TASK.id}`, { role: "owner", task: { state: "inactive", active_version: null }, taskControlSubmit: async () => problem(409, "version_not_tested") });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "启用任务" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "启用任务" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("还没有通过测试");
+  });
+
+  it.each(["viewer", "archived"])("hides lifecycle controls for %s tasks", async (state) => {
+    renderApp(`/tasks/${TASK.id}`, { role: state === "viewer" ? "viewer" : "owner", task: state === "archived" ? { archived_at: iso(-10) } : {} });
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    await screen.findByRole("img", { name: "有凭证不可用" });
+    for (const name of ["停用任务", "启用任务", "跳过下次"]) expect(screen.queryByRole("button", { name })).toBeNull();
+  });
+
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
     renderApp(`/tasks/${TASK.id}`);
     await screen.findByRole("heading", { name: "weekday-digest" });

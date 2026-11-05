@@ -338,7 +338,8 @@ describe("console app", () => {
   it.each([
     { label: "概览", paths: ["/?project=personal", `/tasks/${TASK.id}`, "/"] },
     { label: "运行", paths: [`/runs/${RUN.id}`, "/runs?status=failed", "/runs"] },
-    { label: "凭证", paths: ["/settings/notifications", "/settings/credentials", "/settings/tokens", "/settings/pairing", "/settings/tools", "/settings/account"] },
+    { label: "密钥", paths: ["/settings/credentials", "/settings/tokens", "/settings/tools"] },
+    { label: "张林 · 账号", paths: ["/settings/notifications", "/settings/pairing", "/settings/account"] },
     { label: "管理", paths: ["/admin/users", "/admin/login", "/admin/runners", "/admin/audit"] },
   ])("keeps $label selected across its pages", async ({ label, paths }) => {
     const { router } = renderApp(paths[0]!, { signedIn: true });
@@ -359,13 +360,13 @@ describe("console app", () => {
     const user = userEvent.setup();
     renderApp("/settings/credentials", { signedIn: true });
     const rail = await screen.findByRole("navigation", { name: "主导航" });
-    const settings = screen.getByRole("region", { name: "个人设置" });
-    for (const label of ["通知", "访问令牌", "凭证"]) {
+    const settings = screen.getByRole("region", { name: "密钥" });
+    for (const label of ["工具", "访问令牌", "凭证"]) {
       const name = new RegExp(`^${label}`);
       await user.click(within(settings).getByRole("link", { name }));
       await waitFor(() => expect(within(settings).getByRole("link", { name }).getAttribute("aria-current")).toBe("page"));
       expect(within(rail).getAllByRole("link", { current: "page" })).toEqual([
-        within(rail).getByRole("link", { name: "凭证" }),
+        within(rail).getByRole("link", { name: "密钥" }),
       ]);
     }
   });

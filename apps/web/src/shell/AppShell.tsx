@@ -1,6 +1,6 @@
 import { LiveModeProvider, useDiscovery, useEventStream, useI18n, usePendingCredentialRequests, type Me } from "@lerryn/core";
 import { Logo } from "@lerryn/ui-web";
-import { Link, Outlet, useLinkProps, useRouteContext, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, useLinkProps, useMatch, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, Eye, History, KeyRound, LayoutDashboard, Shield, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -61,6 +61,8 @@ export function AppShell() {
   // Rail selection follows the section, independently of each entry's destination.
   const section = useRouterState({ select: ({ location }) => location.pathname.split("/")[1] });
   const me = useCurrentUser();
+  const inKeySettings = !!useMatch({ from: "/app/settings/_key", shouldThrow: false });
+  const inAccountSettings = !!useMatch({ from: "/app/settings/_account", shouldThrow: false });
   const mode = useEventStream({ enabled: true });
   const requests = usePendingCredentialRequests();
   const pending = requests.data?.items.length ?? 0;
@@ -78,16 +80,16 @@ export function AppShell() {
             <RailLink to="/" active={section === "" || section === "tasks"} label={t("nav.overview")} icon={LayoutDashboard} />
             <RailLink to="/runs" active={section === "runs"} label={t("nav.runs")} icon={History} />
             <RailLink
-              to="/settings/credentials"
-              active={section === "settings"}
-              label={pending ? t("nav.credentialsPending", { count: requests.hasNextPage ? `${pending}+` : pending }) : t("nav.credentials")}
-              tip={t("nav.credentials")}
+              to="/settings/tokens"
+              label={pending ? t("nav.keysPending", { count: requests.hasNextPage ? `${pending}+` : pending }) : t("settings.keyTitle")}
+              tip={t("settings.keyTitle")}
               icon={KeyRound}
+              active={inKeySettings}
               pip={pending > 0}
             />
-            {me.is_admin ? <RailLink to="/admin" active={section === "admin"} label={t("nav.admin")} icon={Shield} /> : null}
             <div className="rail-foot">
-              <RailLink to="/settings/tokens" label={t("nav.settingsOf", { name })}>
+              {me.is_admin ? <RailLink to="/admin" active={section === "admin"} label={t("nav.admin")} icon={Shield} /> : null}
+              <RailLink to="/settings/account" label={t("nav.accountOf", { name })} active={inAccountSettings}>
                 <span className="avatar" aria-hidden="true">
                   {initialOf(me)}
                 </span>
