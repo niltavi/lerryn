@@ -10,6 +10,7 @@ const escape = (value) => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp
 const arrow = '<span aria-hidden="true">↗</span>';
 const lines = (s) => s.split('\n').map(escape).join('<br>');
 const heading = (s) => lines(s).replace(/\*([^*]+)\*/g, '<em>$1</em>');
+const body = (s) => escape(s).replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
@@ -87,17 +88,17 @@ for (const c of Object.values(languages)) {
       <section class="slide cover" aria-labelledby="hero-title">
         <div class="slide-copy">
           <h1 id="hero-title">${heading(c.cover.heading)}</h1>
-          <p>${escape(c.cover.text)}</p>
+          <p>${body(c.cover.text)}</p>
           <div class="actions"><a class="button primary" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
         </div>
         <div class="slide-art">${art.cover(escape(c.cover.art))}</div>
       </section>
       ${c.slides.map((s) => `<section class="slide" id="${s.id}" aria-labelledby="${s.id}-title">
-        <div class="slide-copy"><h2 id="${s.id}-title">${heading(s.heading)}</h2><p>${escape(s.text)}</p></div>
+        <div class="slide-copy"><h2 id="${s.id}-title">${heading(s.heading)}</h2><p>${body(s.text)}</p></div>
         <div class="slide-art">${art[s.id](escape(s.art))}</div>
       </section>`).join('\n      ')}
       <section class="slide connect" id="connect" aria-labelledby="connect-title">
-        <div class="slide-copy"><h2 id="connect-title">${heading(c.connect.heading)}</h2><p>${escape(c.connect.text)}</p><a class="text-link" href="${docs}getting-started.md">${escape(c.connect.guide)} ${arrow}</a></div>
+        <div class="slide-copy"><h2 id="connect-title">${heading(c.connect.heading)}</h2><p>${body(c.connect.text)}</p><a class="text-link" href="${docs}getting-started.md">${escape(c.connect.guide)} ${arrow}</a></div>
         <figure class="slide-art prompt" data-copied="${escape(c.copied)}" data-copy-error="${escape(c.copyError)}">
           <figcaption class="prompt-label">${escape(c.connect.label)}</figcaption>
           <blockquote class="prompt-text">${escape(c.connect.prompt)}</blockquote>
@@ -105,7 +106,7 @@ for (const c of Object.values(languages)) {
         </figure>
       </section>
       <section class="slide end" aria-labelledby="end-title">
-        <div class="slide-copy"><span class="dash" aria-hidden="true"></span><h2 id="end-title">${heading(c.end.heading)}</h2><p>${escape(c.end.text)}</p>
+        <div class="slide-copy"><span class="dash" aria-hidden="true"></span><h2 id="end-title">${heading(c.end.heading)}</h2><p>${body(c.end.text)}</p>
           <div class="actions"><a class="button primary" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
         </div>
       </section>
