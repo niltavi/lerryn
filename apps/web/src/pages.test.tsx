@@ -1163,15 +1163,65 @@ describe("runs board", () => {
     delete (HTMLElement.prototype as Partial<HTMLElement>).getAnimations;
   });
 
-  it("switches between the list and the board", async () => {
+  it("switches views by link, next to the title, and remembers the choice", async () => {
+    localStorage.removeItem("lerryn.runs.view");
     const { router } = renderApp("/runs", { runs: [summary(1, "scheduled-run", "queued", -1)] });
     const user = userEvent.setup();
     await screen.findByRole("region", { name: "运行列表" });
-    await user.click(screen.getByRole("button", { name: "看板" }));
+    const views = () => within(screen.getByRole("navigation", { name: "视图" }));
+    expect(views().getByRole("link", { name: "列表" }).getAttribute("aria-current")).toBe("page");
+    await user.click(views().getByRole("link", { name: "看板" }));
     await screen.findByRole("main", { name: "运行看板" });
     expect(router.state.location.search).toEqual({ view: "board" });
-    await user.click(screen.getByRole("button", { name: "列表" }));
+    expect(views().getByRole("link", { name: "看板" }).getAttribute("aria-current")).toBe("page");
+
+    // The rail's plain /runs comes back to the board.
+    await act(() => router.navigate({ to: "/runs" }));
+    await screen.findByRole("main", { name: "运行看板" });
+    await user.click(views().getByRole("link", { name: "列表" }));
     await screen.findByRole("region", { name: "运行列表" });
-    expect(router.state.location.search).toEqual({});
+    expect(router.state.location.search).toEqual({ view: "list" });
+    await act(() => router.navigate({ to: "/runs" }));
+    await screen.findByRole("region", { name: "运行列表" });
+  });
+
+  it("shows a card's run beside the board and closes it by link", async () => {
+    const { router } = renderApp("/runs?view=board", { runs: [{ ...summary(1, "failed-run", "failed", -5), id: FAILED_RUN.id }] });
+    const user = userEvent.setup();
+    const board = await screen.findByRole("main", { name: "运行看板" });
+    await user.click(await within(board).findByRole("link", { name: /failed-run/ }));
+    expect(router.state.location.pathname).toBe("/runs");
+    expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
+    const preview = await screen.findByRole("complementary", { name: "运行预览" });
+    expect(await within(preview).findByRole("link", { name: /打开/ })).toBeTruthy();
+    expect(within(board).getByRole("link", { name: /failed-run/ }).getAttribute("aria-current")).toBe("page");
+    expect(within(preview).getByRole("link", { name: "关闭" }).getAttribute("aria-current")).toBeNull();
+    await user.click(within(preview).getByRole("link", { name: "关闭" }));
+    await waitFor(() => expect(screen.queryByRole("complementary", { name: "运行预览" })).toBeNull());
+    expect(router.state.location.search).toEqual({ view: "board" });
+  });
+
+  it("shows the newest finished runs and the rest on request", async () => {
+    const runs = Array.from({ length: 11 }, (_, n) => summary(n + 1, `done-${n + 1}`, "completed", -n - 1));
+    renderApp("/runs?view=board", { runs });
+    const user = userEvent.setup();
+    const done = within(await screen.findByRole("region", { name: "已完成" }));
+    await waitFor(() => expect(done.getAllByRole("link")).toHaveLength(8));
+    expect(done.getByText("11")).toBeTruthy();
+    await user.click(done.getByRole("button", { name: "显示全部 11 条" }));
+    expect(done.getAllByRole("link")).toHaveLength(11);
+    await user.click(done.getByRole("button", { name: "收起" }));
+    expect(done.getAllByRole("link")).toHaveLength(8);
+  });
+
+  it("leads back from a run's page to the runs view last used", async () => {
+    localStorage.setItem("lerryn.runs.view", "board");
+    const { router } = renderApp(`/runs/${FAILED_RUN.id}`);
+    const user = userEvent.setup();
+    const crumbs = within(await screen.findByRole("navigation", { name: "位置" }));
+    await user.click(crumbs.getByRole("link", { name: "运行" }));
+    expect(router.state.location.pathname).toBe("/runs");
+    expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
+    localStorage.removeItem("lerryn.runs.view");
   });
 });

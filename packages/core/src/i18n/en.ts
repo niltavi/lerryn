@@ -330,6 +330,8 @@ export const en: Messages = {
       label: "Runs board",
       window: "Last 48 hours",
       empty: "None",
+      showAll: "Show all {count}",
+      showLess: "Show fewer",
       column: {
         scheduled: "Scheduled",
         active: "In progress",

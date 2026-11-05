@@ -330,6 +330,8 @@ export const zhCN = {
       label: "运行看板",
       window: "近 48 小时",
       empty: "暂无",
+      showAll: "显示全部 {count} 条",
+      showLess: "收起",
       column: {
         scheduled: "已排期",
         active: "进行中",

@@ -59,6 +59,7 @@ import { saveText, useNow } from "../../lib/hooks";
 import { errorCodeLabel, skipReasonLabel, triggerLabel } from "../../lib/present";
 import { Board, LoadError, usePageTitle } from "../../shell/layout";
 import { NotFoundBody } from "../NotFoundPage";
+import { storedRunsView } from "../RunsPage";
 import { Artifacts } from "./Artifacts";
 import { RetryButton } from "./RunActions";
 
@@ -134,8 +135,12 @@ function RunBoard({ run }: { run: Run }) {
     <Board label={t("run.info")}>
       <div className="board-top">
         <nav className="eyebrow" aria-label={t("run.location")}>
-          <Link to="/tasks/$taskId" params={{ taskId: run.task_id }}>
+          <Link to="/runs" search={{ view: storedRunsView(), run: run.id }}>
             <ChevronLeft className="wl-icon" width={16} aria-hidden="true" />
+            {t("nav.runs")}
+          </Link>
+          <span aria-hidden="true">/</span>
+          <Link to="/tasks/$taskId" params={{ taskId: run.task_id }}>
             {taskName ?? t("run.taskLink")}
           </Link>
           <span className="mono-sm">{shortId(run.id)}</span>

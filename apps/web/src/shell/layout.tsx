@@ -10,12 +10,15 @@ export function ListColumn({
   count,
   label,
   tools,
+  inlineTools,
   children,
 }: {
   title: string;
   count?: ReactNode;
   label: string;
   tools?: ReactNode;
+  /** Put the tools right after the title instead of at the far end. */
+  inlineTools?: boolean;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -33,7 +36,7 @@ export function ListColumn({
 
   return (
     <section className="list" aria-label={label} data-expanded={expanded}>
-      <div className="list-head">
+      <div className={inlineTools ? "list-head list-head--inline" : "list-head"}>
         <h2 className="list-title">
           <span className="list-heading">{heading}</span>
           <button

@@ -11,20 +11,27 @@ import {
 } from "@lerryn/core";
 import { StatusGlyph } from "@lerryn/ui-web";
 import { Link } from "@tanstack/react-router";
+import { X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { useNow } from "../lib/hooks";
 import { errorCodeLabel, shortWhen, skipReasonLabel } from "../lib/present";
 import { LoadError, LoadMore } from "../shell/layout";
+import { RunPreview } from "./RunPreview";
 
 /** Pages fetched without asking; past this the board offers "show more". */
 const AUTO_PAGES = 6;
 
+/** Finished columns grow all day; they show this many until expanded. */
+export const COLUMN_LIMIT = 8;
+const CAPPED: ReadonlySet<RunBoardColumn> = new Set(["done", "attention"]);
+
 /**
- * The runs board: the last 48 hours of runs in four columns by status. When
- * a run's status moves it to another column, its card is carried there.
+ * The runs board: the last 48 hours of runs in four columns by status, and
+ * the selected run's preview beside them. When a run's status moves it to
+ * another column, its card is carried there.
  */
-export function RunsBoard({ taskId, tools }: { taskId?: string; tools: ReactNode }) {
+export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runId?: string; viewSwitch: ReactNode }) {
   const { t } = useI18n();
   // Fixed per visit so polling keeps one query; the exact window is cut below.
   const [since] = useState(() => new Date(Date.now() - RUN_BOARD_WINDOW_MS).toISOString());
@@ -32,6 +39,7 @@ export function RunsBoard({ taskId, tools }: { taskId?: string; tools: ReactNode
   const now = useNow(30_000);
   const items = runs.data?.items;
   const pages = runs.data?.pageCount ?? 0;
+  const [expanded, setExpanded] = useState<ReadonlySet<RunBoardColumn>>(new Set());
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = runs;
   useEffect(() => {
@@ -48,54 +56,111 @@ export function RunsBoard({ taskId, tools }: { taskId?: string; tools: ReactNode
     return out;
   }, [items, now]);
 
+  const shown = useMemo(() => {
+    const out = { ...columns };
+    for (const c of CAPPED) if (!expanded.has(c)) out[c] = columns[c].slice(0, COLUMN_LIMIT);
+    return out;
+  }, [columns, expanded]);
+
   const boardRef = useRef<HTMLDivElement>(null);
-  useCardMoves(boardRef, columns, !!runs.data);
+  useCardMoves(boardRef, shown, !!runs.data);
+
+  const toggle = (c: RunBoardColumn) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(c)) next.add(c);
+      return next;
+    });
 
   return (
     <>
-      <div className="board-top">
-        <div className="row" style={{ gap: 12, alignItems: "baseline" }}>
-          <h1 className="h2">{t("runs.title")}</h1>
+      <main className="board board--runs" aria-label={t("runs.board.label")}>
+        <div className="list-head list-head--inline">
+          <h1 className="list-title">{t("runs.title")}</h1>
+          {viewSwitch}
           <span className="caption muted">{t("runs.board.window")}</span>
         </div>
-        {tools}
-      </div>
-      {runs.isError ? (
-        <LoadError error={runs.error} onRetry={() => void runs.refetch()} />
-      ) : (
-        <div className="kb" ref={boardRef} aria-busy={runs.isPending}>
-          {RUN_BOARD_COLUMNS.map((column) => (
-            <BoardColumn key={column} column={column} runs={columns[column]} now={now} />
-          ))}
-        </div>
-      )}
-      <LoadMore show={pages >= AUTO_PAGES && !!runs.data?.hasMore} pending={isFetchingNextPage} onPress={() => void fetchNextPage()} />
+        {runs.isError ? (
+          <LoadError error={runs.error} onRetry={() => void runs.refetch()} />
+        ) : (
+          <div className="kb" ref={boardRef} aria-busy={runs.isPending}>
+            {RUN_BOARD_COLUMNS.map((column) => (
+              <BoardColumn
+                key={column}
+                column={column}
+                runs={shown[column]}
+                total={columns[column].length}
+                expanded={expanded.has(column)}
+                onToggle={CAPPED.has(column) ? () => toggle(column) : undefined}
+                taskId={taskId}
+                now={now}
+              />
+            ))}
+          </div>
+        )}
+        <LoadMore show={pages >= AUTO_PAGES && !!runs.data?.hasMore} pending={isFetchingNextPage} onPress={() => void fetchNextPage()} />
+      </main>
+      {runId ? (
+        <aside className="board kb-preview" aria-label={t("runs.preview")}>
+          <Link
+            to="/runs"
+            search={{ view: "board", ...(taskId ? { task: taskId } : {}) }}
+            className="chip kb-preview-close"
+            activeOptions={{ exact: true, includeSearch: true }}
+            aria-label={t("common.close")}
+          >
+            <X className="wl-icon" aria-hidden="true" />
+          </Link>
+          <RunPreview runId={runId} />
+        </aside>
+      ) : null}
     </>
   );
 }
 
-function BoardColumn({ column, runs, now }: { column: RunBoardColumn; runs: RunSummary[]; now: number }) {
+function BoardColumn({
+  column,
+  runs,
+  total,
+  expanded,
+  onToggle,
+  taskId,
+  now,
+}: {
+  column: RunBoardColumn;
+  runs: RunSummary[];
+  total: number;
+  expanded: boolean;
+  onToggle?: () => void;
+  taskId?: string;
+  now: number;
+}) {
   const { t } = useI18n();
   const title = t(`runs.board.column.${column}`);
   return (
     <section className={`kb-col kb-col--${column}`} aria-label={title} data-column={column}>
       <h2 className="kb-head">
         <span>{title}</span>
-        <span className="n">{runs.length}</span>
+        <span className="n">{total}</span>
       </h2>
       <ul className="kb-list">
         {runs.map((run) => (
           <li key={run.id} className="kb-item" data-run={run.id}>
-            <RunCard run={run} now={now} />
+            <RunCard run={run} taskId={taskId} now={now} />
           </li>
         ))}
       </ul>
-      {runs.length === 0 ? <div className="kb-empty">{t("runs.board.empty")}</div> : null}
+      {total === 0 ? <div className="kb-empty">{t("runs.board.empty")}</div> : null}
+      {onToggle && total > COLUMN_LIMIT ? (
+        <button type="button" className="kb-more" aria-expanded={expanded} onClick={onToggle}>
+          {expanded ? t("runs.board.showLess") : t("runs.board.showAll", { count: total })}
+        </button>
+      ) : null}
     </section>
   );
 }
 
-function RunCard({ run, now }: { run: RunSummary; now: number }) {
+function RunCard({ run, taskId, now }: { run: RunSummary; taskId?: string; now: number }) {
   const { t, locale } = useI18n();
   let sub = shortId(run.id);
   let mono = true;
@@ -109,7 +174,12 @@ function RunCard({ run, now }: { run: RunSummary; now: number }) {
   }
   const bad = run.status === "failed" || run.status === "timed_out";
   return (
-    <Link to="/runs/$runId" params={{ runId: run.id }} className="kb-card">
+    <Link
+      to="/runs"
+      search={{ view: "board", run: run.id, ...(taskId ? { task: taskId } : {}) }}
+      className="kb-card"
+      activeOptions={{ exact: true, includeSearch: true }}
+    >
       <StatusGlyph status={run.status} />
       <span style={{ minWidth: 0 }}>
         <span className="li-name">{run.task.name}</span>
@@ -124,7 +194,6 @@ function RunCard({ run, now }: { run: RunSummary; now: number }) {
 
 interface Spot {
   column: RunBoardColumn;
-  index: number;
   x: number;
   y: number;
 }
@@ -132,9 +201,10 @@ interface Spot {
 /**
  * Animates cards whose place on the board changed (FLIP). A card that changes
  * column is lifted, carried across and set down like a dragged card; one that
- * only shifts within its column slides; a new one fades in. Places are offsets
- * inside the board (its offsetParent), which ignore transforms and scrolling,
- * so a card mid-flight or a scrolled page is not mistaken for a move.
+ * only shifts within its column slides briefly, if it is on screen; a new one
+ * fades in. Places are offsets inside the board (its offsetParent), which
+ * ignore transforms and scrolling, so a card mid-flight or a scrolled page is
+ * not mistaken for a move.
  */
 function useCardMoves(boardRef: RefObject<HTMLDivElement | null>, columns: Record<RunBoardColumn, RunSummary[]>, loaded: boolean) {
   const spots = useRef<Map<string, Spot> | null>(null);
@@ -148,31 +218,37 @@ function useCardMoves(boardRef: RefObject<HTMLDivElement | null>, columns: Recor
     const after = new Map<string, Spot>();
 
     for (const column of RUN_BOARD_COLUMNS) {
-      columns[column].forEach((run, index) => {
+      for (const run of columns[column]) {
         const el = board.querySelector<HTMLElement>(`[data-run="${run.id}"]`);
-        if (!el) return;
-        const spot = { column, index, x: el.offsetLeft, y: el.offsetTop };
+        if (!el) continue;
+        const spot = { column, x: el.offsetLeft, y: el.offsetTop };
         after.set(run.id, spot);
-        if (!before || reduce || typeof el.animate !== "function") return;
+        if (!before || reduce || typeof el.animate !== "function") continue;
 
         const prev = before.get(run.id);
         if (!prev) {
-          el.animate([{ opacity: 0, transform: "scale(0.96)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: "ease-out" });
-          return;
+          if (onScreen(el)) el.animate([{ opacity: 0, transform: "scale(0.96)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: "ease-out" });
+          continue;
         }
         const dx = prev.x - spot.x;
         const dy = prev.y - spot.y;
         if (prev.column !== column) {
           el.getAnimations().forEach((a) => a.cancel());
           carry(el, dx, dy);
-        } else if (dx || dy) {
+        } else if ((dx || dy) && onScreen(el)) {
+          // Neighbours making room should read as a nudge, not a second move.
           el.getAnimations().forEach((a) => a.cancel());
-          el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 280, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+          el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 200, easing: "ease-out" });
         }
-      });
+      }
     }
     spots.current = after;
   }, [boardRef, columns, loaded]);
+}
+
+function onScreen(el: HTMLElement): boolean {
+  const r = el.getBoundingClientRect();
+  return r.bottom > 0 && r.top < window.innerHeight;
 }
 
 /** Lift, carry and drop: the card leaves its old spot and lands in the new one. */
