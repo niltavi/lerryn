@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 由 Logo 矢量母版 design/brand/logo/svg/lerryn-mark.svg 生成：
-//   design/brand/logo/svg/   横向、正方形、圆形三个版本
+//   design/brand/logo/svg/   横向、正方形、圆形与网站图标
 //   design/brand/logo/png/   对应的 PNG（用本机的 Google Chrome 渲染；找不到 Chrome 时跳过并提示）
 //   design/ui-native/src/components/logoMark.ts、packages/ui-web/src/brand/logoMark.ts   RN、Web Logo 组件用的路径
 // 只改母版，然后在仓库根目录运行 `pnpm design:logo`。
@@ -29,6 +29,8 @@ const PLATE = '#fef8ef';
 const PAD = 48;
 // 正方形、圆形版本里图形占的宽度（画布 1024）
 const BADGE = { square: 800, circle: 736 };
+// Match niltavi.com's paper circle and fine rim without changing the logo paths.
+const ICON = { paper: '#f5f1e6', border: '#dfd8c7', radius: 492, stroke: 12 };
 
 const mark = paths.map((p) => `<path fill="${p.fill}" d="${p.d}"/>`).join('');
 const svg = (w, h, body) =>
@@ -42,6 +44,7 @@ const variants = {
   'lerryn-logo-horizontal': { w: W + PAD * 2, h: H + PAD * 2, body: `<g transform="translate(${PAD} ${PAD})">${mark}</g>`, png: 2 },
   'lerryn-logo-square': { w: 1024, h: 1024, body: `<rect width="1024" height="1024" fill="${PLATE}"/>${placed(BADGE.square)}`, png: 1 },
   'lerryn-logo-circle': { w: 1024, h: 1024, body: `<circle cx="512" cy="512" r="512" fill="${PLATE}"/>${placed(BADGE.circle)}`, png: 1 },
+  'lerryn-icon-circle': { w: 1024, h: 1024, body: `<circle cx="512" cy="512" r="${ICON.radius}" fill="${ICON.paper}" stroke="${ICON.border}" stroke-width="${ICON.stroke}"/>${placed(BADGE.circle)}`, png: 1 },
 };
 
 for (const [name, v] of Object.entries(variants)) {
@@ -74,13 +77,15 @@ if (!existsSync(chrome)) {
 }
 
 const work = mkdtempSync(join(tmpdir(), 'lerryn-logo-'));
-for (const [name, v] of Object.entries(variants)) {
-  const w = v.w * v.png;
-  const h = v.h * v.png;
+const exports = Object.entries(variants).map(([name, v]) => ({ name, source: name, w: v.w * v.png, h: v.h * v.png }));
+for (const size of [32, 180]) {
+  exports.push({ name: `lerryn-icon-circle-${size}`, source: 'lerryn-icon-circle', w: size, h: size });
+}
+for (const { name, source, w, h } of exports) {
   const page = join(work, `${name}.html`);
   writeFileSync(
     page,
-    `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}img{display:block;width:${w}px;height:${h}px}</style></head><body><img src="file://${join(svgDir, `${name}.svg`)}"></body></html>`,
+    `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}img{display:block;width:${w}px;height:${h}px}</style></head><body><img src="file://${join(svgDir, `${source}.svg`)}"></body></html>`,
   );
   execFileSync(
     chrome,

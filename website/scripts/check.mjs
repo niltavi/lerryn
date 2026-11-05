@@ -12,6 +12,12 @@ for (const c of Object.values(languages)) {
   assert(html.includes(`<html lang="${c.lang}">`), `${c.lang}: wrong language`);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1, `${c.lang}: expected one h1`);
   assert(html.includes(`<link rel="canonical" href="${origin}/${c.path}">`), `${c.lang}: wrong canonical`);
+  const base = c.path ? '../' : './';
+  for (const link of [
+    `<link rel="icon" href="${base}assets/lerryn-icon-circle-32.png" type="image/png" sizes="32x32">`,
+    `<link rel="icon" href="${base}assets/lerryn-icon-circle.svg" type="image/svg+xml" sizes="any">`,
+    `<link rel="apple-touch-icon" href="${base}assets/lerryn-icon-circle-180.png" sizes="180x180">`,
+  ]) assert(html.includes(link), `${c.lang}: missing circular site icon: ${link}`);
   for (const language of ['en', 'zh-CN', 'x-default']) {
     assert(html.includes(`hreflang="${language}"`), `${c.lang}: missing alternate ${language}`);
   }
