@@ -2,6 +2,7 @@ export const repository = 'https://github.com/niltavi/lerryn';
 export const origin = 'https://lerryn.niltavi.com';
 // Each page is one slide: one sentence, one line of detail, one scene.
 // Headings use *word* to mark the one accent phrase rendered in ochre.
+// Body copy uses *word* for strong emphasis.
 export const languages = {
   en: {
     lang: 'en', path: '', docs: 'en/', alternate: 'zh/', alternateLabel: '简体中文',
@@ -38,25 +39,25 @@ export const languages = {
     skip: '跳到正文', github: 'GitHub 仓库',
     cover: {
       heading: '把重复的事交出去，\n把*清晨*留给自己。',
-      text: 'Agent 把重复的工作写成任务，Lerryn 在你自己的机器上替它跑完。',
+      text: 'Lerryn 帮你从繁忙的重复工作中解脱出来，让 Agent 任务像溪流一般稳定流淌',
       art: '插画：日出时分，溪流穿过芦苇与石头',
     },
-    primary: '开始自部署', secondary: '在 GitHub 查看',
+    primary: '开始本地部署', secondary: '在 GitHub 查看',
     slides: [
-      { id: 'night', heading: '你睡着的时候，\n报表*照常生成*。', text: '定时计划和 Webhook 会准时启动任务，没人需要熬夜守着。', art: '插画：夜里，一只挂着灯笼的叶子小船顺溪而下' },
-      { id: 'ground', heading: '一切都留在\n*你自己的机器上*。', text: 'Python、Node 和 Shell 任务在你机器上的容器里运行，运行记录、日志和文件也存在那里。', art: '插画：叶子小船在一圈树林里依次经过三块石头' },
-      { id: 'keys', heading: '钥匙一直\n*在你手边*。', text: '任务只按名称引用凭证。运行时 Lerryn 才把凭证交给任务，日志里出现的明文会被遮住。', art: '插画：钥匙挂在树枝上，一只仙鹟停在枝头守着' },
+      { id: 'night', heading: '当你睡着的时候，*所有工作*由 Lerryn 协调', text: '定时任务会为你准时启动，让 Webhook 推送到你习惯的聊天工具中，没人需要熬夜。', art: '插画：夜里，一只挂着灯笼的叶子小船顺溪而下' },
+      { id: 'ground', heading: '一切都留在\n*你自己的机器上*。', text: '无论是 Python、Node.js、Shell 任务，都能在自己的设备上以容器模式运行。你只需要像*批阅奏折*一样审阅最终结果。', art: '插画：叶子小船在一圈树林里依次经过三块石头' },
+      { id: 'keys', heading: '钥匙一直\n*在你手边*。', text: 'Lerryn 尽最大努力守护你的密钥，任务执行时只会引用密钥，在运行时 Lerryn 才把凭证交给任务。连日志里出现的明文都会被遮住。', art: '插画：钥匙挂在树枝上，一只仙鹟停在枝头守着' },
       { id: 'record', heading: '早上醒来，\n*一切都有记录*。', text: '每次运行的日志、结果和文件都会保存下来，发生过什么，一查就清楚。', art: '插画：一张记录卡片，夹着压制的枝叶，记录已经写满' },
     ],
     connect: {
       heading: '一句话，\n交给你的 *Agent*。',
-      text: '把下面这句话发给 Agent。它会读完安装说明，在你的机器上部署 Lerryn，再把自己接进来。',
+      text: '把下面这句话发给 Agent。它会读完安装说明，在你的机器上部署 Lerryn。',
       label: '发给 Agent 的提示词',
       prompt: '帮我去 lerryn.niltavi.com 安装 Lerryn 服务。',
       guide: 'MCP、HTTP API 与 CLI 接入文档',
     },
     copy: '复制', copied: '已复制，粘贴给你的 Agent 即可。', copyError: '请选中文字后复制。',
-    end: { heading: '从*一台机器*开始。', text: '第一次部署，只要一台装了 Docker 的机器，数据默认存在 SQLite 里。' },
+    end: { heading: '从*一台机器*开始。', text: '第一次部署，只要一台能跑 Docker 的机器。' },
     themeDark: '切换到暗色主题', themeLight: '切换到浅色主题',
   },
 };
