@@ -16,10 +16,11 @@ The build writes `website/dist/`. Open its `index.html` directly for a local rev
 - `assets/site.css`: responsive layout on the Niltavi UI palette (`design/niltavi-ui/tokens.json`), Cormorant Garamond headings, and DM Sans text.
 - `scripts/art.mjs`: the woodcut-style scenes, one per slide. Shapes and tapered carving cuts are generated with a fixed seed; colors come from CSS classes so they follow the theme, and motion uses CSS keyframes and SMIL, which pause off screen and under reduced motion.
 - `art/niltavi-bird.svg`: unmodified niltavi bird from [niltavi/niltavi-ui](https://github.com/niltavi/niltavi-ui/blob/ae424e237224ee54f9e7d2a76522c1117fecc51b/docs/assets/niltavi-bird.svg) (MIT, same license as `design/niltavi-ui/LICENSE`).
+- `art/niltavi-wordmark.svg`: unmodified muted-light wordmark from [niltavi/niltavi-logo](https://github.com/niltavi/niltavi-logo/blob/00042d2ffc7b3746bd6976937098d057fcd8c84e/svg/niltavi-muted-light.svg) (outlined DM Sans, OFL). The build inlines it in the footer and maps its colors to theme tokens.
 - `assets/site.js`: optional theme selection, scene playback, accessible code tabs, and clipboard actions. All content stays available without JavaScript.
 - `assets/fonts/`: DM Sans 5.3.0 files already used by the application and Cormorant Garamond 5.3.0, each with its original OFL license.
 
-The build copies the current logo from `design/brand/logo/`; do not edit a separate logo copy. Fonts and other assets are served locally. The pages have no analytics, account forms, runtime API calls, or framework dependencies.
+The build copies the current logo from `design/brand/logo/` and inlines `lerryn-mark.svg` in the header with theme colors, so dark pages need no light plate; do not edit a separate logo copy. Fonts and other assets are served locally. The pages have no analytics, account forms, runtime API calls, or framework dependencies.
 
 ## Hosting
 

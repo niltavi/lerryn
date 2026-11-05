@@ -19,7 +19,17 @@ await cp(resolve(root, 'design/brand/logo/png/lerryn-logo-square.png'), resolve(
 
 const mark = (await readFile(resolve(root, 'design/brand/logo/svg/lerryn-mark.svg'), 'utf8'))
   .replace(/<title>.*?<\/title>/, '')
-  .replace(/ width="\d+" height="\d+"/, ' class="mark" aria-hidden="true" focusable="false"');
+  .replace(/ width="\d+" height="\d+"/, ' class="mark" aria-hidden="true" focusable="false"')
+  // Inline paths take theme colors from CSS, so the mark needs no light plate on dark pages.
+  .replace('fill="#245761"', 'class="mark-side"')
+  .replace('fill="#428c9a"', 'class="mark-top"');
+
+// Vendored niltavi wordmark; its three colors map to theme tokens.
+const wordmarkFill = { '#1B2235': 'nv-ink', '#3A5CF4': 'nv-accent', '#DD6300': 'nv-dot' };
+const niltavi = (await readFile(resolve(root, 'website/art/niltavi-wordmark.svg'), 'utf8'))
+  .replace(/<title[^>]*>.*?<\/title>\s*<desc>.*?<\/desc>/s, '')
+  .replace(/ role="img" aria-labelledby="[^"]*"/, ' class="niltavi-wordmark" aria-hidden="true" focusable="false"')
+  .replace(/fill="(#[0-9A-F]{6})"/g, (_, hex) => `class="${wordmarkFill[hex]}"`);
 
 for (const c of Object.values(languages)) {
   const base = c.path ? '../' : './';
@@ -57,7 +67,7 @@ for (const c of Object.values(languages)) {
   <a class="skip" href="#main">${escape(c.skip)}</a>
   <div class="shell">
     <header class="masthead">
-      <a class="brand" href="${base}index.html" aria-label="Lerryn"><span class="mark-plate">${mark}</span><span class="wordmark">Lerryn</span><span class="family-tag">${escape(c.family)}</span></a>
+      <a class="brand" href="${base}index.html" aria-label="Lerryn">${mark}<span class="wordmark">Lerryn</span></a>
       <div class="tools">
         <button class="icon-button theme-switch" type="button" aria-label="${escape(c.themeDark)}" title="${escape(c.themeDark)}" hidden>
           <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.3A8.7 8.7 0 0 1 8.7 4 8.8 8.8 0 1 0 20 15.3Z"/></svg>
@@ -98,7 +108,7 @@ for (const c of Object.values(languages)) {
         </div>
       </section>
     </main>
-    <footer><span>© Niltavi</span></footer>
+    <footer><a class="niltavi" href="https://niltavi.com/" aria-label="Niltavi">${niltavi}</a></footer>
   </div>
 </body>
 </html>
