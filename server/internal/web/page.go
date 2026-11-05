@@ -33,6 +33,7 @@ const pageHTML = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="same-origin">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>{{if eq .State "login"}}登录{{else if eq .State "form"}}填写凭证{{else}}凭证填写{{end}} · Lerryn</title>
 <style nonce="{{.Nonce}}">
 {{theme}}
