@@ -13,7 +13,7 @@
 | 部分 | 状态 | 位置 |
 | --- | --- | --- |
 | 设计 token | 可用。30 个颜色 × 浅色、暗色两套主题，4 个无厚度兼容别名，11 级字号，间距，圆角 | `design/tokens.json` |
-| Logo | 可用。纯图形，横向、正方形、圆形，SVG 与 PNG | `design/brand/logo/` |
+| Logo | 可用。纯图形，横向、正方形、圆形，SVG 与 PNG；官网与自部署站点共用暖纸色圆底、细边框 favicon，另有 32、180 像素 PNG | `design/brand/logo/` |
 | React Native 组件库 | 可用。`@lerryn/ui-native`，基于 HeroUI Native 1.0.10 + Uniwind 1.12.2 | `design/ui-native/` |
 | 示例 App | 可用。Expo SDK 57，展示全部组件，可切换深浅主题 | `design/gallery/` |
 | Claude Design 页面 | 可用。品牌手册、token、9 个组件的 Web 预览、Logo 素材 | 见上方链接 |

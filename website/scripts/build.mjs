@@ -16,6 +16,10 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(resolve(root, 'website/assets'), resolve(dist, 'assets'), { recursive: true });
 await cp(resolve(root, 'design/brand/logo/svg/lerryn-mark.svg'), resolve(dist, 'assets/lerryn-mark.svg'));
+await cp(resolve(root, 'design/brand/logo/svg/lerryn-icon-circle.svg'), resolve(dist, 'assets/lerryn-icon-circle.svg'));
+for (const size of [32, 180]) {
+  await cp(resolve(root, `design/brand/logo/png/lerryn-icon-circle-${size}.png`), resolve(dist, `assets/lerryn-icon-circle-${size}.png`));
+}
 await cp(resolve(root, 'design/brand/logo/png/lerryn-logo-square.png'), resolve(dist, 'assets/lerryn-logo-square.png'));
 
 const mark = (await readFile(resolve(root, 'design/brand/logo/svg/lerryn-mark.svg'), 'utf8'))
@@ -61,7 +65,9 @@ for (const c of Object.values(languages)) {
   <meta property="og:image:alt" content="Lerryn">
   <meta name="twitter:card" content="summary">
   <link rel="alternate" type="text/plain" href="${base}llms.txt" title="Installation guide for agents">
-  <link rel="icon" href="${base}assets/lerryn-mark.svg" type="image/svg+xml">
+  <link rel="icon" href="${base}assets/lerryn-icon-circle-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="${base}assets/lerryn-icon-circle.svg" type="image/svg+xml" sizes="any">
+  <link rel="apple-touch-icon" href="${base}assets/lerryn-icon-circle-180.png" sizes="180x180">
   <link rel="preload" href="${base}assets/fonts/cormorant-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${base}assets/site.css">
   <script src="${base}assets/site.js" defer></script>

@@ -6,9 +6,9 @@ import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
-// The favicon is the square logo from the design language; it is read from
+// The favicon is the circular icon from the design language; it is read from
 // design/ at build time instead of keeping a copy in the app.
-const FAVICON = fileURLToPath(new URL("../../design/brand/logo/svg/lerryn-logo-square.svg", import.meta.url));
+const FAVICON = fileURLToPath(new URL("../../design/brand/logo/svg/lerryn-icon-circle.svg", import.meta.url));
 
 function favicon(): Plugin {
   return {
