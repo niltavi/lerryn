@@ -4,14 +4,16 @@ import { formatInZone } from "../format";
 import {
   agentPanels,
   credentialState,
+  filterRuns,
   filterTasks,
   formatCallDuration,
+  groupRunsByTask,
   groupTasks,
   historyNeeds,
   summarizeRunEvents,
   TOOL_ARGS_PREVIEW,
 } from "./console";
-import type { PanelSpec, TaskSummary } from "./model";
+import type { PanelSpec, RunSummary, TaskSummary } from "./model";
 
 function task(over: Partial<TaskSummary>): TaskSummary {
   return {
@@ -202,5 +204,57 @@ describe("formatInZone", () => {
   });
   it("falls back to the viewer's zone for an unknown one", () => {
     expect(formatInZone("2026-11-03T00:00:00Z", "Not/AZone", "en").time).toMatch(/^\d\d:\d\d$/);
+  });
+});
+
+function runSummary(id: string, taskId: string, over: Partial<RunSummary> = {}): RunSummary {
+  return {
+    id,
+    task: { id: taskId, name: `task-${taskId}`, project_id: "p" },
+    version: 1,
+    status: "completed",
+    test: false,
+    trigger: { kind: "cron", trigger_id: null, scheduled_at: null, user_id: null, client: null },
+    attempt: 1,
+    retry_of: null,
+    rerun_of: null,
+    skip_reason: null,
+    queued_at: "2026-11-05T00:00:00Z",
+    started_at: null,
+    finished_at: null,
+    error: null,
+    result_status: null,
+    result_summary: null,
+    current_stage: null,
+    links: { console: "http://lerryn.test/" },
+    ...over,
+  };
+}
+
+describe("filterRuns", () => {
+  const list = [
+    runSummary("0192f3a1-0000-7000-8000-0000000000a1", "a", { version: 12, current_stage: "写入多维表格" }),
+    runSummary("0192f3a1-0000-7000-8000-0000000000b2", "b", { result_summary: "新增 3 条线索" }),
+  ];
+  it.each([
+    ["TASK-A", ["a"]],
+    ["v12", ["a"]],
+    ["0000b2", ["b"]],
+    ["多维表格", ["a"]],
+    ["线索", ["b"]],
+    ["  ", ["a", "b"]],
+    ["nothing", []],
+  ])("matches %j", (q, tasks) => {
+    expect(filterRuns(list, q).map((r) => r.task.id)).toEqual(tasks);
+  });
+});
+
+describe("groupRunsByTask", () => {
+  it("groups by task in order of first appearance and keeps run order", () => {
+    const groups = groupRunsByTask([runSummary("1", "a"), runSummary("2", "b"), runSummary("3", "a")]);
+    expect(groups.map((g) => [g.task.id, g.runs.map((r) => r.id)])).toEqual([
+      ["a", ["1", "3"]],
+      ["b", ["2"]],
+    ]);
   });
 });

@@ -1,7 +1,9 @@
 import {
   RUN_FILTER_STATUSES,
   elapsedMs,
+  filterRuns,
   formatDuration,
+  groupRunsByTask,
   formatLogTime,
   isAttentionStatus,
   isNotFound,
@@ -20,11 +22,13 @@ import {
   type Run,
   type RunFilter,
   type RunSummary,
+  type RunTaskGroup,
 } from "@lerryn/core";
-import { CopyButton, RunStages, StatusGlyph, StatusIcon } from "@lerryn/ui-web";
+import { CopyButton, IconButton, RunStages, StatusGlyph, StatusIcon } from "@lerryn/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowUpRight, CircleAlert, Hash, RotateCcw } from "lucide-react";
+import { ArrowUpRight, ChevronRight, ChevronsDownUp, ChevronsUpDown, CircleAlert, Hash, List, ListTree, RotateCcw, Search, X } from "lucide-react";
+import { useId, useState } from "react";
 
 import { useNow } from "../lib/hooks";
 import { shortWhen, skipReasonLabel } from "../lib/present";
@@ -36,6 +40,8 @@ export interface RunsSearch {
   run?: string;
   filter?: RunFilter;
   task?: string;
+  /** "tasks" shows the runs as a tree under their tasks. */
+  view?: "tasks";
 }
 
 export function validateRunsSearch(s: Record<string, unknown>): RunsSearch {
@@ -43,6 +49,7 @@ export function validateRunsSearch(s: Record<string, unknown>): RunsSearch {
   if (typeof s.run === "string" && s.run) out.run = s.run;
   if (s.filter === "failed" || s.filter === "active") out.filter = s.filter;
   if (typeof s.task === "string" && s.task) out.task = s.task;
+  if (s.view === "tasks") out.view = "tasks";
   return out;
 }
 
@@ -62,13 +69,82 @@ export function RunsPage() {
   const items = runs.data?.items ?? [];
   const selected = search.run ?? items[0]?.id;
   const now = useNow(30_000);
+  const grouped = search.view === "tasks";
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+  const shown = filterRuns(items, query);
+  const groups = grouped ? groupRunsByTask(shown) : [];
+  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.task.id));
 
   const setFilter = (f: RunFilter) =>
-    void navigate({ to: "/runs", search: { ...(f === "all" ? {} : { filter: f }), ...(search.task ? { task: search.task } : {}) }, replace: true });
+    void navigate({
+      to: "/runs",
+      search: { ...(f === "all" ? {} : { filter: f }), ...(search.task ? { task: search.task } : {}), ...(grouped ? { view: "tasks" as const } : {}) },
+      replace: true,
+    });
+  const setGrouped = (on: boolean) =>
+    void navigate({ to: "/runs", search: { ...search, view: on ? "tasks" : undefined }, replace: true });
+  const toggleGroup = (taskId: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(taskId)) next.add(taskId);
+      return next;
+    });
 
   return (
     <>
-      <ListColumn title={t("runs.title")} label={t("runs.list")}>
+      <ListColumn
+        title={t("runs.title")}
+        label={t("runs.list")}
+        tools={
+          <>
+            {grouped && groups.length > 1 ? (
+              <IconButton
+                label={allCollapsed ? t("runs.expandAll") : t("runs.collapseAll")}
+                icon={allCollapsed ? ChevronsUpDown : ChevronsDownUp}
+                onPress={() => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.task.id)))}
+              />
+            ) : null}
+            <IconButton
+              label={grouped ? t("runs.ungroup") : t("runs.groupByTask")}
+              icon={grouped ? List : ListTree}
+              onPress={() => setGrouped(!grouped)}
+            />
+            {items.length > 0 || searching ? (
+              <IconButton
+                label={searching ? t("runs.closeSearch") : t("runs.search")}
+                icon={searching ? X : Search}
+                onPress={() => {
+                  setSearching((v) => !v);
+                  setQuery("");
+                }}
+              />
+            ) : null}
+          </>
+        }
+      >
+        {searching ? (
+          <div className="list-search">
+            <label className="log-find">
+              <Search className="wl-icon" aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                autoFocus
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setSearching(false);
+                    setQuery("");
+                  }
+                }}
+                aria-label={t("runs.search")}
+                placeholder={t("runs.searchPlaceholder")}
+              />
+            </label>
+          </div>
+        ) : null}
         <div className="list-seg">
           <div className="seg seg--block" role="group" aria-label={t("runs.filterLabel")}>
             {FILTERS.map((f) => (
@@ -81,7 +157,7 @@ export function RunsPage() {
         {search.task && items[0] ? (
           <div className="list-group">
             <span className="mono-sm">{items[0].task.name}</span>
-            <Link to="/runs" search={search.filter ? { filter: search.filter } : {}} className="link caption">
+            <Link to="/runs" search={{ ...(search.filter ? { filter: search.filter } : {}), ...(grouped ? { view: "tasks" as const } : {}) }} className="link caption">
               {t("runs.allTasks")}
             </Link>
           </div>
@@ -95,10 +171,21 @@ export function RunsPage() {
           </div>
         ) : runs.data && items.length === 0 ? (
           <div className="list-empty">{filter === "all" ? t("states.noRuns") : t("runs.noneMatch")}</div>
+        ) : runs.data && shown.length === 0 ? (
+          <div className="list-empty">{t("runs.noMatch")}</div>
         ) : null}
-        {items.map((run) => (
-          <RunItem key={run.id} run={run} current={run.id === selected} now={now} />
-        ))}
+        {grouped
+          ? groups.map((g) => (
+              <RunGroup
+                key={g.task.id}
+                group={g}
+                open={!collapsed.has(g.task.id)}
+                onToggle={() => toggleGroup(g.task.id)}
+                selected={selected}
+                now={now}
+              />
+            ))
+          : shown.map((run) => <RunItem key={run.id} run={run} current={run.id === selected} now={now} />)}
         <div style={{ padding: "8px 12px" }}>
           <LoadMore show={!!runs.data?.hasMore} pending={runs.isFetchingNextPage} onPress={() => void runs.fetchNextPage()} />
         </div>
@@ -108,7 +195,58 @@ export function RunsPage() {
   );
 }
 
-function RunItem({ run, current, now }: { run: RunSummary; current: boolean; now: number }) {
+/**
+ * One task in the grouped view: a header that folds the task's runs away,
+ * above the runs themselves on a tree line. A folded task still shows its
+ * latest run's status, so a failure is not hidden by folding.
+ */
+function RunGroup({
+  group,
+  open,
+  onToggle,
+  selected,
+  now,
+}: {
+  group: RunTaskGroup;
+  open: boolean;
+  onToggle: () => void;
+  selected?: string;
+  now: number;
+}) {
+  const { t, locale } = useI18n();
+  const bodyId = useId();
+  const latest = group.runs[0]!;
+  const holdsSelected = group.runs.some((r) => r.id === selected);
+  return (
+    <div className="rg" data-open={open}>
+      <button
+        type="button"
+        className="rg-head"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        data-current={!open && holdsSelected ? "true" : undefined}
+        onClick={onToggle}
+      >
+        <ChevronRight className="wl-icon rg-chevron" aria-hidden="true" />
+        <StatusGlyph status={latest.status} />
+        <span style={{ minWidth: 0 }}>
+          <span className="li-name">{group.task.name}</span>
+          <span className="li-sub">{t("runs.groupRuns", { count: group.runs.length })}</span>
+        </span>
+        <span className="li-meta">{shortWhen(latest.started_at ?? latest.queued_at, locale, now)}</span>
+      </button>
+      {open ? (
+        <div id={bodyId} className="rg-body" role="group" aria-label={group.task.name}>
+          {group.runs.map((run) => (
+            <RunItem key={run.id} run={run} current={run.id === selected} now={now} nested />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RunItem({ run, current, now, nested = false }: { run: RunSummary; current: boolean; now: number; nested?: boolean }) {
   const { t, locale } = useI18n();
   const search = useSearch({ from: "/app/runs" });
   let sub: string = shortId(run.id);
@@ -132,14 +270,21 @@ function RunItem({ run, current, now }: { run: RunSummary; current: boolean; now
     <Link
       to="/runs"
       search={{ ...search, run: run.id }}
-      className="li"
+      className={nested ? "li li--leaf" : "li"}
       aria-current={current ? "true" : undefined}
       replace
     >
       <StatusGlyph status={run.status} />
       <span style={{ minWidth: 0 }}>
-        <span className="li-name">{run.task.name}</span>
-        <span className={mono ? "li-sub mono-sm" : "li-sub"}>{sub}</span>
+        {nested ? (
+          // Under its task the name would repeat, so the origin leads.
+          <span className={mono ? "li-name mono-sm" : "li-name"}>{sub}</span>
+        ) : (
+          <>
+            <span className="li-name">{run.task.name}</span>
+            <span className={mono ? "li-sub mono-sm" : "li-sub"}>{sub}</span>
+          </>
+        )}
       </span>
       <span className={bad ? "li-meta bad" : "li-meta"}>{shortWhen(run.started_at ?? run.queued_at, locale, now)}</span>
     </Link>
