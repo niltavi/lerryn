@@ -1,12 +1,12 @@
 # Lerryn
 
-[简体中文](docs/README.zh-CN.md)
+[English documentation](docs/en/README.md) · [简体中文](docs/README.zh-CN.md)
 
 A self-hosted automation sandbox in the Niltavi product family. External agents operate Lerryn through MCP or HTTP APIs. Run Python, Node, and Shell tasks with schedules, webhooks, personal credentials, logs, and artifacts. The web console lets people observe and manage the work; the mobile app provides read access.
 
 ## Get started
 
-The [deployment guide](docs/deploy.md) covers single-node Docker Compose, PostgreSQL and S3 deployments, account setup, backups, and upgrades. Use [the CLI and agent guide](docs/cli.md) to connect an agent over MCP or run tasks from the command line.
+Start with [getting started](docs/en/getting-started.md). The [deployment guide](docs/en/deploy.md) covers single-node Docker Compose, PostgreSQL and S3 deployments, account setup, backups, and upgrades. Use [the CLI and agent guide](docs/en/cli.md) to connect an agent over MCP or run tasks from the command line.
 
 `lerryn all-in-one` provides the API, MCP endpoint, web console, and an embedded runner in one process. `lerryn server` and `lerryn runner` support separate deployment. Single-node deployments use SQLite and local object storage; multi-node deployments use PostgreSQL and S3-compatible storage. Docker is required for sandbox execution.
 
@@ -50,14 +50,17 @@ Build and validate the standalone website with `pnpm website:build` and `pnpm we
 ## Documentation
 
 - [Product requirements](docs/agent-automation-sandbox-prd.md), [technical design](docs/agent-automation-sandbox-tech-design.md), and [implementation plan](docs/agent-automation-sandbox-implementation-plan.md)
-- [Deployment and configuration](docs/deploy.md)
-- [CLI and agent access](docs/cli.md)
+- [English documentation index](docs/en/README.md) / [中文文档目录](docs/README.zh-CN.md)
+- [Getting started](docs/en/getting-started.md)
+- [Deployment and configuration](docs/en/deploy.md)
+- [CLI and agent access](docs/en/cli.md)
+- [Day-to-day operations](docs/en/operations.md)
 - [Acceptance results and known gaps](docs/acceptance-matrix.md)
 - [Design system](docs/design-system.md)
 - [Repository migration](docs/repository-migration.md) and [name migration](docs/rename-to-lerryn.md)
 - [Contributor and agent rules](AGENTS.md)
 
-Technical documents and the product interface currently use Chinese. Lerryn continues from the previous sandbox codebase, with a fresh Git history. Active development takes place in `niltavi/lerryn` on [GitHub](https://github.com/niltavi/lerryn) and [Gitea](https://git.yarinz.com/niltavi/lerryn).
+User guides are available in English and Chinese. Product requirements, technical design, implementation planning, historical validation records, and the product interface currently use Chinese. Lerryn continues from the previous sandbox codebase, with a fresh Git history. Active development takes place in `niltavi/lerryn` on [GitHub](https://github.com/niltavi/lerryn) and [Gitea](https://git.yarinz.com/niltavi/lerryn).
 
 ## License
 

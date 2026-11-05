@@ -1,20 +1,35 @@
 # Lerryn
 
-[English](../README.md)
+[English](en/README.md) · [语言选择](README.md) · [仓库首页](../README.md)
 
 Niltavi 产品线中的自动化沙箱，由外部 Agent 通过 API 和 MCP 操作，面向企业自部署。支持 Python、Node 和 Shell 任务、定时与 Webhook 触发、个人凭证、运行日志与产物；Web 控制台用于观察和管理，移动端提供只读查看。协作规则见 [AGENTS.md](../AGENTS.md)。
 
-- 产品需求、技术设计、实施规划：`docs/`
-- 改名与升级：[docs/rename-to-lerryn.md](../docs/rename-to-lerryn.md)
-- 仓库搬迁：[docs/repository-migration.md](repository-migration.md)
-- 官网源码：[website/README.md](../website/README.md)，目标域名 `lerryn.niltavi.com`
-- 部署与配置：[docs/deploy.md](../docs/deploy.md)
-- CLI 与 Agent 接入：[docs/cli.md](../docs/cli.md)
-- 验收结果与已知缺口：[docs/acceptance-matrix.md](../docs/acceptance-matrix.md)
-- 设计语言与组件库：`design/`，说明见 [docs/design-system.md](../docs/design-system.md)
-- 设计系统页面（Claude Design）：https://claude.ai/artifact/FPPdharrE7VXPo5ZaJPmVq
+## 用户文档
 
-## 目录
+| 文档 | 内容 |
+| --- | --- |
+| [快速入门](getting-started.md) | 选择部署方式、连接 Agent、提交并测试第一个任务 |
+| [部署与运维](deploy.md) | Linux 与 Mac mini 安装、多节点部署、全部配置项、指标、备份、迁移、升级和公网访问 |
+| [CLI 与 Agent 接入](cli.md) | 登录、配置、任务版本、运行、任务包、通用 API 命令、Skill 和 MCP stdio 代理 |
+| [日常运维](operations.md) | 健康检查、失败排查、备份安排、runner 维护与恢复 |
+
+以上用户文档均提供中英文版本。产品界面目前使用中文，文档语言不会改变界面语言。
+
+## 产品与工程资料（中文）
+
+这些文档保留中文。阅读验收和发布记录时，按文中记录的日期与版本判断适用范围，区分 0.9.0 与未发布改动。
+
+| 主题 | 文档 |
+| --- | --- |
+| 产品与架构 | [产品需求](agent-automation-sandbox-prd.md)、[技术设计](agent-automation-sandbox-tech-design.md)、[实施规划](agent-automation-sandbox-implementation-plan.md) |
+| 设计 | [设计语言](design-system.md)、[组件开发](../design/README.md) |
+| 验证 | [验收矩阵](acceptance-matrix.md)、[容量结果](capacity.md)、[人工审查清单](review-checklist.md)、[目标环境验证手册](target-env-runbook.md) |
+| 发布 | [发布流程](release.md)、[0.9.0 发布说明](release-notes/0.9.0.md)、[未发布改动](release-notes/unreleased.md) |
+| 迁移 | [改名与升级](rename-to-lerryn.md)、[仓库搬迁](repository-migration.md) |
+| 技术验证 | [S1 双数据库](spikes/s1-dual-dialect-storage.md)、[S2 OpenAPI 生成链路](spikes/s2-openapi-codegen.md)、[S3 MCP 无状态模式](spikes/s3-mcp-stateless.md)、[S4 容器执行](spikes/s4-container-execution.md) |
+| API 与 SDK | [API 约定](../api/README.md)、[Python](../runtimes/sdk/python/README.md)、[Node](../runtimes/sdk/node/README.md)、[Shell](../runtimes/sdk/sh/README.md) |
+
+## 仓库目录
 
 ```
 docs/
@@ -47,33 +62,15 @@ tests/                 验收、Agent 评测和容量测试
 
 ## 常用命令
 
-```bash
-pnpm install
-```
+开发需要 Go 1.27、Node.js 24、pnpm 10.18.0 和 golangci-lint 2.x。在仓库根目录安装依赖、构建控制台和服务端，再运行合并前检查：
 
 ```bash
-pnpm design:typecheck
-```
-
-```bash
-pnpm design:gallery:ios
-```
-
-其余命令（`design:tokens`、`design:logo`、`design:gallery`）见 [design/README.md](../design/README.md)。
-
-服务端需要 Go 1.27 和 golangci-lint 2.x。合并前跑一遍全部检查：
-
-```bash
+pnpm install --frozen-lockfile
+make build
 make check
 ```
 
-构建 `bin/lerryn`：
-
-```bash
-make build
-```
-
-`make help` 列出全部命令。
+构建结果为 `bin/lerryn`。`make help` 列出全部命令；组件库和主题生成命令见 [design/README.md](../design/README.md)。开发服务器由维护者在本地启动。
 
 ## 官网介绍页
 
@@ -81,4 +78,4 @@ make build
 
 ## 许可证
 
-仓库整体采用 AGPL-3.0，见 [LICENSE](../LICENSE)。`runtimes/sdk/` 和 `skills/` 采用 Apache-2.0，见各自目录下的 `LICENSE`。
+仓库整体采用 AGPL-3.0，见 [LICENSE](../LICENSE)。`runtimes/sdk/` 和 `skills/` 采用 Apache-2.0，见各自目录下的 `LICENSE`。第三方许可证声明见 [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES)。

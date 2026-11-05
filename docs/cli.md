@@ -1,5 +1,7 @@
 # lerryn CLI
 
+[English](en/cli.md) · [文档目录](README.zh-CN.md)
+
 `lerryn` 二进制既是服务端，也是命令行客户端。客户端命令供 Agent 在 shell 中使用，也供维护者使用。设计背景见[技术设计](agent-automation-sandbox-tech-design.md)第 10.6 节。
 
 ## 工作方式
