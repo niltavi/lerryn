@@ -1,4 +1,4 @@
-import { daysUntil, useAccessTokens, useDevices, useI18n, useNotificationChannels, usePendingCredentialRequests, useTools } from "@lerryn/core";
+import { daysUntil, useAccessTokens, useDevices, useI18n, useNotificationChannels, usePendingCredentialRequests } from "@lerryn/core";
 import { WaveGlyph } from "@lerryn/ui-web";
 import { Outlet } from "@tanstack/react-router";
 import { Bell, KeyRound, Plug, Smartphone, UserRound } from "lucide-react";
@@ -14,7 +14,6 @@ export function SettingsLayout() {
   const requests = usePendingCredentialRequests();
   const channels = useNotificationChannels();
   const devices = useDevices();
-  const tools = useTools(null);
   const usable = tokens.data?.items.filter(
     (tok) => !tok.revoked_at && (!tok.expires_at || daysUntil(tok.expires_at) > 0),
   ).length;
@@ -32,7 +31,7 @@ export function SettingsLayout() {
         />
         <SectionLink to="/settings/notifications" icon={Bell} label={t("settings.notifications")} meta={channels.data?.items.length || undefined} />
         <SectionLink to="/settings/pairing" icon={Smartphone} label={t("settings.pairing")} meta={devices.data?.items.length || undefined} />
-        <SectionLink to="/settings/tools" icon={Plug} label={t("settings.tools")} meta={tools.data?.items.length || undefined} />
+        <SectionLink to="/settings/tools" icon={Plug} label={t("settings.tools")} />
         <SectionLink to="/settings/account" icon={UserRound} label={t("settings.account")} />
       </ListColumn>
       <Outlet />

@@ -11,6 +11,7 @@ Lerryn is a self-hosted automation sandbox in the Niltavi product family. Extern
 | [Getting started](getting-started.md) | Choose a deployment, connect an agent, submit and test a first task |
 | [Deployment and operations](deploy.md) | Linux and Mac mini installation, multi-node deployment, every configuration option, metrics, backups, migration, upgrades, and public access |
 | [CLI and agent access](cli.md) | Authentication, configuration, task versions, runs, task bundles, generic API calls, Skills, and the MCP stdio proxy |
+| [Tools integration](tools.md) | Built-in capabilities, MCP, HTTP API, CLI, Skills, and project tools |
 | [Day-to-day operations](operations.md) | Health checks, diagnosing failed runs, backup practice, runner maintenance, and recovery |
 
 Start with the getting-started guide. Maintainers should read deployment and operations before opening an instance to users. The product console currently uses Chinese; documentation language does not change the interface language.

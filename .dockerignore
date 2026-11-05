@@ -3,7 +3,12 @@
 .claude
 node_modules
 **/node_modules
-docs
+# Only the Tools integration guides are needed by the console build.
+docs/*
+!docs/tools.md
+!docs/en
+docs/en/*
+!docs/en/tools.md
 **/dist
 server/internal/console/webdist/*
 !server/internal/console/webdist/.keep
