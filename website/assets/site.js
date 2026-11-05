@@ -1,5 +1,19 @@
 (() => {
   const root = document.documentElement;
+  // Scenes animate only while on screen, and not at all for reduced motion.
+  root.classList.add('js');
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const scenes = [...document.querySelectorAll('.slide')];
+  const pauseSmil = () => document.querySelectorAll('svg.art').forEach((svg) => (still.matches ? svg.pauseAnimations() : svg.unpauseAnimations()));
+  pauseSmil();
+  still.addEventListener('change', pauseSmil);
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => entry.target.classList.toggle('in-view', entry.isIntersecting)), { threshold: 0.25 });
+    scenes.forEach((scene) => observer.observe(scene));
+  } else {
+    scenes.forEach((scene) => scene.classList.add('in-view'));
+  }
+
   const toggle = document.querySelector('.theme-switch');
   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
   let chosen;
@@ -8,7 +22,9 @@
     root.dataset.theme = theme;
     const dark = theme === 'dark';
     toggle.setAttribute('aria-pressed', String(dark));
-    toggle.setAttribute('aria-label', dark ? document.body.dataset.themeLight : document.body.dataset.themeDark);
+    const label = dark ? document.body.dataset.themeLight : document.body.dataset.themeDark;
+    toggle.setAttribute('aria-label', label);
+    toggle.title = label;
   };
   setTheme(chosen === 'light' || chosen === 'dark' ? chosen : systemTheme.matches ? 'dark' : 'light');
   toggle.hidden = false;

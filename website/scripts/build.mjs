@@ -1,19 +1,25 @@
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { languages, origin, repository } from '../content.mjs';
+import * as art from './art.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const dist = resolve(root, 'website/dist');
 const escape = (value) => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const arrow = '<span aria-hidden="true">↗</span>';
 const lines = (s) => s.split('\n').map(escape).join('<br>');
+const heading = (s) => lines(s).replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(resolve(root, 'website/assets'), resolve(dist, 'assets'), { recursive: true });
 await cp(resolve(root, 'design/brand/logo/svg/lerryn-mark.svg'), resolve(dist, 'assets/lerryn-mark.svg'));
 await cp(resolve(root, 'design/brand/logo/png/lerryn-logo-square.png'), resolve(dist, 'assets/lerryn-logo-square.png'));
+
+const mark = (await readFile(resolve(root, 'design/brand/logo/svg/lerryn-mark.svg'), 'utf8'))
+  .replace(/<title>.*?<\/title>/, '')
+  .replace(/ width="\d+" height="\d+"/, ' class="mark" aria-hidden="true" focusable="false"');
 
 for (const c of Object.values(languages)) {
   const base = c.path ? '../' : './';
@@ -43,6 +49,7 @@ for (const c of Object.values(languages)) {
   <meta property="og:image:alt" content="Lerryn">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="${base}assets/lerryn-mark.svg" type="image/svg+xml">
+  <link rel="preload" href="${base}assets/fonts/cormorant-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${base}assets/site.css">
   <script src="${base}assets/site.js" defer></script>
 </head>
@@ -50,58 +57,48 @@ for (const c of Object.values(languages)) {
   <a class="skip" href="#main">${escape(c.skip)}</a>
   <div class="shell">
     <header class="masthead">
-      <a class="brand" href="${base}index.html" aria-label="Lerryn"><img src="${base}assets/lerryn-mark.svg" width="53" height="20" alt=""><span>Lerryn</span></a>
-      <nav aria-label="${c.lang === 'en' ? 'Main navigation' : '主导航'}">
-        <a class="nav-flow" href="#how-it-works">${escape(c.nav[0])}</a>
-        <a href="#connect">${escape(c.nav[1])}</a>
-        <a href="${docs}deploy.md">${escape(c.nav[2])} ${arrow}</a>
-      </nav>
-      <div class="preferences">
-        <a class="language" href="${base}${c.alternate}index.html" lang="${c.lang === 'en' ? 'zh-CN' : 'en'}" hreflang="${c.lang === 'en' ? 'zh-CN' : 'en'}">${c.alternateLabel}</a>
-        <button class="theme-switch" type="button" aria-label="${escape(c.themeDark)}" hidden>
+      <a class="brand" href="${base}index.html" aria-label="Lerryn"><span class="mark-plate">${mark}</span><span class="wordmark">Lerryn</span><span class="family-tag">${escape(c.family)}</span></a>
+      <div class="tools">
+        <button class="icon-button theme-switch" type="button" aria-label="${escape(c.themeDark)}" title="${escape(c.themeDark)}" hidden>
           <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.3A8.7 8.7 0 0 1 8.7 4 8.8 8.8 0 1 0 20 15.3Z"/></svg>
-          <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
         </button>
+        <a class="icon-button" href="${base}${c.alternate}index.html" lang="${c.lang === 'en' ? 'zh-CN' : 'en'}" hreflang="${c.lang === 'en' ? 'zh-CN' : 'en'}" aria-label="${c.alternateLabel}" title="${c.alternateLabel}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 2.5c-5 5.2-5 13.8 0 19M12 2.5c5 5.2 5 13.8 0 19M2.5 12h19"/></svg>
+        </a>
+        <a class="icon-button" href="${repository}" aria-label="${escape(c.github)}" title="${escape(c.github)}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+        </a>
       </div>
     </header>
     <main id="main" tabindex="-1">
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p class="eyebrow"><span class="seed" aria-hidden="true"></span>${escape(c.eyebrow)}</p>
-          <h1 id="hero-title">${lines(c.heading)}</h1>
-          <p class="intro">${escape(c.intro)}</p>
-          <div class="actions"><a class="button" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="text-link" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
-          <ul class="facts">${c.facts.map((f) => `<li>${escape(f)}</li>`).join('')}</ul>
+      <section class="slide cover" aria-labelledby="hero-title">
+        <div class="slide-copy">
+          <h1 id="hero-title">${heading(c.cover.heading)}</h1>
+          <p>${escape(c.cover.text)}</p>
+          <div class="actions"><a class="button primary" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
         </div>
-        <figure class="execution" aria-label="${escape(c.flowLabel)}">
-          <div class="flow-input"><span class="micro">${escape(c.flowAgent)}</span><p>${escape(c.flowRequest)}</p></div>
-          <div class="flow-thread" aria-hidden="true"></div>
-          <div class="run-sheet">
-            <div class="run-top"><span class="micro">${escape(c.flowRuntime)}</span><span class="status"><span aria-hidden="true">✓</span> ${escape(c.flowDone)}</span></div>
-            <div class="run-title"><img src="${base}assets/lerryn-mark.svg" width="48" height="18" alt=""><h2>${escape(c.flowTitle)}</h2></div>
-            <p class="task-name">${escape(c.flowTask)} <span>· Python</span></p>
-            <ol class="stages">${c.flowStages.map((s, i) => `<li><span class="stage-number">0${i + 1}</span><span>${escape(s)}</span><span class="stage-tick" aria-hidden="true">✓</span></li>`).join('')}</ol>
-          </div>
-          <div class="flow-thread" aria-hidden="true"></div>
-          <figcaption class="flow-output"><span class="micro">${escape(c.flowOutput)}</span><p><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2h6l4 4v12H5Z M11 2v5h4 M8 11h4m-4 3h4"/></svg>${escape(c.flowResult)}</p></figcaption>
-        </figure>
+        <div class="slide-art">${art.cover(escape(c.cover.art))}</div>
       </section>
-      <section class="workflow section" id="how-it-works" aria-labelledby="workflow-title">
-        <div class="section-title"><p class="eyebrow">${escape(c.workflowEyebrow)}</p><h2 id="workflow-title">${lines(c.workflowHeading)}</h2></div>
-        <div class="features">${c.features.map(([title, text], i) => `<article><span class="feature-index" aria-hidden="true">0${i + 1}</span><h3>${escape(title)}</h3><p>${escape(text)}</p></article>`).join('')}</div>
-      </section>
-      <section class="connect section" id="connect" aria-labelledby="connect-title">
-        <div class="section-title"><p class="eyebrow">${escape(c.connectEyebrow)}</p><h2 id="connect-title">${lines(c.connectHeading)}</h2><p class="section-description">${escape(c.connectText)}</p><a class="text-link" href="${docs}cli.md">${escape(c.guide)} ${arrow}</a></div>
-        <div class="code-example" data-copy="${escape(c.copy)}" data-copied="${escape(c.copied)}" data-copy-error="${escape(c.copyError)}">
+      ${c.slides.map((s) => `<section class="slide" id="${s.id}" aria-labelledby="${s.id}-title">
+        <div class="slide-copy"><h2 id="${s.id}-title">${heading(s.heading)}</h2><p>${escape(s.text)}</p></div>
+        <div class="slide-art">${art[s.id](escape(s.art))}</div>
+      </section>`).join('\n      ')}
+      <section class="slide connect" id="connect" aria-labelledby="connect-title">
+        <div class="slide-copy"><h2 id="connect-title">${heading(c.connect.heading)}</h2><p>${escape(c.connect.text)}</p><a class="text-link" href="${docs}cli.md">${c.lang === 'en' ? 'CLI &amp; agent guide' : 'CLI 与 Agent 接入文档'} ${arrow}</a></div>
+        <div class="slide-art code-example" data-copy="${escape(c.copy)}" data-copied="${escape(c.copied)}" data-copy-error="${escape(c.copyError)}">
           <div class="tabs" role="tablist" aria-label="${escape(c.tabsLabel)}" hidden>${c.snippets.map((s, i) => `<button type="button" role="tab" id="tab-${s.id}" aria-controls="panel-${s.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? '0' : '-1'}">${s.label}</button>`).join('')}</div>
-          ${c.snippets.map((s) => `<section class="code-panel" id="panel-${s.id}" aria-labelledby="tab-${s.id}" tabindex="0"><div class="code-heading"><h3>${escape(s.title)}</h3><button class="copy" type="button" hidden>${escape(c.copy)}</button></div><pre><code>${escape(s.code)}</code></pre><p>${escape(s.note)}</p></section>`).join('')}
+          ${c.snippets.map((s) => `<section class="code-panel" id="panel-${s.id}" aria-labelledby="tab-${s.id}" tabindex="0"><pre><code>${escape(s.code)}</code></pre><button class="copy" type="button" hidden>${escape(c.copy)}</button></section>`).join('')}
           <span class="copy-message" role="status" aria-live="polite"></span>
         </div>
       </section>
-      <section class="trust section" aria-labelledby="trust-title"><div class="section-title"><p class="eyebrow">${escape(c.trustEyebrow)}</p><h2 id="trust-title">${lines(c.trustHeading)}</h2></div><div class="trust-copy"><p>${escape(c.trustText)}</p><dl>${c.trustItems.map(([dt, dd]) => `<div><dt>${escape(dt)}</dt><dd>${escape(dd)}</dd></div>`).join('')}</dl></div></section>
-      <section class="closing section" aria-labelledby="closing-title"><h2 id="closing-title">${lines(c.endHeading)}</h2><div><p>${escape(c.endText)}</p><a class="button" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a></div></section>
+      <section class="slide end" aria-labelledby="end-title">
+        <div class="slide-copy"><span class="dash" aria-hidden="true"></span><h2 id="end-title">${heading(c.end.heading)}</h2><p>${escape(c.end.text)}</p>
+          <div class="actions"><a class="button primary" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
+        </div>
+      </section>
     </main>
-    <footer><a class="family" href="https://niltavi.com">${escape(c.footerProduct)} ${arrow}</a><div><a href="${repository}">${escape(c.footerSource)}</a><a href="${repository}/blob/main/LICENSE">AGPL-3.0</a><a href="${base}assets/fonts/OFL.txt">DM Sans · OFL-1.1</a><span>© Niltavi</span></div></footer>
+    <footer><span>© Niltavi</span></footer>
   </div>
 </body>
 </html>
