@@ -98,7 +98,7 @@ test.describe("as the admin", () => {
     await page.goto("/");
     await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "管理" }).click();
     await expect(page).toHaveURL(/\/admin\/users$/);
-    const users = page.getByRole("main", { name: "账号" });
+    const users = page.getByRole("main", { name: "用户" });
     await expect(users).toContainText(state.alice.username);
     await expect(users).toContainText(state.admin.username);
 

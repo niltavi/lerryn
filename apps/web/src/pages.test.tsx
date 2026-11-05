@@ -420,7 +420,7 @@ describe("settings navigation", () => {
     expect(router.state.location.pathname).toBe("/settings/account");
     expect(screen.queryByRole("region", { name: "密钥" })).toBeNull();
     const accountMenu = within(screen.getByRole("region", { name: "账号" }));
-    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["通知", "手机", "账号"]);
+    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "通知", "手机"]);
     expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
     expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBeNull();
 
@@ -467,7 +467,7 @@ describe("settings navigation", () => {
     await userEvent.setup().click(admin);
     const menu = within(await screen.findByRole("region", { name: "管理" }));
     expect(router.state.location.pathname).toBe("/admin/users");
-    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "登录", "执行节点", "审计"]);
+    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["用户", "登录", "执行节点", "审计"]);
     expect(admin.getAttribute("aria-current")).toBe("page");
     expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBeNull();
   });
