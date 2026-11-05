@@ -412,6 +412,7 @@ export const zhCN = {
     needSso: "需先配置单点登录",
     sso: "企业单点登录",
     ssoNotSet: "未配置",
+    ssoNotSetDescription: "未配置。尝试让 AI Agent 为你添加单点登录配置吧",
     ssoInConfig: "在部署配置中设置",
     ssoDetails: "已配置，查看详情",
     ssoMembers: "成员",

@@ -55,7 +55,9 @@ export function AdminLoginPage() {
               </span>
               <span style={{ minWidth: 0 }}>
                 <span className="rowi-name">{t("admin.sso")}</span>
-                <span className="rowi-sub mono-sm">{oidc ? hostOf(oidc.issuer) : t("admin.ssoNotSet")}</span>
+                <span className={oidc ? "rowi-sub mono-sm" : "rowi-sub"}>
+                  {oidc ? hostOf(oidc.issuer) : t("admin.ssoNotSetDescription")}
+                </span>
               </span>
               <span className="rowi-end">
                 {oidc ? (

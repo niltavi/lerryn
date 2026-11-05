@@ -412,6 +412,7 @@ export const en: Messages = {
     needSso: "Set up SSO first",
     sso: "Company SSO",
     ssoNotSet: "Not set up",
+    ssoNotSetDescription: "Not set up. Try asking an AI Agent to configure single sign-on for you",
     ssoInConfig: "Set in the deployment config",
     ssoDetails: "Set up, show details",
     ssoMembers: "Members",
