@@ -1,0 +1,49 @@
+# Lerryn 单机拓扑：一个 all-in-one 容器，SQLite，本地对象存储（技术设计第 15.2 节）。
+# 部署步骤、配置说明和备份方法见 docs/deploy.md。
+#
+# 启动前在宿主机上准备数据目录，交给镜像里的 nonroot 用户（uid 65532）：
+#   sudo mkdir -p /var/lib/lerryn && sudo chown 65532:65532 /var/lib/lerryn
+# 复制 .env.example 为 .env，填写 DOCKER_GID 和 LERRYN_PUBLIC_URL，然后：
+#   docker compose up -d
+
+name: lerryn
+
+services:
+  lerryn:
+    image: ${LERRYN_IMAGE:-ghcr.io/niltavi/lerryn}:${LERRYN_VERSION:-0.9.0}
+    command: ["all-in-one"]
+    restart: unless-stopped
+    environment:
+      LERRYN_CONFIG: /etc/lerryn/lerryn.yaml
+      LERRYN_SERVER_PUBLIC_URL: ${LERRYN_PUBLIC_URL:-http://localhost:33333}
+      LERRYN_SERVER_EXTRA_ORIGINS: ${LERRYN_EXTRA_ORIGINS:-}
+    volumes:
+      # 数据目录在容器内外使用相同路径，不能换成命名卷：任务容器的挂载源由
+      # 宿主机上的 daemon 解析，路径不一致时任务一个都启动不了。
+      - type: bind
+        source: /var/lib/lerryn
+        target: /var/lib/lerryn
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ./lerryn.yaml
+        target: /etc/lerryn/lerryn.yaml
+        read_only: true
+    group_add:
+      # 宿主机上 docker.sock 所属组的 GID：stat -c %g /var/run/docker.sock
+      - "${DOCKER_GID:?set DOCKER_GID in .env to the group ID of /var/run/docker.sock}"
+    ports:
+      - "${LERRYN_BIND:-127.0.0.1}:${LERRYN_PORT:-33333}:33333"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/lerryn", "healthcheck"]
+      interval: 15s
+      timeout: 6s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"

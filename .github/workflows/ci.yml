@@ -1,0 +1,133 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          # go.mod only sets the minimum language version; build with the
+          # newest 1.27 patch so govulncheck sees current standard library fixes.
+          go-version: "1.27.x"
+          check-latest: true
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+      - run: make vet
+      - run: make test-sqlite
+      - run: make vulncheck
+
+  # Contract checks. Code generation needs both toolchains: Redocly bundles
+  # the spec (Node), oapi-codegen produces the Go server, openapi-typescript
+  # the TS types.
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          # go.mod only sets the minimum language version; build with the
+          # newest 1.27 patch so govulncheck sees current standard library fixes.
+          go-version: "1.27.x"
+          check-latest: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generated code is up to date
+        run: make generate-check
+      - name: Spectral
+        run: make api-lint
+
+  go-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: lerryn
+          POSTGRES_PASSWORD: lerryn
+          POSTGRES_DB: lerryn_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lerryn"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          # go.mod only sets the minimum language version; build with the
+          # newest 1.27 patch so govulncheck sees current standard library fixes.
+          go-version: "1.27.x"
+          check-latest: true
+      - run: make test-pg
+
+  # Container executor tests against the runner's own dockerd. Native Linux
+  # enforces inter-container isolation, so the test requires it here.
+  go-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          # go.mod only sets the minimum language version; build with the
+          # newest 1.27 patch so govulncheck sees current standard library fixes.
+          go-version: "1.27.x"
+          check-latest: true
+      - run: docker pull busybox:1.37.0
+      - run: make test-integration
+        env:
+          LERRYN_TEST_REQUIRE_ICC: "1"
+
+  # The same tests with the runner itself in a container that talks to the
+  # host daemon, checking that the data directory keeps the same path inside
+  # and outside (tech design 15.2).
+  go-integration-in-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker pull busybox:1.37.0
+      - name: Runner in a container, same-path data directory
+        run: |
+          mkdir -p /tmp/lerryn-shared
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:$PWD:ro" -w "$PWD" -v /tmp/lerryn-shared:/tmp/lerryn-shared \
+            -e LERRYN_TEST_MOUNT_ROOT=/tmp/lerryn-shared -e LERRYN_TEST_REQUIRE_ICC=1 \
+            golang:1.27 go test -race -count=1 -tags integration ./server/internal/executor/... ./server/internal/runner/... ./server/cmd/...
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: make typecheck
+      - run: make website-check
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false

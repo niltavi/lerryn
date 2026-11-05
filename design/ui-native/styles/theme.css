@@ -1,0 +1,174 @@
+/*
+ * @lerryn/ui-native · Niltavi 主题
+ *
+ * 在 global.css 里放在 heroui-native/styles 之后引入：
+ *   @import 'tailwindcss';
+ *   @import 'uniwind';
+ *   @import 'heroui-native/styles';
+ *   @import '@lerryn/ui-native/theme.css';
+ *
+ * 颜色、字体变量来自 tokens.css（由 design/tokens.json 经 design/scripts/sync-tokens.mjs 生成）。
+ * 这里只放 HeroUI Native 组件样式的覆盖：圆角、描边、字号。
+ */
+@import './tokens.css';
+
+/* HeroUI 默认用 color-mix 推算的柔和色，换成 Lerryn 的定值，保证对比度可控 */
+@theme inline static {
+  --color-accent-soft: var(--kraft-soft);
+  --color-accent-soft-foreground: var(--kraft-strong);
+  --color-accent-soft-hover: var(--liner-3);
+  --color-default-soft: var(--liner-2);
+  --color-default-soft-hover: var(--liner-3);
+  --color-success-soft-foreground: var(--success);
+  --color-warning-soft-foreground: var(--warning-ink);
+  --color-danger-soft-foreground: var(--danger);
+  --color-surface-hover: var(--liner-2);
+}
+
+/* ── Button：适度圆角与半粗标签 ── */
+
+.button__root--size-sm {
+  height: 36px;
+  border-radius: var(--radius-xl);
+}
+.button__background--size-sm {
+  border-radius: var(--radius-xl);
+}
+.button__root--size-md {
+  border-radius: var(--radius-2xl);
+}
+.button__background--size-md {
+  border-radius: var(--radius-2xl);
+}
+.button__root--size-lg {
+  border-radius: var(--radius-2xl);
+}
+.button__background--size-lg {
+  border-radius: var(--radius-2xl);
+}
+.button__label {
+  @apply font-semibold;
+}
+.button__root--variant-secondary {
+  background-color: var(--secondary);
+  border-width: 0;
+}
+.button__label--variant-secondary {
+  color: var(--secondary-foreground);
+}
+.button__root--variant-tertiary {
+  background-color: var(--tertiary);
+}
+.button__label--variant-tertiary {
+  color: var(--tertiary-foreground);
+}
+.button__root--variant-outline {
+  border-width: 1px;
+  border-color: var(--color-line-strong);
+}
+
+/* ── Surface / Card：扁平表面与细描边 ── */
+
+.surface__root {
+  border-width: 1px;
+  border-color: var(--color-line);
+}
+.surface__root--variant-secondary {
+  border-color: var(--color-liner-2);
+}
+.surface__root--variant-transparent {
+  border-width: 0;
+}
+.card__label {
+  font-size: 17px;
+  line-height: 24px;
+  @apply font-semibold;
+}
+.card__description {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ── 输入类控件：细边框；标签用 label 字号（13/18 半粗） ── */
+
+.input__input {
+  box-shadow: var(--shadow-field);
+}
+.label__text {
+  font-size: 13px;
+  line-height: 18px;
+  @apply font-semibold;
+}
+.label__asterisk {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* ── Chip：状态标签一律胶囊形 ── */
+
+.chip__root--size-sm {
+  border-radius: 9999px;
+}
+.chip__root--size-md {
+  border-radius: 9999px;
+}
+.chip__root--size-lg {
+  border-radius: 9999px;
+}
+.chip__label {
+  @apply font-semibold;
+}
+
+/* ── Typography：对齐 Lerryn 字号阶梯（h1 display · h2 title-1 · h3 title-2 · h4 title-3 · h5 label · h6 caption） ── */
+
+.text__root--type-h1 {
+  font-size: 32px;
+  line-height: 38px;
+  letter-spacing: -0.5px;
+  @apply font-bold;
+}
+.text__root--type-h2 {
+  font-size: 24px;
+  line-height: 30px;
+  letter-spacing: -0.25px;
+  @apply font-bold;
+}
+.text__root--type-h3 {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: 0px;
+}
+.text__root--type-h4 {
+  font-size: 17px;
+  line-height: 24px;
+  letter-spacing: 0px;
+}
+.text__root--type-h5 {
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0px;
+}
+.text__root--type-h6 {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0px;
+}
+.text__root--type-body {
+  font-size: 16px;
+  line-height: 24px;
+}
+.text__root--type-body-sm {
+  font-size: 14px;
+  line-height: 20px;
+}
+.text__root--type-body-xs {
+  font-size: 12px;
+  line-height: 16px;
+}
+.text__root--type-code {
+  font-family: var(--font-mono-medium);
+  font-size: 13px;
+  line-height: 20px;
+  background-color: var(--color-liner-3);
+  border-radius: var(--radius-md);
+}

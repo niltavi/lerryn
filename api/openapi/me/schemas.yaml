@@ -1,0 +1,156 @@
+# me 资源的 schema。在根文件 components.schemas 中逐个登记。
+AccessToken:
+  type: object
+  description: 一个访问令牌的元信息。令牌本身只在创建时返回一次。
+  required: [id, name, prefix, scopes, created_at, expires_at, last_used_at, revoked_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: 令牌 ID。
+    name:
+      type: string
+      description: 创建时起的名字，用来区分不同的 Agent 或机器。
+    prefix:
+      type: string
+      description: 令牌的前几个字符，用来辨认是哪一个令牌。
+      examples: [wl_pat_k7q2]
+    scopes:
+      type: array
+      uniqueItems: true
+      items:
+        $ref: "../common/schemas.yaml#/TokenScope"
+    created_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: [string, "null"]
+      format: date-time
+      description: 到期时间，null 表示不过期。
+    last_used_at:
+      type: [string, "null"]
+      format: date-time
+      description: 最近一次使用的时间，精确到分钟左右。从未使用时为 null。
+    revoked_at:
+      type: [string, "null"]
+      format: date-time
+      description: 撤销时间，未撤销时为 null。
+
+AccessTokenPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/AccessToken"
+
+CreateTokenRequest:
+  type: object
+  description: 创建访问令牌。
+  required: [name, scopes]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: 令牌的名字，例如所在的机器或 Agent。
+      examples: [laptop-claude-code]
+    scopes:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: 令牌的范围。只做查看用的 Agent 给 read 即可；要建立和运行任务需要 write 和 execute。
+      items:
+        $ref: "../common/schemas.yaml#/TokenScope"
+    expires_in_days:
+      type: integer
+      minimum: 1
+      maximum: 3650
+      description: 多少天后到期，省略表示不过期。
+
+CreatedToken:
+  type: object
+  description: 新创建的访问令牌，包含令牌本身。
+  required: [token, access_token]
+  properties:
+    token:
+      type: string
+      description: 令牌本身，形如 `wl_pat_...`。只出现这一次，请立即保存。
+    access_token:
+      $ref: "#/AccessToken"
+
+UpdateMeRequest:
+  type: object
+  description: 要修改的个人信息。省略的字段不变，空字符串表示清除。
+  minProperties: 1
+  additionalProperties: false
+  properties:
+    display_name:
+      type: string
+      maxLength: 64
+    email:
+      type: string
+      maxLength: 254
+      description: 邮箱，不做验证。空字符串表示清除。
+    locale:
+      type: string
+      enum: ["", zh-CN, en]
+      description: 界面语言。空字符串表示清除，由客户端自行选择。
+    timezone:
+      type: string
+      maxLength: 64
+      description: IANA 时区名，例如 `Asia/Shanghai`。空字符串表示清除。
+
+ChangePasswordRequest:
+  type: object
+  required: [current_password, new_password]
+  additionalProperties: false
+  properties:
+    current_password:
+      type: string
+      minLength: 1
+      maxLength: 256
+    new_password:
+      $ref: "../auth/schemas.yaml#/Password"
+
+Device:
+  type: object
+  description: 一个已登录的移动设备。
+  required: [id, name, platform, os_version, created_at, last_seen_at, expires_at, current]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    platform:
+      type: string
+      enum: [ios, android, other]
+    os_version:
+      type: [string, "null"]
+    created_at:
+      type: string
+      format: date-time
+      description: 配对或登录的时间。
+    last_seen_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+    current:
+      type: boolean
+      description: 是否为发出本次请求的设备。
+
+DeviceList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/Device"

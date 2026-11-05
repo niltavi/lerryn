@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>移动端 · 运行</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app m-app {{theme}}" style="width: 390px; height: 844px; min-height: 0;">
+  <header class="m-top">
+    <a class="m-back" href="M-Task.dc.html"><svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>weekday-digest</a>
+    <span data-tip="复制运行 ID" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="复制运行 ID"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></x-import></span>
+  </header>
+
+  <div class="m-body" style="gap: 22px;">
+    <div class="stack" style="gap: 10px;">
+      <div class="verdict-main" style="gap: 12px;">
+        <span class="g g--bad g--lg" style="width: 40px; height: 40px;" aria-hidden="true"><x-import component-from-global-scope="Lerryn.Icon" name="x" size="{{s20}}"></x-import></span>
+        <h1 class="verdict-word" style="font-size: 26px; line-height: 32px; color: var(--danger);">执行失败</h1>
+        <span class="verdict-time" style="font-size: 26px; line-height: 32px; margin-left: auto;">52.3s</span>
+      </div>
+      <span class="mono-sm muted">run_01JDA4K9 · 08:00 · v7</span>
+    </div>
+
+    <div class="cause" style="padding: 12px 14px;">
+      <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <span class="body-sm"><b>调用模型</b> · 429 Too Many Requests，重试 3 次后退出</span>
+    </div>
+
+    <ol class="vstages" aria-label="阶段">
+      <li class="vstage"><span class="vstage-rail"><span class="g g--ok" role="img" aria-label="完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></span><span class="vstage-line"></span></span><span class="vstage-body">获取输入</span><span class="mono-sm muted">12.4s</span></li>
+      <li class="vstage"><span class="vstage-rail"><span class="g g--bad" role="img" aria-label="失败"><x-import component-from-global-scope="Lerryn.Icon" name="x" size="{{s13}}"></x-import></span><span class="vstage-line" style="border-left: 2px dashed var(--line-strong); background: transparent; width: 0;"></span></span><span class="vstage-body" style="color: var(--danger);">调用模型</span><span class="mono-sm muted">37.8s</span></li>
+      <li class="vstage"><span class="vstage-rail"><span class="g g--idle" role="img" aria-label="未执行"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></span></span><span class="vstage-body muted">保存结果</span><span class="mono-sm muted">—</span></li>
+    </ol>
+
+    <section class="log" aria-label="日志末尾">
+      <div class="log-body" role="log" style="padding: 10px 0;">
+        <div class="ll ll--err" style="grid-template-columns: 24px minmax(0, 1fr); padding: 0 12px;"><span class="n">25</span><span class="m">HTTP 429，放弃（3/3）</span></div>
+        <div class="ll ll--err" style="grid-template-columns: 24px minmax(0, 1fr); padding: 0 12px;"><span class="n">26</span><span class="m">Traceback (most recent call last):</span></div>
+        <div class="ll ll--err" style="grid-template-columns: 24px minmax(0, 1fr); padding: 0 12px;"><span class="n">27</span><span class="m">  File "/work/main.py", line 88</span></div>
+        <div class="ll ll--err" style="grid-template-columns: 24px minmax(0, 1fr); padding: 0 12px;"><span class="n">28</span><span class="m">    resp.raise_for_status()</span></div>
+        <div class="ll ll--err" style="grid-template-columns: 24px minmax(0, 1fr); padding: 0 12px;"><span class="n">29</span><span class="m">HTTPStatusError: 429 Too Many Requests</span></div>
+        <div class="ll ll--sys" style="grid-template-columns: 24px minmax(0, 1fr); padding: 0 12px;"><span class="n">30</span><span class="m">▸ 进程退出，退出码 1</span></div>
+      </div>
+      <div class="log-more" style="border-bottom: 0; border-top: 1px dashed var(--line);"><button type="button"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>更早 24 行</button></div>
+    </section>
+
+    <a class="chip" href="M-Run.dc.html" style="align-self: flex-start; color: var(--ink);"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>已重跑<span class="g g--ok" style="width: 18px; height: 18px;" role="img" aria-label="执行完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s11}}"></x-import></span><span class="mono-sm muted">08:21 · v8</span></a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'theme-dark' : '', yes: true, s11: 11, s13: 13, s20: 20 };
+  }
+}
+</script>
+</body>
+</html>

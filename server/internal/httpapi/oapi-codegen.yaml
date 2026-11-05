@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+# Generates the strict server for the public API from the bundled spec.
+# Choices are explained in docs/spikes/s2-openapi-codegen.md.
+package: httpapi
+output: api.gen.go
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+compatibility:
+  # Without this, enum constants are only prefixed with their type name when
+  # two enums share a value, so adding an enum later can rename existing
+  # constants and break code that has nothing to do with the change.
+  always-prefix-enum-values: true
+output-options:
+  # Keep every component, not only those reachable from paths: schemas used
+  # only by `webhooks` are otherwise pruned and the output does not compile,
+  # and shared building blocks (CursorPage, ErrorCode) should exist in Go
+  # before the first endpoint uses them.
+  skip-prune: true
+  name-normalizer: ToCamelCaseWithInitialisms

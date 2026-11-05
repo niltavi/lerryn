@@ -1,0 +1,26 @@
+# 单机拓扑的配置。所有项的说明见 docs/deploy.md 的配置参考，
+# 完整示例见 deploy/lerryn.example.yaml。server.public_url 由 compose.yaml 的环境变量设置。
+
+server:
+  listen: ":33333"
+
+database:
+  driver: sqlite
+  dsn: "/var/lib/lerryn/lerryn.db"
+
+storage:
+  driver: local
+  path: "/var/lib/lerryn/storage"
+
+secrets:
+  master_key_file: "/var/lib/lerryn/master.key"
+
+runner:
+  mode: embedded
+  slots: 4
+  allowed_networks: [none, full]
+  data_dir: /var/lib/lerryn/runner
+
+log:
+  level: info
+  format: json

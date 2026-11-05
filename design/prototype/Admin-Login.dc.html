@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>管理 · 登录</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app {{theme}}">
+<div class="app">
+
+<nav class="rail" aria-label="主导航">
+  <a class="rail-logo" href="Main.dc.html" aria-label="Lerryn"><img src="/_blob/46d7ba75db40f7da30f9bb6f6115b8fb" alt="" width="32" height="12"></a>
+  <a class="ri" href="Main.dc.html" aria-label="概览" data-tip="概览"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></a>
+  <a class="ri" href="Runs.dc.html" aria-label="运行" data-tip="运行"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></a>
+  <a class="ri" href="Settings-Credentials.dc.html" aria-label="凭证，1 个待填写" data-tip="凭证"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg><span class="pip"></span></a>
+  <a class="ri on" href="Admin-Users.dc.html" aria-label="管理" data-tip="管理"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></a>
+  <div class="rail-foot">
+    <a class="ri" href="Settings-Tokens.dc.html" aria-label="个人设置" data-tip="张林 · 个人设置"><span class="avatar">张</span></a>
+  </div>
+</nav>
+
+<section class="list" aria-label="管理">
+  <div class="list-head"><h2 class="list-title">管理</h2></div>
+  <a class="li" href="Admin-Users.dc.html"><span class="li-ic"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="li-name">账号</span><span class="li-meta">18</span></a>
+  <a class="li on" href="Admin-Login.dc.html" aria-current="page"><span class="li-ic"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="li-name">登录</span><span class="li-meta"></span></a>
+  <a class="li" href="Admin-Runners.dc.html"><span class="li-ic"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg></span><span class="li-name">执行节点</span><span class="li-meta bad">1 失联</span></a>
+</section>
+
+<main class="board">
+  <div class="board-top"><h1 class="h2">登录</h1></div>
+
+  <div style="max-width: 720px;">
+  <x-import component-from-global-scope="Lerryn.Card">
+    <div class="rowi">
+      <span class="ic-box"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg></span>
+      <span class="rowi-name">开放注册</span>
+      <button class="switch" type="button" role="switch" aria-checked="true" aria-label="开放注册"></button>
+    </div>
+    <div class="rowi">
+      <span class="ic-box"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+      <span style="min-width: 0;"><span class="rowi-name">本地密码登录</span><span class="rowi-sub">关闭后管理员仍可使用</span></span>
+      <span data-tip="{{pwTip}}" data-tip-pos="bottom"><button class="switch" type="button" role="switch" aria-checked="true" aria-label="本地密码登录" disabled="{{noOidc}}"></button></span>
+    </div>
+    <div class="rowi">
+      <span class="ic-box"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></span>
+      <span style="min-width: 0;"><span class="rowi-name">企业单点登录</span><span class="rowi-sub mono-sm">{{oidcSub}}</span></span>
+      <span class="rowi-end">
+        <sc-if value="{{oidc}}" hint-placeholder-val="{{ true }}">
+          <div class="disc disc--right is-open">
+            <button class="g g--ok" type="button" style="border: 0; cursor: pointer;" aria-label="已配置，查看详情" aria-expanded="true"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></button>
+            <div class="pop" role="dialog" aria-label="单点登录" style="min-width: 360px;">
+              <dl class="kv">
+                <dt>Client ID</dt><dd class="mono-sm">lerryn-console</dd>
+                <dt>用户名</dt><dd class="mono-sm">preferred_username</dd>
+                <dt>成员</dt><dd>14</dd>
+              </dl>
+              <div class="copyline" style="margin-top: 12px;"><code>https://lerryn.example.com/api/v1/auth/oidc/callback</code><span data-tip="复制回调地址" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="复制回调地址"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></x-import></span></div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{noOidc}}" hint-placeholder-val="{{ false }}">
+          <span class="g g--idle" role="img" aria-label="未配置" data-tip="在部署配置中设置" data-tip-pos="bottom"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></span>
+        </sc-if>
+      </span>
+    </div>
+  </x-import>
+  </div>
+</main>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"oidcConfigured":{"editor":"boolean","default":true},"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const oidc = this.props.oidcConfigured ?? true;
+    return {
+      theme: this.props.dark ? 'theme-dark' : '',
+      yes: true,
+      s13: 13,
+      oidc: oidc,
+      noOidc: !oidc,
+      oidcSub: oidc ? 'sso.example.com' : '未配置',
+      pwTip: oidc ? '本地密码登录' : '需先配置单点登录'
+    };
+  }
+}
+</script>
+</body>
+</html>

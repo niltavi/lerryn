@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>弹窗</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app {{theme}}" style="width: 1040px; height: 900px; min-height: 0;">
+<div style="width: 100%; height: 100%; background: var(--backdrop); padding: 48px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: start; justify-items: center;">
+
+  <section class="dialog" role="dialog" aria-labelledby="d1">
+    <h2 class="h3" id="d1">新建令牌</h2>
+    <x-import component-from-global-scope="Lerryn.TextField">
+      <x-import component-from-global-scope="Lerryn.Label">名称</x-import>
+      <x-import component-from-global-scope="Lerryn.Input" default-value="Claude Code · 笔记本"></x-import>
+    </x-import>
+    <div class="stack" style="gap: 8px;">
+      <span class="label">范围</span>
+      <div class="row">
+        <label class="chip" style="height: 36px;"><input type="checkbox" checked style="accent-color: var(--kraft-strong);"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>读取</label>
+        <label class="chip" style="height: 36px;"><input type="checkbox" checked style="accent-color: var(--kraft-strong);"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>写入</label>
+        <label class="chip" style="height: 36px;"><input type="checkbox" checked style="accent-color: var(--kraft-strong);"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l14 9-14 9z"/></svg>执行</label>
+      </div>
+    </div>
+    <div class="stack" style="gap: 8px;">
+      <span class="label">有效期</span>
+      <div class="seg seg--block" role="group" aria-label="有效期"><button type="button" aria-pressed="false">30 天</button><button type="button" aria-pressed="true">90 天</button><button type="button" aria-pressed="false">1 年</button></div>
+    </div>
+    <div class="dialog-foot">
+      <x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="md">取消</x-import>
+      <x-import component-from-global-scope="Lerryn.Button" size="md">创建</x-import>
+    </div>
+  </section>
+
+  <section class="dialog" role="dialog" aria-labelledby="d2">
+    <div class="row" style="gap: 12px;"><span class="g g--ok g--lg" aria-hidden="true"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s22}}"></x-import></span><h2 class="h3" id="d2">只显示这一次</h2></div>
+    <div class="copyline"><code>wl_pat_7Kq2xN4vR8sT1mW6yB3cH9dL0pZ5a91c</code><span data-tip="复制" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="复制令牌"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></x-import></span></div>
+    <div class="dialog-foot">
+      <x-import component-from-global-scope="Lerryn.Button" size="md">完成</x-import>
+    </div>
+  </section>
+
+  <section class="dialog" role="dialog" aria-labelledby="d3">
+    <div class="row" style="gap: 12px;"><span class="g g--bad g--lg" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></span><h2 class="h3" id="d3">撤销 <span class="mono" style="font-size: 18px;">CRM_TOKEN</span></h2></div>
+    <div class="meta-chips">
+      <span class="meta-chip"><span class="mono-sm">weekday-digest</span></span>
+      <span class="meta-chip"><span class="mono-sm">lead-sync-bitable</span></span>
+    </div>
+    <p class="body-sm muted">这两个任务的新运行将在准备阶段停止</p>
+    <div class="dialog-foot">
+      <x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="md">取消</x-import>
+      <x-import component-from-global-scope="Lerryn.Button" variant="danger" size="md">撤销</x-import>
+    </div>
+  </section>
+
+  <section class="dialog" role="dialog" aria-labelledby="d4">
+    <h2 class="h3" id="d4">创建账号</h2>
+    <x-import component-from-global-scope="Lerryn.TextField">
+      <x-import component-from-global-scope="Lerryn.Label">用户名</x-import>
+      <x-import component-from-global-scope="Lerryn.Input" default-value="sunqi"></x-import>
+    </x-import>
+    <div class="wl-field">
+      <label class="wl-field__label" for="d4-pw">初始密码</label>
+      <div class="pw-wrap">
+        <input id="d4-pw" class="wl-field__input mono" value="kraft-7Q4m-9x2c" style="font-size: 14px;">
+        <button class="pw-eye" type="button" aria-label="重新生成"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox">管理员</label>
+    <div class="dialog-foot">
+      <x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="md">取消</x-import>
+      <x-import component-from-global-scope="Lerryn.Button" size="md">创建</x-import>
+    </div>
+  </section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1040,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'theme-dark' : '', yes: true, s22: 22 };
+  }
+}
+</script>
+</body>
+</html>

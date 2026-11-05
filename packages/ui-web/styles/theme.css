@@ -1,0 +1,107 @@
+/* Niltavi theme on HeroUI v3. Semantic colours come from the pinned upstream
+ * snapshot through design/scripts/sync-tokens.mjs; keep domain styling here. */
+:root {
+  --radius: 0.5rem;
+  --field-radius: var(--radius-2xl);
+  --field-border-width: 1px;
+  --disabled-opacity: 0.45;
+  --tooltip-delay: 400ms;
+  --tooltip-close-delay: 0ms;
+}
+
+@layer components {
+  .button { font-weight: 600; border-radius: var(--radius-2xl); box-shadow: none; }
+  .button--sm { height: 36px; border-radius: var(--radius-xl); font-size: 13px; }
+  .button--md { height: 44px; font-size: 15px; }
+  .button--lg { height: 52px; font-size: 16px; }
+  .button--icon-only.button--sm { width: 36px; }
+  .button--icon-only.button--md { width: 44px; }
+  .button--secondary {
+    --button-bg: var(--secondary);
+    --button-bg-hover: var(--secondary-hover);
+    --button-bg-pressed: var(--secondary-hover);
+    --button-fg: var(--secondary-foreground);
+  }
+  .button--tertiary {
+    --button-bg: var(--tertiary);
+    --button-bg-hover: var(--tertiary-hover);
+    --button-bg-pressed: var(--tertiary-hover);
+    --button-fg: var(--tertiary-foreground);
+  }
+  .button--outline { border: 1px solid var(--line-strong); }
+
+  .input, .textarea {
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 16px;
+    line-height: 24px;
+    border-color: var(--field-border);
+    background-color: var(--field-background);
+    box-shadow: none;
+  }
+  .input:focus, .input[data-focused="true"],
+  .textarea:focus, .textarea[data-focused="true"] { border-color: var(--focus); }
+  .input[data-invalid="true"], .textarea[data-invalid="true"] { border-color: var(--danger); }
+  .label { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink); }
+  .field-error { padding: 0; font-size: 13px; line-height: 18px; color: var(--danger); }
+  .textfield { gap: 6px; }
+
+  .modal__backdrop { background-color: var(--backdrop); }
+  .modal__dialog {
+    background: var(--overlay);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-4xl);
+    box-shadow: none;
+    padding: var(--space-6);
+    gap: var(--space-5);
+  }
+  .modal__heading { font-size: 20px; line-height: 28px; font-weight: 600; }
+  .modal__footer { gap: var(--space-2); }
+  .tooltip {
+    border-radius: var(--radius-lg);
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 12px;
+    line-height: 16px;
+    padding: 5px 8px;
+    box-shadow: none;
+  }
+  .popover {
+    background: var(--overlay);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2xl);
+    box-shadow: none;
+  }
+
+  .switch__control { background-color: var(--liner-3); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .switch[data-selected="true"] .switch__control { background-color: var(--kraft); box-shadow: none; }
+  .switch__thumb { background-color: var(--ink-muted); box-shadow: none; }
+  .switch[data-selected="true"] .switch__thumb { background-color: var(--on-kraft); }
+  .checkbox__control { border-color: var(--line-strong); border-radius: var(--radius-md); }
+  .checkbox[data-selected="true"] .checkbox__control {
+    background-color: var(--kraft-strong);
+    border-color: var(--kraft-strong);
+    color: var(--on-kraft);
+  }
+  .toggle-button-group { padding: 3px; gap: 2px; border-radius: var(--radius-xl); background: var(--liner-2); }
+  .toggle-button {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    background: transparent;
+  }
+  .toggle-button[data-selected="true"] { background: var(--liner-3); color: var(--ink); }
+  .card {
+    background: var(--liner);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-3xl);
+    box-shadow: none;
+  }
+}

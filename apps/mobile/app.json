@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Lerryn",
+    "slug": "lerryn",
+    "scheme": "lerryn",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F5F1E6",
+    "icon": "../../design/brand/logo/png/lerryn-logo-square.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.lerryn.mobile",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "ai.lerryn.mobile"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "用于扫描 Web 控制台上的配对二维码",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

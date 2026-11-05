@@ -1,0 +1,62 @@
+# skills 资源的路径：随服务端发行的 Agent Skill。在根文件 paths 中按路径登记。
+# 内容与服务端版本一致，MCP 客户端另可按 lerryn://skills/{name}/{path} 读取 resource，
+# 所以这两个接口不作为独立的 MCP 工具暴露。
+skills:
+  get:
+    operationId: listSkills
+    tags: [skills]
+    summary: 列出 Skill
+    description: |
+      返回服务端随版本发行的 Skill 及其文件清单，与 `discover` 的 `skills` 一致。
+      本地 Skill 的版本与 `version` 不同时，用 getSkill 取回匹配的内容，或者执行 `lerryn skills install`。
+      本接口允许匿名调用。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    security:
+      - {}
+      - accessToken: []
+      - sessionCookie: []
+    responses:
+      "200":
+        description: Skill 列表。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/SkillList"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+skill:
+  get:
+    operationId: getSkill
+    tags: [skills]
+    summary: 读取 Skill
+    description: |
+      返回一个 Skill 的全部文件内容：`SKILL.md` 和按需读取的 `references/` 等。
+      把文件按 `path` 写进客户端的 skills 目录下同名的子目录，即可安装这个版本。
+      名称不存在时返回 not_found。本接口允许匿名调用。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    security:
+      - {}
+      - accessToken: []
+      - sessionCookie: []
+    parameters:
+      - name: name
+        in: path
+        required: true
+        description: Skill 名称，例如 lerryn-automation。
+        schema:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+    responses:
+      "200":
+        description: Skill 及其文件。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Skill"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

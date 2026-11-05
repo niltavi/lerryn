@@ -1,0 +1,876 @@
+# tasks 资源的 schema。在根文件 components.schemas 中逐个登记。
+TaskName:
+  type: string
+  description: 任务名：1 到 63 个字符，只能包含小写字母、数字和连字符，以字母或数字开头。在项目内唯一。
+  pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+  examples: [weekday-digest]
+
+Manifest:
+  type: object
+  description: |
+    任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
+    runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
+    修改触发频率不产生新版本。
+  required: [runtime, entrypoint]
+  additionalProperties: false
+  properties:
+    description:
+      type: string
+      maxLength: 500
+      description: 任务用途，给人看。
+    runtime:
+      $ref: "#/RuntimeSpec"
+    entrypoint:
+      type: array
+      minItems: 1
+      maxItems: 32
+      description: 进程的 argv，工作目录为任务文件所在的 `/sbx/task`。
+      items:
+        type: string
+        minLength: 1
+        maxLength: 1024
+      examples: [[python, main.py]]
+    params:
+      type: object
+      additionalProperties: true
+      description: 默认参数。运行时以 JSON 放在环境变量 `LERRYN_PARAMS` 中；发起运行时可以整体替换。
+    stages:
+      type: array
+      maxItems: 50
+      description: 声明的阶段。任务用 `sbx stage` 上报进度时，控制台按这里的顺序显示。
+      items:
+        $ref: "#/StageSpec"
+    limits:
+      $ref: "#/Limits"
+    network:
+      type: string
+      enum: [none, full]
+      default: full
+      description: 网络策略。none 为无网络；full 可以访问外部网络。
+    concurrency:
+      type: string
+      enum: [forbid, allow]
+      default: forbid
+      description: |
+        同一任务能否同时有多个运行。forbid 时，已有运行未结束会拒绝 API 发起的新运行（`run_in_progress`），
+        定时和 webhook 触发记为已跳过，`skip_reason` 为 overlap。
+    credentials:
+      type: array
+      maxItems: 20
+      description: |
+        任务需要的凭证。这里只写引用名，不写明文。引用名与凭证的绑定是授权（grantCredential），不随版本变化；
+        缺少绑定时用 credential_request 请用户填写。
+      items:
+        $ref: "#/ManifestCredential"
+    tools:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      description: 允许使用的已登记工具名（技术设计第 7.8 节）。
+      items:
+        type: string
+        pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+    runner_labels:
+      type: array
+      maxItems: 10
+      uniqueItems: true
+      description: 只由带有全部这些标签的 runner 执行。省略时任何 runner 都可以执行。
+      items:
+        type: string
+        pattern: "^[a-z0-9][a-z0-9_.-]{0,62}$"
+      examples: [[intranet]]
+    retry:
+      $ref: "#/RetryPolicy"
+    side_effects:
+      type: boolean
+      default: false
+      description: |
+        任务会改动外部系统（发消息、写数据）。为 true 时，失败后不要自动重跑，先和用户确认。
+    panels:
+      type: array
+      maxItems: 8
+      description: |
+        Agent 面板：在任务和运行看板上展示任务上报结果（`sbx result` 的 data）中的数据。平台只渲染这几种声明式类型，
+        不执行 HTML 或脚本。结果中没有对应数据时不显示该面板。
+      items:
+        $ref: "#/PanelSpec"
+
+RuntimeSpec:
+  type: object
+  description: |
+    运行时（技术设计第 7.3 节）。language 和 version 的组合只能从 `discover` 返回的运行时目录中选，
+    不在目录中的组合以 422 `validation_failed` 拒绝。
+  required: [language, version]
+  additionalProperties: false
+  properties:
+    language:
+      type: string
+      enum: [python, node, shell]
+      description: |
+        python 为 Python 3.12，用 uv 管理依赖；node 为 Node.js 22，用 npm 管理依赖，`.ts` 文件由 Node 的类型剥离直接运行；
+        shell 为 Bash 5 和常用命令行工具，没有依赖管理。
+    version:
+      type: string
+      enum: ["3.12", "22", "5"]
+      description: 运行时版本：python 为 `3.12`，node 为 `22`，shell 为 `5`。与语言不对应的组合以 422 拒绝。
+      examples: ["3.12"]
+    lockfile:
+      type: string
+      enum: [uv.lock, package-lock.json]
+      description: |
+        依赖锁文件，必须与语言对应：python 为 `uv.lock`（任务文件中同时要有 `pyproject.toml`），
+        node 为 `package-lock.json`（同时要有 `package.json`，按 `npm ci` 安装）。平台按锁文件安装依赖并缓存环境；
+        不设置时只能使用运行时自带的库。shell 不支持锁文件。
+
+StageSpec:
+  type: object
+  required: [id, name]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9_-]{0,62}$"
+      description: 阶段 ID，`sbx stage` 用它引用阶段。
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: 显示名。
+    after:
+      type: array
+      maxItems: 50
+      uniqueItems: true
+      description: 依赖的阶段 ID。有依赖时控制台显示简图。
+      items:
+        type: string
+
+Limits:
+  type: object
+  description: 资源上限。省略的字段使用默认值。
+  additionalProperties: false
+  properties:
+    timeout:
+      type: string
+      pattern: "^[1-9][0-9]*(s|m|h)$"
+      default: 10m
+      description: 执行时限，最长 24h。超时后容器被停止，运行标为已超时。
+      examples: [10m]
+    cpu:
+      type: number
+      minimum: 0.1
+      maximum: 8
+      default: 1
+      description: CPU 核数上限。
+    memory:
+      type: string
+      pattern: "^[1-9][0-9]*(Mi|Gi)$"
+      default: 1Gi
+      description: 内存上限，最小 64Mi，最大 16Gi。超出时进程被杀死，运行标为失败并注明 out_of_memory。
+      examples: [512Mi]
+
+ManifestCredential:
+  type: object
+  description: |
+    任务需要的一个凭证。凭证本身属于某个用户，由所有者按引用名授权给任务（技术设计第 12.4、12.5 节）。
+    运行时按 `as` 注入：env 时凭证的每个字段成为一个同名环境变量；file 时写入 `/run/secrets/<name>/<字段名>`。
+  required: [name]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      pattern: "^[A-Z][A-Z0-9_]{0,63}$"
+      description: 引用名，任务内唯一。凭证授权和填写请求都用它指明是哪一个凭证。
+      examples: [LLM_API_KEY]
+    as:
+      type: string
+      enum: [env, file]
+      default: env
+      description: 注入方式。
+    description:
+      type: string
+      maxLength: 200
+      description: 用途说明，显示在任务详情和填写页上。
+    optional:
+      type: boolean
+      default: false
+      description: 为 true 时缺少这个凭证也照常运行；否则准备阶段以 `credential_missing` 失败。
+
+RetryPolicy:
+  type: object
+  description: |
+    自动重试（技术设计第 8.5 节），默认关闭。每次重试是一个新的运行，`retry_of` 指向上一次尝试。
+    取消、凭证不可用、校验失败、队列已满不重试。
+  additionalProperties: false
+  properties:
+    max_attempts:
+      type: integer
+      minimum: 0
+      maximum: 5
+      default: 0
+      description: 失败后最多再重试几次。0 表示不重试。
+    delay:
+      type: string
+      pattern: "^[1-9][0-9]*(s|m|h)$"
+      default: 30s
+      description: 每次重试前等待的时间，最长 1h。
+    on:
+      type: array
+      uniqueItems: true
+      description: 哪些结束状态会重试，省略时为 failed、timed_out、interrupted。
+      items:
+        type: string
+        enum: [failed, timed_out, interrupted]
+
+PanelSpec:
+  type: object
+  description: |
+    一个 Agent 面板。`source` 是指向结果数据的 JSON Pointer，各类型需要的数据形状：
+
+    - metric：数字，或 `{"value": 数字, "label": 文字}`。
+    - bars、breakdown：`[{"label": 文字, "value": 数字}]`。bars 设置 `history` 时，改为取最近若干次运行中 `source` 指向的数字，按运行时间排列。
+    - table：对象数组，按 `columns` 取列，最多显示 50 行。
+    - text：纯文本，最长 2000 个字符，不解析 Markdown 或 HTML。
+
+    数据形状不符时控制台不显示该面板，不报错。
+  required: [id, type, title, source]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9_-]{0,62}$"
+      description: 面板 ID，清单内唯一。
+    type:
+      type: string
+      enum: [metric, bars, breakdown, table, text]
+    title:
+      type: string
+      minLength: 1
+      maxLength: 40
+      description: 面板标题。
+    source:
+      type: string
+      maxLength: 200
+      pattern: "^(/.*)?$"
+      description: 结果 data 中的位置，JSON Pointer，例如 `/new_leads`；空字符串表示整个 data。
+      examples: [/high_intent]
+    unit:
+      type: string
+      maxLength: 16
+      description: 数值的单位，显示在数字后面。
+    history:
+      type: integer
+      minimum: 2
+      maximum: 30
+      description: 只用于 bars：取最近多少次上报了结果的运行。
+    columns:
+      type: array
+      maxItems: 8
+      description: 只用于 table：要显示的列。省略时取第一行的前 8 个键。
+      items:
+        $ref: "#/PanelColumn"
+
+PanelColumn:
+  type: object
+  required: [key, title]
+  additionalProperties: false
+  properties:
+    key:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: 行对象中的键。
+    title:
+      type: string
+      minLength: 1
+      maxLength: 40
+      description: 列标题。
+
+TaskFileInput:
+  type: object
+  required: [path, content]
+  additionalProperties: false
+  properties:
+    path:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: 相对路径，用 `/` 分隔，不能以 `/` 开头，不能包含 `..` 或空段。
+      examples: [main.py]
+    content:
+      type: string
+      description: 文件内容，UTF-8 文本。
+    executable:
+      type: boolean
+      default: false
+      description: 是否可执行。
+
+TaskFile:
+  type: object
+  description: 版本中的一个文件。不含内容。
+  required: [path, size, sha256, executable]
+  properties:
+    path:
+      type: string
+    size:
+      type: integer
+      format: int64
+      description: 字节数。
+    sha256:
+      type: string
+      description: 内容的 SHA-256，十六进制。
+    executable:
+      type: boolean
+
+ApplyTaskRequest:
+  type: object
+  description: |
+    提交任务的一个新版本：完整的清单和全部文件。没有列出的文件不会保留到新版本中。
+    文件最多 100 个，总大小不超过 1 MiB。
+    清单或文件中含有调用者自己的凭证、或任务已绑定的凭证的值（或它的 base64、URL 编码、JSON 转义）时，提交被拒绝，返回 422 `validation_failed`，
+    `errors` 指出位置和凭证名，预览也一样。凭证在清单的 `credentials` 中引用，由平台在运行时注入。
+  required: [manifest, files]
+  additionalProperties: false
+  properties:
+    manifest:
+      $ref: "#/Manifest"
+    files:
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: "#/TaskFileInput"
+
+ApplyTaskResult:
+  type: object
+  description: |
+    提交任务的结果。正式提交时 `task` 为提交后的任务；`dry_run` 为 true 时什么都不保存，`task` 为提交前的任务，
+    任务尚不存在时为 null。
+  required: [dry_run, created, version, task, diff, warnings]
+  properties:
+    dry_run:
+      type: boolean
+    created:
+      type: boolean
+      description: 这次提交建立了新任务；预览时表示将会建立。
+    version:
+      type: integer
+      description: 生成的版本号；预览时为将会生成的版本号。
+    task:
+      oneOf:
+        - $ref: "#/Task"
+        - type: "null"
+    diff:
+      description: 与激活版本的差异；没有激活版本时与上一个版本比较；新任务为 null。
+      oneOf:
+        - $ref: "#/TaskDiff"
+        - type: "null"
+    warnings:
+      type: array
+      description: 不阻止提交、但运行或激活前需要处理的问题，例如缺少凭证、没有满足标签的在线 runner。
+      items:
+        $ref: "#/ValidationIssue"
+
+TaskVersion:
+  type: object
+  description: 任务的一个不可变版本。
+  required: [seq, created_at, created_by, client, tested_at, tree_hash, manifest, files]
+  properties:
+    seq:
+      type: integer
+      description: 版本号，从 1 开始递增。
+    created_at:
+      type: string
+      format: date-time
+    created_by:
+      type: string
+      format: uuid
+      description: 提交这个版本的用户。
+    client:
+      type: [string, "null"]
+      description: 提交时使用的访问令牌名，通常对应 Agent 和机器。从控制台或会话提交时为 null。
+      examples: [Claude Code · 笔记本]
+    tested_at:
+      type: [string, "null"]
+      format: date-time
+      description: 第一次成功测试运行的结束时间。没有成功的测试运行时为 null。
+    tree_hash:
+      type: string
+      description: 文件树的哈希。两个版本的文件完全相同时它也相同。
+    manifest:
+      $ref: "#/Manifest"
+    files:
+      type: array
+      items:
+        $ref: "#/TaskFile"
+
+TaskState:
+  type: string
+  description: |
+    任务的启用状态（技术设计第 5.2 节）。active 为已激活，触发器按计划运行激活的版本；
+    inactive 为未激活或已暂停，触发器不产生运行，仍可以手动发起运行。
+  enum: [active, inactive]
+
+Task:
+  type: object
+  description: 一个自动化任务和它的最新版本。
+  required: [id, project_id, name, description, state, active_version, latest_version, console, created_by, created_at, updated_at, archived_at, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    project_id:
+      type: string
+      format: uuid
+    name:
+      $ref: "#/TaskName"
+    description:
+      type: string
+      description: 最新版本清单中的用途说明，没有时为空字符串。
+    state:
+      $ref: "#/TaskState"
+    active_version:
+      type: [integer, "null"]
+      description: 激活的版本号。触发器只运行激活的版本。从未激活时为 null。
+    latest_version:
+      $ref: "#/TaskVersion"
+    console:
+      $ref: "#/TaskConsole"
+    created_by:
+      type: string
+      format: uuid
+      description: 建立任务的用户。
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    archived_at:
+      type: [string, "null"]
+      format: date-time
+      description: 归档时间。归档的任务不再触发，也不能运行或修改；未归档时为 null。
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+TaskSummary:
+  type: object
+  description: 任务列表中的一项。
+  required: [id, project_id, name, description, state, active_version, latest_version, last_run, next_run_at, active_runs, updated_at, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    project_id:
+      type: string
+      format: uuid
+    name:
+      $ref: "#/TaskName"
+    description:
+      type: string
+    state:
+      $ref: "#/TaskState"
+    active_version:
+      type: [integer, "null"]
+    latest_version:
+      type: integer
+      description: 最新版本号。
+    last_run:
+      description: 最近一次运行（不含测试运行），没有时为 null。
+      oneOf:
+        - $ref: "../runs/schemas.yaml#/RunBrief"
+        - type: "null"
+    next_run_at:
+      type: [string, "null"]
+      format: date-time
+      description: 下一次计划触发的时间。未激活或没有 cron 触发器时为 null。
+    active_runs:
+      type: integer
+      description: 排队中、准备中、运行中和取消中的运行数。
+    updated_at:
+      type: string
+      format: date-time
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+TaskSummaryPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/TaskSummary"
+
+TaskVersionSummary:
+  type: object
+  description: 版本列表中的一项。
+  required: [seq, created_at, created_by, client, tested_at, active, description, runtime, file_count, tree_hash]
+  properties:
+    seq:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+    created_by:
+      type: string
+      format: uuid
+    client:
+      type: [string, "null"]
+      description: 提交时使用的访问令牌名。
+    tested_at:
+      type: [string, "null"]
+      format: date-time
+      description: 第一次成功测试运行的结束时间，没有时为 null。
+    active:
+      type: boolean
+      description: 是否为当前激活的版本。
+    description:
+      type: string
+    runtime:
+      $ref: "#/RuntimeSpec"
+    file_count:
+      type: integer
+    tree_hash:
+      type: string
+
+TaskVersionPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/TaskVersionSummary"
+
+TaskFileContent:
+  type: object
+  description: 版本中一个文件的内容。
+  required: [path, size, sha256, executable, content]
+  properties:
+    path:
+      type: string
+    size:
+      type: integer
+      format: int64
+    sha256:
+      type: string
+    executable:
+      type: boolean
+    content:
+      type: string
+      description: 文件内容，UTF-8 文本。
+
+TaskDiff:
+  type: object
+  description: |
+    两个版本之间的差异。补丁为 unified diff 格式；单个文件或整体过大时省略补丁，只给出增删行数。
+  required: [base, target, manifest_patch, files, truncated]
+  properties:
+    base:
+      type: [integer, "null"]
+      description: 比较基准的版本号。null 表示与空任务比较。
+    target:
+      type: integer
+      description: 被比较的版本号；预览时为将会生成的版本号。
+    manifest_patch:
+      type: [string, "null"]
+      description: 清单的差异，按格式化的 JSON 比较。清单没有变化时为 null。
+    files:
+      type: array
+      description: 有变化的文件，按路径排序。没有变化的文件不列出。
+      items:
+        $ref: "#/FileDiff"
+    truncated:
+      type: boolean
+      description: 差异总量超出上限，部分补丁被省略。
+
+FileDiff:
+  type: object
+  description: 一个文件的差异。
+  required: [path, change, additions, deletions, patch]
+  properties:
+    path:
+      type: string
+    change:
+      type: string
+      enum: [added, removed, modified, mode_changed]
+      description: mode_changed 表示只有可执行位变化。
+    additions:
+      type: integer
+    deletions:
+      type: integer
+    patch:
+      type: [string, "null"]
+      description: unified diff。文件过大、不是文本或补丁被省略时为 null。
+
+ValidationIssue:
+  type: object
+  description: 校验发现的一个问题。
+  required: [code, pointer, message]
+  properties:
+    code:
+      $ref: "../common/schemas.yaml#/ErrorCode"
+    pointer:
+      type: [string, "null"]
+      description: 问题所在的位置，清单中的 JSON Pointer，例如 `#/manifest/credentials/0`。与位置无关时为 null。
+    message:
+      type: string
+
+ValidationReport:
+  type: object
+  description: |
+    一个已提交版本在当前环境下能否运行和激活：清单与文件、运行时、凭证绑定、runner 标签、工具、激活前测试。
+    `valid` 为 false 时运行会在准备阶段失败。
+  required: [seq, valid, activatable, errors, warnings]
+  properties:
+    seq:
+      type: integer
+    valid:
+      type: boolean
+      description: 没有 errors。
+    activatable:
+      type: boolean
+      description: 可以激活：valid 为 true，并且满足激活前测试的要求。
+    errors:
+      type: array
+      items:
+        $ref: "#/ValidationIssue"
+    warnings:
+      type: array
+      items:
+        $ref: "#/ValidationIssue"
+
+SetTaskActivationRequest:
+  type: object
+  description: 激活或暂停任务。
+  required: [active]
+  additionalProperties: false
+  properties:
+    active:
+      type: boolean
+      description: true 为激活，false 为暂停。暂停后触发器不再产生运行，已经开始的运行不受影响。
+    version:
+      type: integer
+      minimum: 1
+      description: 激活的版本号，省略时为最新版本。暂停时忽略。
+
+TaskConsole:
+  type: object
+  description: |
+    任务在控制台上的显示选项。属于任务本身，不跟版本走，修改不产生新版本；由 Agent 用 setTaskConsole 设置，控制台不提供修改入口。
+  required: [manual_run]
+  additionalProperties: false
+  properties:
+    manual_run:
+      type: boolean
+      default: true
+      description: |
+        控制台任务页是否显示“手动执行”按钮。为 false 时不显示，用浏览器会话发起运行也会返回 409 `manual_run_disabled`；
+        访问令牌（Agent、CLI、脚本）发起的运行和对已结束运行的重跑不受影响。
+
+SetTaskConsoleRequest:
+  type: object
+  description: 设置任务在控制台上的显示选项。省略的字段保持不变。
+  additionalProperties: false
+  properties:
+    manual_run:
+      type: boolean
+      description: 是否在控制台显示“手动执行”按钮。
+
+TaskCredential:
+  type: object
+  description: 任务清单引用的一个凭证当前的状态。不含任何凭证内容。
+  required: [name, as, optional, status, credential, expires_at, pending_request_id]
+  properties:
+    name:
+      type: string
+      description: 清单中的引用名。
+    as:
+      type: string
+      enum: [env, file]
+    optional:
+      type: boolean
+    status:
+      type: string
+      enum: [bound, missing, revoked, expired]
+      description: bound 已绑定且有效；missing 没有绑定；revoked、expired 绑定的凭证已撤销或已过期。
+    credential:
+      description: 绑定的凭证，没有绑定时为 null。
+      oneOf:
+        - $ref: "../credentials/schemas.yaml#/CredentialRef"
+        - type: "null"
+    expires_at:
+      type: [string, "null"]
+      format: date-time
+      description: 绑定凭证的到期时间，不过期时为 null。
+    pending_request_id:
+      type: [string, "null"]
+      format: uuid
+      description: 为这个引用名发起、尚未完成的填写请求，没有时为 null。
+
+TaskCredentialList:
+  type: object
+  description: 任务引用的凭证，按清单中的顺序排列。依据激活版本；没有激活版本时依据最新版本。
+  required: [version, items]
+  properties:
+    version:
+      type: integer
+      description: 依据的版本号。
+    items:
+      type: array
+      items:
+        $ref: "#/TaskCredential"
+
+TaskBundle:
+  type: object
+  description: |
+    可移植的任务包（技术设计第 15.5 节），由 exportTask 生成，importTask 读取。它只描述任务本身：任务名、版本的清单和文件、
+    触发器定义。不含运行记录、凭证的值和绑定、webhook 令牌，也不含项目、用户、任务等任何 ID，导入到哪个项目由导入的人决定。
+  required: [format, format_version, name, exported_at, server_version, active_version, omitted_versions, versions, triggers]
+  additionalProperties: false
+  properties:
+    format:
+      type: string
+      enum: [lerryn.task-bundle]
+      description: 固定为 `lerryn.task-bundle`。
+    format_version:
+      type: integer
+      minimum: 1
+      maximum: 1
+      description: 任务包格式的版本，目前为 1。
+    name:
+      $ref: "#/TaskName"
+    exported_at:
+      type: string
+      format: date-time
+    server_version:
+      type: string
+      maxLength: 100
+      description: 导出时的服务端版本，只用于排查问题。
+    active_version:
+      type: [integer, "null"]
+      minimum: 1
+      description: 导出时激活的版本号（源部署中的版本号），没有激活版本时为 null。只作参考，导入后的任务不激活。
+    omitted_versions:
+      type: integer
+      minimum: 0
+      description: 导出版本历史时，因数量或大小上限没有带上的更早版本数。只导出一个版本时为 0。
+    versions:
+      type: array
+      minItems: 1
+      maxItems: 50
+      description: 版本，按版本号从旧到新排列。最后一个是导出时所选的版本。
+      items:
+        $ref: "#/TaskBundleVersion"
+    triggers:
+      type: [array, "null"]
+      maxItems: 20
+      description: 触发器定义，与 setTriggers 的请求相同，不含 webhook 令牌。没有导出触发器时为 null。
+      items:
+        $ref: "../triggers/schemas.yaml#/TriggerInput"
+    console:
+      $ref: "#/TaskConsole"
+      description: 任务在控制台上的显示选项，导入时照搬。较早导出的任务包没有这个字段，按默认值处理。
+
+TaskBundleVersion:
+  type: object
+  description: 任务包中的一个版本：完整的清单和全部文件，与 applyTask 的请求相同。
+  required: [seq, created_at, manifest, files]
+  additionalProperties: false
+  properties:
+    seq:
+      type: integer
+      minimum: 1
+      description: 源部署中的版本号。导入后重新从 1 编号。
+    created_at:
+      type: string
+      format: date-time
+      description: 在源部署中提交的时间，只作参考。
+    manifest:
+      $ref: "#/Manifest"
+    files:
+      type: array
+      minItems: 1
+      maxItems: 100
+      items:
+        $ref: "#/TaskFileInput"
+
+ImportTaskRequest:
+  type: object
+  description: 导入一个任务包。请求体最大 4 MiB。
+  required: [bundle]
+  additionalProperties: false
+  properties:
+    bundle:
+      $ref: "#/TaskBundle"
+    name:
+      $ref: "#/TaskName"
+      description: 导入后的任务名，省略时用任务包中的 `name`。
+
+ImportedVersion:
+  type: object
+  description: 一个导入的版本在源部署和这个部署中的版本号。
+  required: [source_seq, seq]
+  properties:
+    source_seq:
+      type: integer
+      description: 任务包中的版本号。
+    seq:
+      type: integer
+      description: 导入后的版本号；预览时为将会使用的版本号。
+
+ImportedTask:
+  type: object
+  description: 导入建立的任务。完整的任务用 getTask 读取。
+  required: [id, project_id, name, latest_version, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    project_id:
+      type: string
+      format: uuid
+    name:
+      $ref: "#/TaskName"
+    latest_version:
+      type: integer
+      description: 最新版本号，即导入的版本数。
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+ImportTaskResult:
+  type: object
+  description: |
+    导入的结果。正式导入时 `task` 为新建的任务；`dry_run` 为 true 时什么都不保存，`task` 为 null。
+  required: [dry_run, task, versions, triggers, credentials, warnings]
+  properties:
+    dry_run:
+      type: boolean
+    task:
+      oneOf:
+        - $ref: "#/ImportedTask"
+        - type: "null"
+    versions:
+      type: array
+      description: 导入的版本，从旧到新。
+      items:
+        $ref: "#/ImportedVersion"
+    triggers:
+      type: array
+      description: 建立的触发器。webhook 触发器的 `webhook.token` 是新生成的令牌，只在这次响应中出现，请交给调用方保存；预览时为 null。
+      items:
+        $ref: "../triggers/schemas.yaml#/Trigger"
+    credentials:
+      type: array
+      description: 最新版本清单引用的凭证。导入的任务还没有任何绑定，所以都是 missing，需要请用户填写或由所有者授权。
+      items:
+        $ref: "#/TaskCredential"
+    warnings:
+      type: array
+      description: 不阻止导入、但运行或激活前需要处理的问题，例如缺少凭证、项目中没有登记清单引用的工具、没有满足标签的在线 runner。
+      items:
+        $ref: "#/ValidationIssue"

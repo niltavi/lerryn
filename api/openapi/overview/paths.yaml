@@ -1,0 +1,65 @@
+# overview 资源的路径：控制台概览看板。在根文件 paths 中按路径登记。
+# 这些读取接口面向控制台和移动端，不作为 MCP 工具暴露。
+overview:
+  get:
+    operationId: getOverview
+    tags: [overview]
+    summary: 读取概览
+    description: |
+      返回概览看板需要的数据：需要处理的事、未结束的运行、接下来的计划触发和计数。
+      实时变化用 streamEvents 订阅，收到事件后重新读取。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectFilter"
+    responses:
+      "200":
+        description: 概览。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Overview"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+calendar:
+  get:
+    operationId: getRunCalendar
+    tags: [overview]
+    summary: 读取运行日历
+    description: |
+      返回一段时间内的运行（不含测试运行）和尚未发生的计划触发，供概览的日历和任务的运行历史使用。
+      时间段最长 31 天，省略时为当前时间所在的 UTC 日。计划触发只算到 `to` 为止。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectFilter"
+      - name: task_id
+        in: query
+        description: 只返回这个任务的运行和计划。
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        description: 开始时间（含）。
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        description: 结束时间（不含）。
+        schema:
+          type: string
+          format: date-time
+    responses:
+      "200":
+        description: 日历。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Calendar"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

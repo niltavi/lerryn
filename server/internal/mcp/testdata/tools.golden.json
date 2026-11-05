@@ -1,0 +1,93 @@
+[
+  {
+    "name": "run_get",
+    "title": "读取运行",
+    "operation_id": "getRun",
+    "kind": "read",
+    "method": "GET",
+    "path": "/api/v1/runs/{runId}",
+    "description": "Read one run: status, current phase, exit code and the console link. While status is queued or running, call again after a few seconds. On failure, read the logs with run_logs before changing the task.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "description": "运行 ID",
+          "examples": [
+            "run_01JD9ABCDEF"
+          ],
+          "pattern": "^run_[0-9A-Za-z]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "run_start",
+    "title": "发起运行",
+    "operation_id": "startRun",
+    "kind": "execute",
+    "method": "POST",
+    "path": "/api/v1/tasks/{taskId}/runs",
+    "description": "Start a run of a task. Set test=true before the task is activated. Pass an idempotency_key so that a retry after a timeout does not start a second run. Use wait (seconds) to get the state after a short wait instead of polling run_get right away.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "description": "幂等键。相同键和相同请求体返回首次的结果",
+          "maxLength": 128,
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "description": "本次运行的输入参数，按任务清单的 inputs 校验",
+          "type": "object"
+        },
+        "reason": {
+          "description": "发起原因，写进审计记录",
+          "maxLength": 200,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "task_id": {
+          "description": "任务 ID",
+          "pattern": "^task_[0-9A-Za-z]+$",
+          "type": "string"
+        },
+        "test": {
+          "default": false,
+          "description": "测试运行。任务激活前只能发起测试运行",
+          "type": "boolean"
+        },
+        "wait": {
+          "default": 0,
+          "description": "最多等待的秒数，到时返回当前状态",
+          "maximum": 60,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "task_id"
+      ],
+      "type": "object"
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  }
+]

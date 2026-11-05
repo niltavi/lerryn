@@ -1,0 +1,733 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# sbx: report stages and results of a Lerryn run.
+#
+#   sbx stage start|done|fail ID [--message M]
+#   sbx result --status ok|partial|failed --summary S [--data-json JSON | --data-file FILE]
+#   sbx mcp call TOOL NAME [--args JSON | --args-file FILE] [--header 'NAME: VALUE']... [--timeout S]
+#
+# This is the POSIX sh implementation, used in the Node and Shell runtimes,
+# which have no Python. It behaves like the Python command in
+# runtimes/sdk/python/sbx/cli.py and writes the same events file format
+# (runtimes/sdk/python/README.md). It needs only sh, awk, od, tr, date and
+# dd, from coreutils or busybox; awk does the JSON work. "mcp call" also
+# needs Node (it runs the Node SDK's cli.js when Node is there), curl or
+# wget.
+
+LC_ALL=C
+export LC_ALL
+
+usage() {
+	cat <<'EOF'
+usage: sbx stage start|done|fail ID [--message M]
+       sbx result --status ok|partial|failed --summary S [--data-json JSON | --data-file FILE]
+       sbx mcp call TOOL NAME [--args JSON | --args-file FILE] [--header 'NAME: VALUE']... [--timeout S]
+
+Report stages and results of a Lerryn run, and call registered MCP tools.
+EOF
+}
+
+# Wrong usage exits 2, like argparse; a failed write or bad data exits 1.
+die_usage() {
+	printf 'sbx: %s\n' "$1" >&2
+	usage >&2
+	exit 2
+}
+
+die() {
+	printf 'sbx: %s\n' "$1" >&2
+	exit 1
+}
+
+# Same rule as stage IDs in the task manifest.
+valid_stage_id() {
+	case $1 in
+	'' | [!a-z0-9]* | *[!a-z0-9_-]*) return 1 ;;
+	esac
+	[ "${#1}" -le 63 ]
+}
+
+# A random hex string naming one stage event, so the runner can match the
+# marker on stdout with the line in the events file.
+new_mark() {
+	m=$(od -An -N8 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+	case $m in
+	'' | *[!0-9a-f]*) m=$(printf '%x%x' "$$" "$(date +%s)") ;;
+	esac
+	printf '%s' "$m"
+}
+
+# UTC with milliseconds when date supports %N; otherwise empty, and the
+# runner uses the time it reads the event.
+now() {
+	t=$(date -u +%Y-%m-%dT%H:%M:%S.%N 2>/dev/null)
+	case $t in
+	*T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+		printf '%sZ' "${t%??????}"
+		;;
+	esac
+}
+
+# Builds the event line from SBX_* variables. Errors are printed on stdout
+# with exit status 1, so the caller has one place to read them from.
+# shellcheck disable=SC2016
+build_line='
+function fail(msg) { printf "%s", msg; exit 1 }
+
+function cont(c) { return ORD[c] >= 128 && ORD[c] < 192 }
+
+# Cut s to limit bytes at a character boundary, ending in "…".
+function cut(s, limit,    n) {
+	if (length(s) <= limit) return s
+	n = limit - 3
+	if (cont(substr(s, n + 1, 1))) {
+		while (n > 0 && cont(substr(s, n, 1))) n--
+		if (n > 0) n--
+	}
+	return substr(s, 1, n) "\342\200\246"
+}
+
+function jstr(s,    out, i, n, c) {
+	out = ""
+	n = length(s)
+	for (i = 1; i <= n; i++) {
+		c = substr(s, i, 1)
+		out = out ((c in ESC) ? ESC[c] : c)
+	}
+	return "\"" out "\""
+}
+
+# The JSON reader works on chunks of at most 512 bytes: some awks scan the
+# whole string on every substr, which is slow on one long line.
+function refill() {
+	for (;;) {
+		if (LO <= LLEN) {
+			B = substr(LINE, LO, 512); LO += 512; BI = 1; BN = length(B)
+			return 1
+		}
+		if (NEEDNL) { NEEDNL = 0; B = "\n"; BI = 1; BN = 1; return 1 }
+		if (++LK > NL) return 0
+		LINE = LINES[LK]; LLEN = length(LINE); LO = 1; NEEDNL = (LK < NL)
+	}
+}
+
+function peek() {
+	if (BI > BN && !refill()) return ""
+	return substr(B, BI, 1)
+}
+
+function take(   c) { c = peek(); BI++; return c }
+
+function out(s) {
+	OL += length(s)
+	if (OL > MAXDATA) return
+	OP = OP s
+	if (length(OP) >= 512) { PC[++PN] = OP; OP = "" }
+}
+
+function bad(msg) { fail(WHAT " is not valid JSON: " msg) }
+
+function ws(   c) {
+	while ((c = peek()) == " " || c == "\t" || c == "\n" || c == "\r") BI++
+}
+
+function value(depth,   c) {
+	if (depth > 512) bad("nested more than 512 levels")
+	ws()
+	c = peek()
+	if (c == "{") object(depth)
+	else if (c == "[") array(depth)
+	else if (c == "\"") string()
+	else if (c == "-" || (c >= "0" && c <= "9")) number()
+	else if (c == "t") literal("true")
+	else if (c == "f") literal("false")
+	else if (c == "n") literal("null")
+	else if (c == "") bad("unexpected end")
+	else bad("unexpected character " c)
+}
+
+function object(depth,   c) {
+	out(take()); ws()
+	if (peek() == "}") { out(take()); return }
+	for (;;) {
+		ws()
+		if (peek() != "\"") bad("expected a string key")
+		string(); ws()
+		if (take() != ":") bad("expected :")
+		out(":")
+		value(depth + 1); ws()
+		c = take()
+		if (c == ",") out(c)
+		else if (c == "}") { out(c); return }
+		else bad("expected , or }")
+	}
+}
+
+function array(depth,   c) {
+	out(take()); ws()
+	if (peek() == "]") { out(take()); return }
+	for (;;) {
+		value(depth + 1); ws()
+		c = take()
+		if (c == ",") out(c)
+		else if (c == "]") { out(c); return }
+		else bad("expected , or ]")
+	}
+}
+
+function string(   c, i) {
+	out(take())
+	for (;;) {
+		c = take()
+		if (c == "") bad("unterminated string")
+		if (c == "\"") { out(c); return }
+		if (c == "\\") {
+			out(c); c = take()
+			if (c == "u") {
+				out(c)
+				for (i = 0; i < 4; i++) {
+					c = take()
+					if (c == "" || index("0123456789abcdefABCDEF", c) == 0) bad("invalid \\u escape")
+					out(c)
+				}
+			} else if (c != "" && index("\"\\/bfnrt", c) > 0) out(c)
+			else bad("invalid escape")
+		} else if (ORD[c] < 32) bad("control character in a string")
+		else out(c)
+	}
+}
+
+function digits(   n, c) {
+	n = 0
+	while ((c = peek()) != "" && c >= "0" && c <= "9") { out(take()); n++ }
+	return n
+}
+
+function number(   c) {
+	if (peek() == "-") out(take())
+	c = peek()
+	if (c == "0") out(take())
+	else if (!digits()) bad("invalid number")
+	if (peek() == ".") { out(take()); if (!digits()) bad("invalid number") }
+	c = peek()
+	if (c == "e" || c == "E") {
+		out(take()); c = peek()
+		if (c == "+" || c == "-") out(take())
+		if (!digits()) bad("invalid number")
+	}
+}
+
+function literal(w,   i) {
+	for (i = 1; i <= length(w); i++)
+		if (take() != substr(w, i, 1)) bad("invalid literal")
+	out(w)
+}
+
+# Joins the output pieces pairwise, so the total copying stays n log n.
+function joined(   n, i, j) {
+	if (OP != "") PC[++PN] = OP
+	n = PN
+	while (n > 1) {
+		j = 0
+		for (i = 1; i <= n; i += 2) PC[++j] = (i < n) ? PC[i] PC[i + 1] : PC[i]
+		n = j
+	}
+	return n ? PC[1] : ""
+}
+
+function compact(   size, r, l) {
+	if (E["SBX_DATA_MODE"] == "file") {
+		NL = 0; size = 0
+		while ((r = (getline l < E["SBX_DATA_FILE"])) > 0) {
+			LINES[++NL] = l
+			size += length(l) + 1
+			if (size > MAXRAW) fail(WHAT " file is larger than 4 MiB")
+		}
+		if (r < 0) fail("cannot read " E["SBX_DATA_FILE"])
+		close(E["SBX_DATA_FILE"])
+	} else {
+		if (length(E["SBX_DATA"]) > MAXRAW) fail(WHAT " is larger than 4 MiB")
+		NL = split(E["SBX_DATA"], LINES, "\n")
+	}
+	LK = 0; LLEN = 0; LO = 1; NEEDNL = 0; BI = 1; BN = 0
+	value(0); ws()
+	if (peek() != "") bad("extra data after the value")
+	if (OL > MAXDATA) fail(WHAT " is " OL " bytes encoded, the limit is " MAXDATA)
+	return joined()
+}
+
+BEGIN {
+	for (k in ENVIRON) if (k ~ /^SBX_/) E[k] = ENVIRON[k]
+	for (i = 1; i < 256; i++) ORD[sprintf("%c", i)] = i
+	for (i = 1; i < 32; i++) ESC[sprintf("%c", i)] = sprintf("\\u%04x", i)
+	ESC["\n"] = "\\n"; ESC["\r"] = "\\r"; ESC["\t"] = "\\t"
+	ESC["\""] = "\\\""; ESC["\\"] = "\\\\"
+	MAXDATA = 65536; MAXRAW = 4194304; WHAT = "result data"
+
+	if (E["SBX_KIND"] == "compact") {
+		# Tool arguments: a JSON object of at most 1 MiB, compacted.
+		WHAT = "tool arguments"; MAXDATA = 1048576
+		args = compact()
+		if (substr(args, 1, 1) != "{") fail("tool arguments must be a JSON object")
+		printf "%s", args
+		exit 0
+	}
+	if (E["SBX_KIND"] == "callbody") {
+		printf "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":%s,\"arguments\":%s}}", jstr(E["SBX_METHOD"]), E["SBX_ARGS"]
+		exit 0
+	}
+
+	line = "{\"v\":1"
+	if (E["SBX_TS"] != "") line = line ",\"ts\":\"" E["SBX_TS"] "\""
+	line = line ",\"kind\":\"" E["SBX_KIND"] "\""
+	if (E["SBX_KIND"] == "result") {
+		line = line ",\"status\":\"" E["SBX_STATUS"] "\",\"summary\":" jstr(cut(E["SBX_SUMMARY"], 2048))
+		if (E["SBX_DATA_MODE"] != "") line = line ",\"data\":" compact()
+	} else if (E["SBX_KIND"] == "tool.call") {
+		line = line ",\"tool\":" jstr(E["SBX_TOOL"]) ",\"method\":" jstr(E["SBX_METHOD"]) ",\"ok\":" E["SBX_OK"]
+		line = line ",\"duration_ms\":" (E["SBX_DURATION"] + 0) ",\"args_summary\":" jstr(cut(E["SBX_ARGS_SUMMARY"], 800))
+		if (E["SBX_ERROR"] != "") line = line ",\"error\":" jstr(cut(E["SBX_ERROR"], 1024))
+	} else {
+		line = line ",\"stage\":\"" E["SBX_STAGE"] "\""
+		if (E["SBX_HAS_MESSAGE"] == "1") line = line ",\"message\":" jstr(cut(E["SBX_MESSAGE"], 1024))
+		if (E["SBX_MARK"] != "") line = line ",\"mark\":\"" E["SBX_MARK"] "\""
+	}
+	printf "%s}", line
+	exit 0
+}
+'
+
+# Appends one line to the events file. dd with a block larger than any line
+# writes it in a single write on an O_APPEND descriptor, so concurrent
+# writers never interleave within a line; a shell redirection may split a
+# long line into several writes. The redirection is the fallback for a dd
+# without these flags.
+append_event() {
+	if dd --help 2>&1 | grep -q fullblock; then
+		printf '%s\n' "$1" | dd of="$LERRYN_EVENTS_FILE" bs=262144 iflag=fullblock oflag=append conv=notrunc 2>/dev/null
+	else
+		printf '%s\n' "$1" >>"$LERRYN_EVENTS_FILE"
+	fi
+}
+
+emit() {
+	SBX_TS=$(now)
+	export SBX_TS
+	if ! line=$(awk "$build_line" </dev/null); then
+		die "$line"
+	fi
+	if [ -z "${LERRYN_EVENTS_FILE:-}" ]; then
+		# Outside Lerryn, show the event so a local run stays readable.
+		printf 'sbx: %s\n' "$line" >&2
+		return 0
+	fi
+	append_event "$line" || die "cannot write to $LERRYN_EVENTS_FILE"
+}
+
+stage() {
+	[ $# -gt 0 ] || die_usage "stage needs an action: start, done or fail"
+	case $1 in
+	start | done | fail) action=$1 ;;
+	-h | --help) usage; exit 0 ;;
+	*) die_usage "invalid action '$1' (choose from start, done, fail)" ;;
+	esac
+	shift
+	id='' have_id=0 SBX_MESSAGE='' SBX_HAS_MESSAGE=0
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--message | -m)
+			[ $# -ge 2 ] || die_usage "$1 needs a value"
+			SBX_MESSAGE=$2 SBX_HAS_MESSAGE=1
+			shift 2
+			;;
+		--message=*) SBX_MESSAGE=${1#--message=} SBX_HAS_MESSAGE=1; shift ;;
+		-h | --help) usage; exit 0 ;;
+		-?*) die_usage "unknown option $1" ;;
+		*)
+			[ "$have_id" = 0 ] || die_usage "unexpected argument $1"
+			id=$1 have_id=1
+			shift
+			;;
+		esac
+	done
+	[ "$have_id" = 1 ] || die_usage "stage $action needs a stage id"
+	valid_stage_id "$id" ||
+		die "stage id '$id' must be 1 to 63 lowercase letters, digits, '_' or '-', starting with a letter or digit"
+
+	SBX_KIND=stage.$action SBX_STAGE=$id SBX_MARK=''
+	# The marker goes to stdout, the same channel as the task's output, so
+	# the runner switches the stage of log lines at exactly this point. The
+	# token comes from the runner; without it there is no one to read the
+	# marker.
+	if [ -n "${LERRYN_EVENTS_FILE:-}" ] && [ -n "${LERRYN_LOG_MARKER:-}" ]; then
+		mark=$(new_mark)
+		if printf '\036lerryn %s %s %s %s\n' "$LERRYN_LOG_MARKER" "$mark" "$SBX_KIND" "$id" 2>/dev/null; then
+			SBX_MARK=$mark
+		fi
+	fi
+	export SBX_KIND SBX_STAGE SBX_MESSAGE SBX_HAS_MESSAGE SBX_MARK
+	emit
+}
+
+result() {
+	SBX_STATUS='' have_status=0 SBX_SUMMARY='' have_summary=0 SBX_DATA_MODE='' SBX_DATA='' SBX_DATA_FILE=''
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--status | --summary | --data-json | --data-file)
+			[ $# -ge 2 ] || die_usage "$1 needs a value"
+			opt=$1 val=$2
+			shift 2
+			;;
+		--status=* | --summary=* | --data-json=* | --data-file=*)
+			opt=${1%%=*} val=${1#*=}
+			shift
+			;;
+		-h | --help) usage; exit 0 ;;
+		*) die_usage "unexpected argument $1" ;;
+		esac
+		case $opt in
+		--status) SBX_STATUS=$val have_status=1 ;;
+		--summary) SBX_SUMMARY=$val have_summary=1 ;;
+		--data-json | --data-file)
+			[ -z "$SBX_DATA_MODE" ] || die_usage "--data-json and --data-file cannot be used together"
+			if [ "$opt" = --data-json ]; then
+				SBX_DATA_MODE=json SBX_DATA=$val
+			else
+				SBX_DATA_MODE=file SBX_DATA_FILE=$val
+			fi
+			;;
+		esac
+	done
+	[ "$have_status" = 1 ] || die_usage "result needs --status"
+	[ "$have_summary" = 1 ] || die_usage "result needs --summary"
+	case $SBX_STATUS in
+	ok | partial | failed) ;;
+	*) die_usage "invalid status '$SBX_STATUS' (choose from ok, partial, failed)" ;;
+	esac
+	if [ "$SBX_DATA_MODE" = file ] && [ ! -r "$SBX_DATA_FILE" ]; then
+		die "cannot read $SBX_DATA_FILE"
+	fi
+	SBX_KIND=result
+	export SBX_KIND SBX_STATUS SBX_SUMMARY SBX_DATA_MODE SBX_DATA SBX_DATA_FILE
+	emit
+}
+
+# Reads JSON-RPC answers on stdin and prints what SBX_MODE asks for:
+#
+#   rpc     the message with id SBX_ID: "R" and its raw result, or "E" and
+#           its error message; exit 3 when there is none. SBX_SSE=1 reads
+#           the body as an SSE stream, otherwise as one JSON value.
+#   field   the raw value of the top-level key SBX_KEY of a JSON object,
+#           nothing when it is absent.
+#   text    the first text content of a CallToolResult, unescaped well
+#           enough for an error message.
+#
+# The scanner splits the input into characters once, so long answers do
+# not make it quadratic.
+# shellcheck disable=SC2016
+mcp_awk='
+function ws(i) { while (i <= N && (C[i] == " " || C[i] == "\t" || C[i] == "\n" || C[i] == "\r")) i++; return i }
+function str(i) {
+	for (i++; i <= N; i++) { if (C[i] == "\\") i++; else if (C[i] == "\"") return i + 1 }
+	return 0
+}
+function val(i,   d, c) {
+	i = ws(i); c = C[i]
+	if (c == "\"") return str(i)
+	if (c == "{" || c == "[") {
+		for (d = 0; i <= N; ) {
+			c = C[i]
+			if (c == "\"") { i = str(i); if (!i) return 0; continue }
+			if (c == "{" || c == "[") d++
+			else if ((c == "}" || c == "]") && --d == 0) return i + 1
+			i++
+		}
+		return 0
+	}
+	while (i <= N && index(",}] \t\r\n", C[i]) == 0) i++
+	return i
+}
+# Fills M with the raw values of the top-level members of the object S.
+function members(s,   i, k, e, vs, ve) {
+	S = s; N = split(s, C, ""); for (k in M) delete M[k]
+	i = ws(1); if (C[i] != "{") return 0
+	i = ws(i + 1); if (C[i] == "}") return 1
+	for (;;) {
+		if (C[i] != "\"") return 0
+		e = str(i); if (!e) return 0
+		k = substr(S, i + 1, e - i - 2)
+		i = ws(e); if (C[i] != ":") return 0
+		vs = ws(i + 1); ve = val(vs); if (!ve) return 0
+		M[k] = substr(S, vs, ve - vs)
+		i = ws(ve)
+		if (C[i] == ",") { i = ws(i + 1); continue }
+		return C[i] == "}"
+	}
+}
+function unquote(s) {
+	if (substr(s, 1, 1) != "\"") return s
+	s = substr(s, 2, length(s) - 2)
+	gsub(/\\n/, " ", s); gsub(/\\t/, " ", s); gsub(/\\"/, "\"", s); gsub(/\\\\/, "\\", s)
+	return s
+}
+function answer(msg) {
+	if (!members(msg) || M["id"] != ENVIRON["SBX_ID"]) return 0
+	if ("error" in M) {
+		e = M["error"]
+		if (members(e)) e = unquote(M["message"]) " (code " M["code"] ")"
+		printf "E%s", e
+		return 1
+	}
+	if ("result" in M) { printf "R%s", M["result"]; return 1 }
+	return 0
+}
+{ lines[++n] = $0 }
+END {
+	mode = ENVIRON["SBX_MODE"]
+	if (mode == "rpc" && ENVIRON["SBX_SSE"] == "1") {
+		data = ""; have = 0
+		for (j = 1; j <= n + 1; j++) {
+			l = (j <= n) ? lines[j] : ""
+			sub(/\r$/, "", l)
+			if (substr(l, 1, 5) == "data:") {
+				l = substr(l, 6); if (substr(l, 1, 1) == " ") l = substr(l, 2)
+				data = have ? data " " l : l; have = 1
+			} else if (l == "" && have) {
+				if (answer(data)) exit 0
+				data = ""; have = 0
+			}
+		}
+		exit 3
+	}
+	body = ""
+	for (j = 1; j <= n; j++) body = body (j > 1 ? " " : "") lines[j]
+	if (mode == "rpc") exit answer(body) ? 0 : 3
+	if (mode == "field") { if (members(body) && (ENVIRON["SBX_KEY"] in M)) printf "%s", M[ENVIRON["SBX_KEY"]]; exit 0 }
+	if (mode == "text") {
+		if (!members(body) || !("content" in M)) exit 0
+		arr = M["content"]; S = arr; N = split(arr, C, "")
+		i = ws(1); if (C[i] != "[") exit 0
+		for (i = ws(i + 1); i <= N && C[i] != "]"; ) {
+			e = val(i); if (!e) exit 0
+			item = substr(arr, i, e - i)
+			if (members(item) && M["type"] == "\"text\"" && ("text" in M)) { printf "%s", substr(unquote(M["text"]), 1, 500); exit 0 }
+			S = arr; N = split(arr, C, "")
+			i = ws(e); if (C[i] == ",") i = ws(i + 1)
+		}
+	}
+}
+'
+
+# Milliseconds since the epoch, or seconds times 1000 where date has no %N.
+now_ms() {
+	t=$(date +%s%N 2>/dev/null)
+	case $t in
+	'' | *[!0-9]*) echo $(($(date +%s) * 1000)) ;;
+	*) echo $((t / 1000000)) ;;
+	esac
+}
+
+# The URL of a registered MCP tool of this run, from LERRYN_TOOLS, which the
+# runner writes as compact JSON with name, kind and url in that order.
+mcp_url() {
+	entry=$(printf '%s\n' "${LERRYN_TOOLS:-}" | awk -v name="\"name\":\"$1\"" '{
+		gsub(/\},\{/, "}\n{"); n = split($0, parts, "\n")
+		for (i = 1; i <= n; i++) if (index(parts[i], name)) { print parts[i]; exit }
+	}')
+	case $entry in
+	'') MCP_ERR="tool $1 is not one of this run's tools; list it in the manifest's tools"; return 1 ;;
+	*'"kind":"mcp"'*) ;;
+	*) MCP_ERR="tool $1 is not an mcp tool; only mcp tools can be called this way"; return 1 ;;
+	esac
+	# Go escapes &, < and > in JSON strings.
+	MCP_URL=$(printf '%s' "$entry" | sed -n -e 's/.*"url":"\([^"]*\)".*/\1/' -e 's/\\u0026/\&/g' -e 's/\\u003c/</g' -e 's/\\u003e/>/g' -e p)
+	[ -n "$MCP_URL" ] || { MCP_ERR="tool $1 has no address"; return 1; }
+}
+
+# POSTs the file $1 to the tool and leaves the answer in $MCP_DIR/body and
+# its headers in $MCP_DIR/headers. curl and wget take the same headers.
+mcp_post() {
+	set -- "$1" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream'
+	[ -n "${MCP_SID:-}" ] && set -- "$@" -H "Mcp-Session-Id: $MCP_SID"
+	[ -n "${MCP_PV:-}" ] && set -- "$@" -H "MCP-Protocol-Version: $MCP_PV"
+	while IFS= read -r h; do
+		[ -n "$h" ] && set -- "$@" -H "$h"
+	done <"$MCP_DIR/user-headers"
+	reqfile=$1
+	shift
+	: >"$MCP_DIR/headers"
+	: >"$MCP_DIR/body"
+	if command -v curl >/dev/null 2>&1; then
+		code=$(curl -sS --max-time "$MCP_TIMEOUT" -D "$MCP_DIR/headers" -o "$MCP_DIR/body" -w '%{http_code}' "$@" \
+			--data-binary @"$reqfile" "$MCP_URL" 2>"$MCP_DIR/err") || {
+			MCP_ERR="cannot reach the tool: $(tr '\n' ' ' <"$MCP_DIR/err")"
+			return 1
+		}
+	elif command -v wget >/dev/null 2>&1; then
+		# wget takes --header instead of -H.
+		n=$#
+		while [ "$n" -gt 0 ]; do
+			if [ "$1" = -H ]; then set -- "$@" --header "$2"; shift 2; n=$((n - 2)); else set -- "$@" "$1"; shift; n=$((n - 1)); fi
+		done
+		if ! wget -q -S -T "$MCP_TIMEOUT" -O "$MCP_DIR/body" "$@" --post-file="$reqfile" "$MCP_URL" 2>"$MCP_DIR/headers"; then
+			code=$(awk '/HTTP\/[0-9.]+ [0-9]+/ { for (i = 1; i <= NF; i++) if ($i ~ /^HTTP\//) c = $(i + 1) } END { print c }' "$MCP_DIR/headers")
+			[ -n "$code" ] && { MCP_ERR="HTTP $code from the tool"; return 1; }
+			MCP_ERR="cannot reach the tool: $(tr '\n' ' ' <"$MCP_DIR/headers")"
+			return 1
+		fi
+		code=$(awk '/HTTP\/[0-9.]+ [0-9]+/ { for (i = 1; i <= NF; i++) if ($i ~ /^HTTP\//) c = $(i + 1) } END { print c }' "$MCP_DIR/headers")
+	else
+		MCP_ERR="sbx mcp call needs node, curl or wget in the runtime image"
+		return 1
+	fi
+	case $code in
+	2??) ;;
+	*) MCP_ERR="HTTP $code from the tool"; return 1 ;;
+	esac
+	sid=$(awk 'tolower($1) == "mcp-session-id:" { v = $2 } END { print v }' "$MCP_DIR/headers" | tr -d '\r')
+	[ -n "$sid" ] && MCP_SID=$sid
+	if grep -qi '^[[:space:]]*content-type:[[:space:]]*text/event-stream' "$MCP_DIR/headers"; then MCP_SSE=1; else MCP_SSE=0; fi
+	return 0
+}
+
+# Sends request $2 with id $1 and leaves the raw result in MCP_RES, or the
+# reason it failed in MCP_ERR. It runs in the calling shell, so the session
+# ID it learns stays set.
+mcp_request() {
+	printf '%s' "$2" >"$MCP_DIR/request"
+	mcp_post "$MCP_DIR/request" || return 1
+	out=$(SBX_MODE=rpc SBX_ID=$1 SBX_SSE=$MCP_SSE awk "$mcp_awk" <"$MCP_DIR/body") || {
+		MCP_ERR="the server sent no answer"
+		return 1
+	}
+	case $out in
+	R*) MCP_RES=${out#R} ;;
+	*) MCP_ERR=${out#E}; return 1 ;;
+	esac
+}
+
+record_call() {
+	SBX_KIND=tool.call SBX_OK=$1 SBX_ERROR=${2:-}
+	SBX_DURATION=$(($(now_ms) - started))
+	export SBX_KIND SBX_TOOL SBX_METHOD SBX_OK SBX_DURATION SBX_ARGS_SUMMARY SBX_ERROR
+	# A record that cannot be written must not hide the call's outcome.
+	(emit) || true
+}
+
+mcp() {
+	[ $# -gt 0 ] || die_usage "mcp needs a command: call"
+	case $1 in
+	call) ;;
+	-h | --help) usage; exit 0 ;;
+	*) die_usage "unknown mcp command '$1' (choose from call)" ;;
+	esac
+	# Node runtimes have neither curl nor wget; the Node SDK does the call.
+	sdk_dir=$(dirname "$0")/..
+	if [ -f "$sdk_dir/node_modules/@lerryn/sbx/cli.js" ] && command -v node >/dev/null 2>&1; then
+		exec node "$sdk_dir/node_modules/@lerryn/sbx/cli.js" mcp "$@"
+	fi
+	shift
+	SBX_TOOL='' SBX_METHOD='' npos=0 SBX_DATA_MODE='' SBX_DATA='{}' SBX_DATA_FILE='' MCP_TIMEOUT=60
+	MCP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t sbx) || die "cannot create a temporary directory"
+	trap 'rm -rf "$MCP_DIR"' EXIT
+	: >"$MCP_DIR/user-headers"
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--args | --args-file | --header | -H | --timeout)
+			[ $# -ge 2 ] || die_usage "$1 needs a value"
+			opt=$1 val=$2
+			shift 2
+			;;
+		--args=* | --args-file=* | --header=* | --timeout=*)
+			opt=${1%%=*} val=${1#*=}
+			shift
+			;;
+		-h | --help) usage; exit 0 ;;
+		-?*) die_usage "unknown option $1" ;;
+		*)
+			case $npos in
+			0) SBX_TOOL=$1 ;;
+			1) SBX_METHOD=$1 ;;
+			*) die_usage "unexpected argument $1" ;;
+			esac
+			npos=$((npos + 1))
+			shift
+			continue
+			;;
+		esac
+		case $opt in
+		--args | --args-file)
+			[ -z "$SBX_DATA_MODE" ] || die_usage "--args and --args-file cannot be used together"
+			if [ "$opt" = --args ]; then SBX_DATA_MODE=json SBX_DATA=$val; else SBX_DATA_MODE=file SBX_DATA_FILE=$val; fi
+			;;
+		--header | -H)
+			case $val in
+			*:*) [ -n "$(printf '%s' "${val%%:*}" | tr -d ' ')" ] || die_usage "header must look like 'Name: value'" ;;
+			*) die_usage "header must look like 'Name: value'" ;;
+			esac
+			printf '%s\n' "$val" | tr -d '\r\n' >>"$MCP_DIR/user-headers"
+			printf '\n' >>"$MCP_DIR/user-headers"
+			;;
+		--timeout)
+			case $val in '' | *[!0-9]*) die_usage "--timeout must be a whole number of seconds" ;; esac
+			MCP_TIMEOUT=$val
+			;;
+		esac
+	done
+	[ "$npos" = 2 ] || die_usage "mcp call needs a tool and a name"
+	[ -z "$SBX_DATA_MODE" ] && SBX_DATA_MODE=json
+	if [ "$SBX_DATA_MODE" = file ] && [ ! -r "$SBX_DATA_FILE" ]; then
+		die "cannot read $SBX_DATA_FILE"
+	fi
+	SBX_KIND=compact
+	export SBX_KIND SBX_DATA_MODE SBX_DATA SBX_DATA_FILE
+	SBX_ARGS=$(awk "$build_line" </dev/null) || die "$SBX_ARGS"
+	SBX_ARGS_SUMMARY=$(printf '%s' "$SBX_ARGS" | awk '{ print substr($0, 1, 800) }')
+	started=$(now_ms)
+
+	if ! mcp_url "$SBX_TOOL"; then
+		record_call false "$MCP_ERR"
+		die "$MCP_ERR"
+	fi
+	MCP_SID='' MCP_PV='' MCP_RES='' MCP_ERR=''
+	init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"lerryn-sbx","version":"1"}}}'
+	if ! mcp_request 1 "$init"; then
+		record_call false "$MCP_ERR"
+		die "tool $SBX_TOOL: initialize: $MCP_ERR"
+	fi
+	MCP_PV=$(printf '%s' "$MCP_RES" | SBX_MODE=field SBX_KEY=protocolVersion awk "$mcp_awk" | tr -d '"')
+	printf '%s' '{"jsonrpc":"2.0","method":"notifications/initialized"}' >"$MCP_DIR/note"
+	mcp_post "$MCP_DIR/note" >/dev/null 2>&1 || true
+	SBX_KIND=callbody
+	export SBX_KIND SBX_METHOD SBX_ARGS
+	call=$(awk "$build_line" </dev/null) || die "$call"
+	if ! mcp_request 2 "$call"; then
+		record_call false "$MCP_ERR"
+		die "tool $SBX_TOOL $SBX_METHOD: $MCP_ERR"
+	fi
+	res=$MCP_RES
+	if command -v curl >/dev/null 2>&1 && [ -n "$MCP_SID" ]; then
+		set --
+		[ -n "$MCP_PV" ] && set -- -H "MCP-Protocol-Version: $MCP_PV"
+		curl -sS --max-time 5 -o /dev/null -X DELETE -H "Mcp-Session-Id: $MCP_SID" "$@" "$MCP_URL" >/dev/null 2>&1 || true
+	fi
+	printf '%s\n' "$res"
+	if [ "$(printf '%s' "$res" | SBX_MODE=field SBX_KEY=isError awk "$mcp_awk")" = true ]; then
+		msg=$(printf '%s' "$res" | SBX_MODE=text awk "$mcp_awk")
+		record_call false "${msg:-the tool returned an error}"
+		die "tool $SBX_TOOL $SBX_METHOD: ${msg:-the tool returned an error}"
+	fi
+	record_call true
+}
+
+[ $# -gt 0 ] || die_usage "a command is required"
+cmd=$1
+shift
+case $cmd in
+stage) stage "$@" ;;
+result) result "$@" ;;
+mcp) mcp "$@" ;;
+-h | --help) usage ;;
+*) die_usage "unknown command '$cmd' (choose from stage, result, mcp)" ;;
+esac

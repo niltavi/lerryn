@@ -1,0 +1,220 @@
+# Lerryn OpenAPI 规范的风格检查，由 `make api-lint` 运行。约定的说明见 api/README.md。
+# 规则名以 lerryn- 开头的是本项目的规则，其余来自 Spectral 内置的 spectral:oas。
+extends:
+  - [spectral:oas, recommended]
+
+functionsDir: ./spectral-functions
+functions:
+  - uniqueMcpTools
+
+aliases:
+  Operation:
+    - "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+
+rules:
+  # --- 收紧的内置规则 ---
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-description: error
+  operation-tags: error
+  operation-success-response: error
+  # 通用组件（CursorPage、Limit、Cursor 等）先于第一个使用它们的接口登记。
+  oas3-unused-component: info
+
+  # --- 操作 ---
+  lerryn-operation-id-format:
+    description: operationId 使用 lowerCamelCase，与技术设计 9.2 节的端点表一致。
+    severity: error
+    given: "#Operation"
+    then:
+      field: operationId
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+
+  lerryn-operation-kind:
+    description: 每个操作用 x-operation-kind 标为 read、mutate 或 execute，用于 MCP 标注、令牌范围和审计。
+    message: "x-operation-kind 必须是 read、mutate 或 execute 之一：{{error}}"
+    severity: error
+    given: "#Operation"
+    then:
+      - field: x-operation-kind
+        function: truthy
+      - field: x-operation-kind
+        function: enumeration
+        functionOptions:
+          values: [read, mutate, execute]
+
+  lerryn-get-is-read:
+    description: GET 操作没有副作用，x-operation-kind 只能是 read。
+    severity: error
+    given: "$.paths[*].get"
+    then:
+      field: x-operation-kind
+      function: enumeration
+      functionOptions:
+        values: [read]
+
+  lerryn-operation-description-chinese:
+    description: 操作的 description 用中文书写（技术设计 9.5 节）。
+    severity: error
+    given: "#Operation"
+    then:
+      field: description
+      function: pattern
+      functionOptions:
+        match: "[\\u4e00-\\u9fff]"
+
+  lerryn-operation-error-response:
+    description: 每个操作都声明错误响应：default，或至少一个 4XX／5XX。
+    severity: error
+    given: "#Operation"
+    then:
+      field: responses
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          anyOf:
+            - required: [default]
+            - not:
+                propertyNames:
+                  not:
+                    pattern: "^[45]"
+
+  lerryn-error-response-problem-json:
+    description: 错误响应只用 application/problem+json，schema 为 Problem。
+    severity: error
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].responses[?(@property === 'default' || @property.match(/^[45]/))]"
+    then:
+      field: content
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [application/problem+json]
+          maxProperties: 1
+          properties:
+            application/problem+json:
+              type: object
+              required: [schema]
+              properties:
+                schema:
+                  type: object
+                  required: [properties]
+                  properties:
+                    properties:
+                      type: object
+                      required: [type, title, status, code, request_id, next_actions]
+
+  # --- x-mcp ---
+  lerryn-x-mcp-shape:
+    description: |
+      每个操作都声明 x-mcp，明确是否暴露为独立的 MCP 工具；expose 为 true 时必须给出 tool 和 description。
+      结构见 api/README.md。
+    message: "x-mcp 不符合约定：{{error}}"
+    severity: error
+    given: "#Operation"
+    then:
+      # 字段缺失时 schema 函数同样报错（"must exist"），不需要再加 truthy。
+      - field: x-mcp
+        function: schema
+        functionOptions:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [expose]
+            properties:
+              expose:
+                type: boolean
+              tool:
+                type: string
+                pattern: "^[a-z][a-z0-9_]{0,63}$"
+              title:
+                type: string
+                minLength: 1
+              description:
+                type: string
+                minLength: 1
+              hints:
+                type: object
+                additionalProperties: false
+                minProperties: 1
+                properties:
+                  destructive:
+                    type: boolean
+                  idempotent:
+                    type: boolean
+                  open_world:
+                    type: boolean
+            if:
+              properties:
+                expose:
+                  const: true
+            then:
+              required: [tool, description]
+            else:
+              not:
+                anyOf:
+                  - required: [tool]
+                  - required: [title]
+                  - required: [description]
+                  - required: [hints]
+
+  lerryn-x-mcp-unique-tools:
+    description: x-mcp.tool 在整份规范中唯一。
+    severity: error
+    given: "$"
+    then:
+      function: uniqueMcpTools
+
+  # --- 路径与字段 ---
+  lerryn-path-prefix:
+    description: 公开接口在 /api/v1 下；webhook 触发入口在 /hooks 下。
+    severity: error
+    given: "$.paths"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^/(api/v1|hooks)/"
+
+  lerryn-property-snake-case:
+    description: JSON 字段名使用 snake_case。
+    severity: error
+    given: "$.components.schemas..properties"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9_]*$"
+
+  # --- 3.1 写法 ---
+  lerryn-enum-oneof-title:
+    description: |
+      用 oneOf + const 声明的枚举，每个分支都要有 title（UpperCamelCase）。oapi-codegen 用它作常量名，
+      缺了 title 会静默退化成普通 string，没有常量也没有 Valid()。
+    severity: error
+    given: "$.components.schemas..oneOf[?(@ && @.const !== undefined)]"
+    then:
+      # pattern 跳过缺失的字段，所以先用 truthy 检查存在。
+      - field: title
+        function: truthy
+      - field: title
+        function: pattern
+        functionOptions:
+          match: "^[A-Z][A-Za-z0-9]*$"
+
+  lerryn-no-null-in-enum:
+    description: |
+      可空的枚举用 type: [T, "null"] 表达，不要把 null 写进 enum，oapi-codegen 会为它生成错误的常量。
+    severity: error
+    given: "$.components.schemas..enum"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          items:
+            not:
+              type: "null"

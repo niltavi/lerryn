@@ -1,0 +1,28 @@
+# Lerryn introduction website
+
+English and Simplified Chinese pages for `https://lerryn.niltavi.com`. This is a standalone static website; the self-hosted application keeps its own web console in `apps/web/`.
+
+```sh
+pnpm website:build
+pnpm website:check
+```
+
+The build writes `website/dist/`. Open its `index.html` directly for a local review, or serve that directory with your preferred local server. The Chinese page is at `zh/index.html`. Developers manage their own preview servers.
+
+## Sources
+
+- `content.mjs`: both languages, interface examples, and canonical domain.
+- `scripts/build.mjs`: semantic HTML, metadata, sitemap, and security headers.
+- `assets/site.css`: responsive Niltavi paper / forest palette with Lerryn stream accents.
+- `assets/site.js`: optional theme selection, accessible code tabs, and clipboard actions. All content stays available without JavaScript.
+- `assets/fonts/`: DM Sans 5.3.0 files already used by the application, with their original OFL license.
+
+The build copies the current logo from `design/brand/logo/`; do not edit a separate logo copy. Fonts and other assets are served locally. The pages have no analytics, account forms, runtime API calls, or framework dependencies.
+
+## Hosting
+
+Configure a static host with the repository root as its working directory, Node.js 24, build command `pnpm website:build`, and output directory `website/dist`. The build itself uses only Node built-ins and does not require dependency installation. `_headers` applies the supplied security policy on hosts that support the format, including Cloudflare Pages; use equivalent host settings elsewhere. Preserve `/zh/` as a directory route.
+
+Attach `lerryn.niltavi.com` in the chosen host and provision DNS and TLS when publishing. This repository does not create DNS records or deploy the site automatically. Both canonical URLs and the sitemap already use the intended public domain.
+
+The source repository currently follows the project's private visibility. Before a public launch, make sure the GitHub documentation and source links are accessible to the intended visitors. Container release publication and website hosting are separate operations.

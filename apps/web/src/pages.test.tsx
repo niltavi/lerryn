@@ -1,0 +1,819 @@
+import { createLerrynClient, type Schemas } from "@lerryn/api";
+import { ApiProvider, I18nProvider } from "@lerryn/core";
+import { LerrynThemeProvider } from "@lerryn/ui-web";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { consolePath } from "./lib/links";
+import { countdown } from "./pages/settings/PairingPage";
+import { generatePassword } from "./pages/admin/AdminUsersPage";
+import { diffLines } from "./pages/task/VersionDiffDialog";
+import { createAppRouter } from "./router";
+
+const NOW = new Date();
+const iso = (offsetMin: number) => new Date(NOW.getTime() + offsetMin * 60_000).toISOString();
+
+const ME = {
+  id: "0192f3a1-0000-7000-8000-000000000001",
+  username: "zhanglin",
+  display_name: "张林",
+  email: null,
+  is_admin: false,
+  personal_project_id: "0192f3a1-0000-7000-8000-000000000002",
+  created_at: "2026-11-01T00:00:00Z",
+  locale: null,
+  timezone: null,
+  has_password: true,
+  identities: [],
+};
+const discovery = (methods: string[], adminPasswordLogin = false) => ({
+  server: { version: "dev", commit: "none", build_date: null },
+  api: { version: "v1", spec_version: "0.1.0" },
+  capabilities: { login_methods: methods, admin_password_login: adminPasswordLogin, registration_open: false, first_account: false, network_policies: ["full"], require_test_before_activate: true },
+  runtimes: [],
+  skills: { version: "dev", items: [] },
+  principal: null,
+  links: { console: "http://lerryn.test/" },
+});
+const TASK_REF = { id: "0192f3a1-0000-7000-8000-0000000000t1", name: "weekday-digest", project_id: ME.personal_project_id };
+const OVERVIEW = {
+  generated_at: iso(0),
+  counts: { tasks: 3, active_tasks: 2, attention: 2, running: 1, queued: 0 },
+  attention: [
+    { kind: "run_timed_out", at: iso(-60), task: { ...TASK_REF, name: "dataset-backup" }, run_id: "0192f3a1-0000-7000-8000-0000000000r9", stage: "上传", summary: "超过 30 分钟", credential_request_id: null, credential_id: null, runner_id: null, due_at: null, link: "http://lerryn.test/runs/0192f3a1-0000-7000-8000-0000000000r9" },
+    { kind: "credential_request", at: iso(-30), task: TASK_REF, run_id: null, stage: null, summary: "PRICE_API_TOKEN", credential_request_id: "0192f3a1-0000-7000-8000-0000000000c1", credential_id: null, runner_id: null, due_at: iso(120), link: "http://lerryn.test/c/0192f3a1-0000-7000-8000-0000000000c1" },
+  ],
+  active: [{ run_id: "0192f3a1-0000-7000-8000-0000000000r2", task: { ...TASK_REF, name: "lead-sync" }, status: "running", test: false, trigger: "cron", queued_at: iso(-2), started_at: iso(-1), current_stage: "写入多维表格", links: { console: "http://lerryn.test/runs/r2" } }],
+  upcoming: [{ task: TASK_REF, trigger_id: "tr1", at: iso(90), schedule_text: "每个工作日 08:00" }],
+};
+const EMPTY_OVERVIEW = { ...OVERVIEW, counts: { tasks: 0, active_tasks: 0, attention: 0, running: 0, queued: 0 }, attention: [], active: [], upcoming: [] };
+const TASK = {
+  id: TASK_REF.id,
+  project_id: ME.personal_project_id,
+  name: "weekday-digest",
+  description: "工作日早上汇总新线索",
+  state: "active",
+  active_version: 2,
+  latest_version: {
+    seq: 2,
+    created_at: "2026-11-01T00:00:00Z",
+    created_by: ME.id,
+    client: "Claude Code · 笔记本",
+    tested_at: "2026-11-01T00:05:00Z",
+    tree_hash: "h",
+    manifest: { runtime: { language: "python", version: "3.12" }, entrypoint: ["python", "main.py"], credentials: [{ name: "LLM_API_KEY" }], tools: ["crm-mcp", "ledger", "fmt-lib"] },
+    files: [{ path: "main.py", size: 2048, sha256: "ab", executable: false }],
+  },
+  created_by: ME.id,
+  created_at: "2026-10-01T00:00:00Z",
+  updated_at: "2026-11-01T00:00:00Z",
+  archived_at: null,
+  console: { manual_run: true },
+  links: { console: "http://lerryn.test/tasks/" + TASK_REF.id },
+};
+const PROJECT = {
+  id: ME.personal_project_id,
+  name: "张林的个人项目",
+  is_personal: true,
+  role: "owner",
+  owner: { id: ME.id, username: ME.username, display_name: ME.display_name },
+  member_count: 1,
+  created_at: "2026-10-01T00:00:00Z",
+  updated_at: "2026-10-01T00:00:00Z",
+  links: { console: "http://lerryn.test/" },
+};
+const FAILED_RUN = {
+  id: "0192f3a1-0000-7000-8000-0000000000r1",
+  task_id: TASK.id,
+  project_id: ME.personal_project_id,
+  version: 2,
+  status: "failed",
+  test: false,
+  trigger: { kind: "cron", trigger_id: "tr1", scheduled_at: iso(-60), user_id: null, client: null },
+  params: {},
+  attempt: 1,
+  max_attempts: 1,
+  retry_of: null,
+  rerun_of: null,
+  skip_reason: null,
+  claimed_at: iso(-60),
+  cancelled_by: null,
+  runner: null,
+  environment: null,
+  log_lines: 0,
+  dropped_log_lines: 0,
+  logs_expired_at: null,
+  queued_at: iso(-60),
+  started_at: iso(-60),
+  finished_at: iso(-59),
+  exit_code: 1,
+  error: { code: "script_error", stage: null, message: "退出码 1" },
+  stages: [],
+  result: null,
+  cancel_requested: false,
+  links: { console: "http://lerryn.test/runs/0192f3a1-0000-7000-8000-0000000000r1" },
+};
+// The run a button starts: queued, started from the console's session.
+const NEW_RUN = {
+  ...FAILED_RUN,
+  id: "0192f3a1-0000-7000-8000-0000000000r5",
+  status: "queued",
+  trigger: { kind: "manual", trigger_id: null, scheduled_at: null, user_id: ME.id, client: null },
+  claimed_at: null,
+  started_at: null,
+  finished_at: null,
+  exit_code: null,
+  error: null,
+  links: { console: "http://lerryn.test/runs/0192f3a1-0000-7000-8000-0000000000r5" },
+};
+const TRIGGERS = {
+  task_id: TASK.id,
+  revision: 1,
+  dry_run: false,
+  task_active: true,
+  triggers: [
+    {
+      id: "tr1",
+      name: "weekday-morning",
+      type: "cron",
+      enabled: true,
+      catch_up: "skip",
+      params: null,
+      cron: { schedule: "0 8 * * 1-5", timezone: "Asia/Shanghai", schedule_text: "每个工作日 08:00", next_fires: [iso(90)] },
+      webhook: null,
+      next_fire_at: iso(90),
+      last_fired_at: null,
+      created_at: iso(-1000),
+      updated_at: iso(-1000),
+    },
+  ],
+};
+const TOOL = {
+  id: "0192f3a1-0000-7000-8000-0000000000u1",
+  project_id: ME.personal_project_id,
+  name: "crm-mcp",
+  kind: "mcp",
+  description: "查询客户和商机",
+  url: "https://crm.example.com/mcp",
+  created_at: iso(-5000),
+  updated_at: iso(-5000),
+};
+const TREE = "3f9a0c4be1d27788aa00bb11cc22dd33ee44ff5566778899aabbccddeeff0011";
+const SCRIPT_TOOL = {
+  ...TOOL,
+  id: "0192f3a1-0000-7000-8000-0000000000u2",
+  name: "fmt-lib",
+  kind: "script",
+  description: "格式化金额",
+  url: "",
+  files: [
+    { path: "fmt.py", size: 64, sha256: "aa", executable: false },
+    { path: "README.md", size: 32, sha256: "bb", executable: false },
+  ],
+  tree_hash: TREE,
+};
+// An http tool whose address is empty: shown without an address or a copy button.
+const BARE_TOOL = { ...TOOL, id: "0192f3a1-0000-7000-8000-0000000000u3", name: "bare-http", kind: "http", description: "没有地址", url: "" };
+const CREDENTIAL: Schemas["Credential"] = {
+  id: "0192f3a1-0000-7000-8000-0000000000k1",
+  name: "LLM_API_KEY",
+  purpose: "调用模型",
+  fields: ["LLM_API_KEY"],
+  status: "active",
+  version: 3,
+  expires_at: iso(60 * 24 * 3),
+  revoked_at: null,
+  last_used_at: null,
+  created_at: iso(-5000),
+  updated_at: iso(-60),
+  grants: [{ task: TASK_REF, name: "LLM_API_KEY", granted_at: iso(-5000) }],
+};
+
+const REQUEST_ID = "0192f3a1-0000-7000-8000-0000000000c1";
+// An agent's request for a task credential: a secret with a hint and an optional plain field.
+const TASK_REQUEST: Schemas["CredentialRequest"] = {
+  id: REQUEST_ID,
+  status: "pending",
+  url: `http://lerryn.test/c/${REQUEST_ID}`,
+  name: "PRICE_API_TOKEN",
+  purpose: "读取竞品价格接口",
+  task: TASK_REF,
+  credential_id: null,
+  fields: [
+    { name: "PRICE_API_TOKEN", label: "令牌", description: "在价格平台的开发者设置里生成", secret: true, multiline: false, optional: false },
+    { name: "REGION", secret: false, multiline: false, optional: true },
+  ],
+  client: "claude-code",
+  created_at: iso(-30),
+  expires_at: iso(120),
+  fulfilled_at: null,
+};
+// The request the console makes to update CREDENTIAL.
+const UPDATE_REQUEST = {
+  ...TASK_REQUEST,
+  id: "req2",
+  url: "http://lerryn.test/c/req2",
+  name: "LLM_API_KEY",
+  purpose: "调用模型",
+  task: null,
+  credential_id: "0192f3a1-0000-7000-8000-0000000000k1",
+  fields: [{ name: "LLM_API_KEY", secret: true, multiline: false, optional: false }],
+  client: null,
+  expires_at: iso(60),
+};
+
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+const problem = (status: number, code: string) =>
+  new Response(JSON.stringify({ type: `urn:lerryn:error:${code}`, title: code, status, code, request_id: "req_1" }), {
+    status,
+    headers: { "Content-Type": "application/problem+json" },
+  });
+
+interface FakeOptions {
+  signedIn?: boolean;
+  overview?: unknown;
+  methods?: string[];
+  adminPasswordLogin?: boolean;
+  calendar?: unknown[];
+  /** The user's role in the task's project; none lists no projects. */
+  role?: "viewer" | "maintainer" | "owner";
+  /** The task's console.manual_run. */
+  manualRun?: boolean;
+  /** An error code startRun answers with instead of a run. */
+  startError?: string;
+  admin?: boolean;
+  tasks?: Schemas["TaskSummary"][];
+  adminSubmit?: (body: unknown) => Promise<Response>;
+  credentials?: Schemas["Credential"][];
+  credentialPage?: (url: URL) => Promise<Response>;
+  pendingCredentialRequests?: Schemas["CredentialRequest"][];
+  channelSubmit?: (body: Schemas["CreateNotificationChannelRequest"]) => Promise<Response>;
+}
+
+function fakeServer(opts: FakeOptions = {}) {
+  const credentials = [...(opts.credentials ?? [CREDENTIAL])];
+  const channels: Schemas["NotificationChannel"][] = [];
+  const requests: { method: string; path: string; body?: unknown; idempotencyKey?: string | null }[] = [];
+  const fetch = vi.fn(async (req: Request) => {
+    const url = new URL(req.url);
+    const { pathname } = url;
+    const body = req.method === "GET" ? undefined : await req.clone().json().catch(() => undefined);
+    requests.push({ method: req.method, path: pathname, body, idempotencyKey: req.headers.get("Idempotency-Key") });
+    const revoke = pathname.match(/^\/api\/v1\/credentials\/([^/]+)$/);
+    if (req.method === "DELETE" && revoke) {
+      const index = credentials.findIndex((c) => c.id === revoke[1]);
+      if (index < 0) return problem(404, "not_found");
+      credentials[index] = { ...credentials[index]!, status: "revoked", revoked_at: iso(0) };
+      return json(credentials[index]);
+    }
+    const key = `${req.method} ${pathname}`;
+    switch (key) {
+      case "GET /api/v1/discover":
+        return json(discovery(opts.methods ?? ["password"], opts.adminPasswordLogin));
+      case "GET /api/v1/me":
+        return opts.signedIn === false ? problem(401, "unauthenticated") : json({ ...ME, is_admin: opts.admin ?? false });
+      case "GET /api/v1/overview":
+        return json(opts.overview ?? OVERVIEW);
+      case "GET /api/v1/overview/calendar":
+        return json({ from: iso(-600), to: iso(600), items: opts.calendar ?? [{ kind: "run", task: TASK_REF, run_id: "r1", status: "failed", start: iso(-60), end: iso(-59) }], truncated: false });
+      case "GET /api/v1/tasks": {
+        const tasks = opts.tasks ?? [];
+        const after = Number(url.searchParams.get("cursor") ?? 0);
+        const limit = Number(url.searchParams.get("limit") ?? 100);
+        return json({ items: tasks.slice(after, after + limit), next_cursor: after + limit < tasks.length ? String(after + limit) : null });
+      }
+      case "GET /api/v1/admin/users":
+        return json({ items: [{ ...ME, id: "bob", username: "bob", display_name: "Bob", sso: false, disabled_at: null, last_seen_at: null }], next_cursor: null });
+      case "POST /api/v1/admin/users":
+      case "POST /api/v1/admin/users/bob/password":
+        return opts.adminSubmit ? opts.adminSubmit(body) : json({ ...ME, id: "bob", username: "bob" });
+      case "GET /api/v1/projects":
+        return json({ items: opts.role ? [{ ...PROJECT, role: opts.role }] : [], next_cursor: null });
+      case "GET /api/v1/credential-requests":
+        return json({ items: opts.pendingCredentialRequests ?? [], next_cursor: null });
+      case "GET /api/v1/notification-channels":
+        return json({ items: channels });
+      case "POST /api/v1/notification-channels": {
+        if (!opts.channelSubmit) return problem(500, "internal");
+        const response = await opts.channelSubmit(body as Schemas["CreateNotificationChannelRequest"]);
+        if (response.ok) channels.push(((await response.clone().json()) as Schemas["CreatedNotificationChannel"]).channel);
+        return response;
+      }
+      case `GET /api/v1/tasks/${TASK.id}`:
+        return json({ ...TASK, console: { manual_run: opts.manualRun ?? true } });
+      case `POST /api/v1/tasks/${TASK.id}/runs`:
+        return opts.startError ? problem(409, opts.startError) : json(NEW_RUN, 202);
+      case `GET /api/v1/runs/${FAILED_RUN.id}`:
+        return json(FAILED_RUN);
+      case `GET /api/v1/tasks/${TASK.id}/versions/2`:
+        return json({ ...TASK.latest_version, active: true });
+      case `GET /api/v1/runs/${FAILED_RUN.id}/logs`:
+      case `GET /api/v1/runs/${NEW_RUN.id}/logs`:
+        return json({ lines: [], next_cursor: "bDA", complete: true, dropped_lines: 0 });
+      case `GET /api/v1/runs/${FAILED_RUN.id}/events`:
+      case `GET /api/v1/runs/${NEW_RUN.id}/events`:
+        return json({ events: [], next_cursor: "ZTA", complete: true });
+      case `GET /api/v1/runs/${FAILED_RUN.id}/artifacts`:
+      case `GET /api/v1/runs/${NEW_RUN.id}/artifacts`:
+        return json({ items: [], next_cursor: null });
+      case `POST /api/v1/runs/${FAILED_RUN.id}/rerun`:
+        return json({ ...NEW_RUN, rerun_of: FAILED_RUN.id }, 202);
+      case `GET /api/v1/runs/${NEW_RUN.id}`:
+        return json(NEW_RUN);
+      case `GET /api/v1/tasks/${TASK.id}/triggers`:
+        return json(TRIGGERS);
+      case `GET /api/v1/tasks/${TASK.id}/credentials`:
+        return json({ version: 2, items: [{ name: "LLM_API_KEY", as: "env", optional: false, status: "missing", credential: null, expires_at: null, pending_request_id: "0192f3a1-0000-7000-8000-0000000000c1" }] });
+      case "GET /api/v1/credentials": {
+        if (opts.credentialPage) return opts.credentialPage(url);
+        const offset = Number(url.searchParams.get("cursor") ?? 0);
+        const limit = Number(url.searchParams.get("limit") ?? 200);
+        return json({ items: credentials.slice(offset, offset + limit), next_cursor: offset + limit < credentials.length ? String(offset + limit) : null });
+      }
+      case "POST /api/v1/credential-requests":
+        return json(UPDATE_REQUEST, 201);
+      case `GET /api/v1/credential-requests/${REQUEST_ID}`:
+        return json(TASK_REQUEST);
+      case "GET /api/v1/credential-requests/req2":
+        return json(UPDATE_REQUEST);
+      case `POST /api/v1/credential-requests/${REQUEST_ID}/values`:
+        return json({ ...TASK_REQUEST, status: "fulfilled", credential_id: "0192f3a1-0000-7000-8000-0000000000k2", fulfilled_at: iso(0) });
+      case "POST /api/v1/credential-requests/req2/values":
+        return json({ ...UPDATE_REQUEST, status: "fulfilled", fulfilled_at: iso(0) });
+      case "DELETE /api/v1/credential-requests/req2":
+        return json({ ...UPDATE_REQUEST, status: "cancelled" });
+      case "GET /api/v1/runs":
+        return json({ items: [], next_cursor: null });
+      case "GET /api/v1/tools":
+        return json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
+      default:
+        return problem(404, "not_found");
+    }
+  });
+  return { fetch, requests };
+}
+
+function renderApp(path: string, opts: FakeOptions = {}) {
+  const server = fakeServer(opts);
+  const api = createLerrynClient({ baseUrl: "http://lerryn.test", fetch: server.fetch });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const router = createAppRouter({ api, queryClient });
+  router.update({ history: createMemoryHistory({ initialEntries: [path] }) } as never);
+  render(
+    <LerrynThemeProvider>
+      <I18nProvider locale="zh-CN">
+        <QueryClientProvider client={queryClient}>
+          <ApiProvider client={api}>
+            <RouterProvider router={router} />
+          </ApiProvider>
+        </QueryClientProvider>
+      </I18nProvider>
+    </LerrynThemeProvider>,
+  );
+  return { router, server };
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+const createdChannel = (body: Schemas["CreateNotificationChannelRequest"]): Schemas["CreatedNotificationChannel"] => ({
+  channel: {
+    id: "channel-first", name: body.name, kind: body.kind, enabled: true,
+    url_preview: "https://example.com/…/hook", subscriptions: [], last_delivery: null,
+    created_at: iso(0), updated_at: iso(0),
+  },
+  signing_secret: body.kind === "webhook" ? "whsec_FIRST_SECRET" : null,
+});
+
+describe("notification channel form", () => {
+  it("creates one channel on repeated Enter and retains its one-time signing secret", async () => {
+    const submitted: Schemas["CreateNotificationChannelRequest"][] = [];
+    let finish: ((response: Response) => void) | undefined;
+    renderApp("/settings/notifications", { role: "owner", channelSubmit: async (body) => {
+      submitted.push(body);
+      return new Promise<Response>((resolve) => { finish = resolve; });
+    } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "添加" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Webhook" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "名称" }), "team-alerts");
+    const url = within(dialog).getByRole("textbox", { name: "机器人或 Webhook 地址" }) as HTMLInputElement;
+    await user.type(url, "https://example.com/hook{Enter}");
+    await waitFor(() => expect(submitted).toHaveLength(1));
+    await user.keyboard("{Enter}{Enter}");
+    await act(async () => { fireEvent.submit(url.form!); });
+    expect(submitted).toHaveLength(1);
+    await act(async () => finish!(json(createdChannel(submitted[0]!), 201)));
+    expect((await screen.findByTestId("signing-secret")).textContent).toBe("whsec_FIRST_SECRET");
+    await user.click(screen.getByRole("button", { name: "复制密钥" }));
+    expect(await navigator.clipboard.readText()).toBe("whsec_FIRST_SECRET");
+    await user.click(screen.getByRole("button", { name: "完成" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByText("team-alerts")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("FIRST_SECRET");
+    await user.click(screen.getByRole("button", { name: "添加" }));
+    expect((await screen.findByRole("textbox", { name: "名称" }) as HTMLInputElement).value).toBe("");
+    expect(screen.queryByTestId("signing-secret")).toBeNull();
+  });
+
+  it("keeps creation open through Cancel and Escape until its response arrives", async () => {
+    let submitted: Schemas["CreateNotificationChannelRequest"] | undefined;
+    let finish: ((response: Response) => void) | undefined;
+    renderApp("/settings/notifications", { role: "owner", channelSubmit: async (body) => {
+      submitted = body;
+      return new Promise<Response>((resolve) => { finish = resolve; });
+    } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "添加" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Webhook" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "名称" }), "team-alerts");
+    await user.type(within(dialog).getByRole("textbox", { name: "机器人或 Webhook 地址" }), "https://example.com/hook{Enter}");
+    await waitFor(() => expect(finish).toBeDefined());
+    await user.click(within(dialog).getByRole("button", { name: "取消" }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBe(dialog);
+    await act(async () => finish!(json(createdChannel(submitted!), 201)));
+    expect((await screen.findByTestId("signing-secret")).textContent).toBe("whsec_FIRST_SECRET");
+  });
+
+  it("allows an Enter retry after failure and closes a successful bot channel", async () => {
+    const submitted: Schemas["CreateNotificationChannelRequest"][] = [];
+    renderApp("/settings/notifications", { role: "owner", channelSubmit: async (body) => {
+      submitted.push(body);
+      if (submitted.length === 1) throw new TypeError("offline");
+      return json(createdChannel(body), 201);
+    } });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "添加" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox", { name: "名称" }), "bot-alerts");
+    await user.type(within(dialog).getByRole("textbox", { name: "机器人或 Webhook 地址" }), "https://example.com/hook{Enter}");
+    expect((await within(dialog).findByRole("alert")).textContent).toContain("请求没有成功");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(submitted).toHaveLength(2);
+    expect(submitted[1]?.kind).toBe("feishu");
+    expect(await screen.findByText("bot-alerts")).toBeTruthy();
+    expect(screen.queryByTestId("signing-secret")).toBeNull();
+  });
+});
+
+describe("overview", () => {
+  it("finds tasks beyond the first page in the task search", async () => {
+    const tasks: Schemas["TaskSummary"][] = Array.from({ length: 101 }, (_, i) => ({
+      id: `task-${i}`, project_id: PROJECT.id, name: `task-${String(i).padStart(3, "0")}`, description: "",
+      state: "inactive", active_version: null, latest_version: 1, last_run: null, next_run_at: null,
+      active_runs: 0, updated_at: iso(0), links: { console: "http://lerryn.test/" },
+    }));
+    renderApp("/", { tasks });
+    await screen.findByText("task-099");
+    fireEvent.click(screen.getByRole("button", { name: "搜索任务" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "搜索任务" }), { target: { value: "task-100" } });
+    expect(await screen.findByText("task-100")).toBeTruthy();
+    expect(screen.queryByText("没有匹配的任务")).toBeNull();
+  });
+
+  it("shows what needs attention, what is running and today's strip", async () => {
+    renderApp("/");
+    const attention = await screen.findByRole("region", { name: "需要处理" });
+    expect(within(attention).getByText("dataset-backup")).toBeTruthy();
+    expect(within(attention).getByText("上传 · 超过 30 分钟")).toBeTruthy();
+    // A credential request leads with its name and opens the fill dialog.
+    const cred = within(attention).getByText("PRICE_API_TOKEN").closest("button")!;
+    expect(within(cred).getByRole("img", { name: "待填写的凭证" })).toBeTruthy();
+    const running = screen.getByRole("region", { name: "运行中" });
+    expect(within(running).getByText("lead-sync")).toBeTruthy();
+    expect(within(running).getByText("写入多维表格")).toBeTruthy();
+    expect(await screen.findByRole("region", { name: "今天的运行" })).toBeTruthy();
+    expect(screen.getByText("下一次 · 1 个任务")).toBeTruthy();
+  });
+
+  it("fills an agent's credential request in a dialog", async () => {
+    const { server } = renderApp("/");
+    const attention = await screen.findByRole("region", { name: "需要处理" });
+    fireEvent.click(within(attention).getByText("PRICE_API_TOKEN").closest("button")!);
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("weekday-digest 需要凭证")).toBeTruthy();
+    expect(within(dialog).getByText("读取竞品价格接口")).toBeTruthy();
+    expect(within(dialog).getByText("claude-code")).toBeTruthy();
+    expect(within(dialog).getByText("仅此任务可用")).toBeTruthy();
+    expect(within(dialog).getByText("在价格平台的开发者设置里生成")).toBeTruthy();
+    const secret = within(dialog).getByLabelText(/^PRICE_API_TOKEN · 令牌/, { selector: "input" });
+    const region = within(dialog).getByLabelText(/^REGION/, { selector: "input" });
+    // Secrets are masked until shown; plain fields are not.
+    expect(secret.getAttribute("type")).toBe("password");
+    expect(region.getAttribute("type")).toBe("text");
+    fireEvent.click(within(dialog).getByRole("button", { name: "显示内容" }));
+    expect(secret.getAttribute("type")).toBe("text");
+
+    // A required field left empty is caught before anything is sent.
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+    expect(await within(dialog).findByText("请填写此项")).toBeTruthy();
+    expect(server.requests.some((r) => r.path.endsWith("/values"))).toBe(false);
+
+    fireEvent.change(secret, { target: { value: "sk-price-token" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const sent = server.requests.find((r) => r.path.endsWith("/values"))!;
+    expect(sent).toMatchObject({ method: "POST", path: `/api/v1/credential-requests/${REQUEST_ID}/values`, body: { values: { PRICE_API_TOKEN: "sk-price-token" } } });
+    // An agent's request is never withdrawn by the console.
+    expect(server.requests.some((r) => r.method === "DELETE")).toBe(false);
+  });
+
+  it("names planned fires in today's strip with the server's schedule text", async () => {
+    // Planned for the current half hour, so the test does not depend on the time of day.
+    const at = new Date(Math.floor(NOW.getTime() / 1_800_000) * 1_800_000).toISOString();
+    const planned = (id: string, name: string, text: string | null) => ({ kind: "planned", task: { ...TASK_REF, name }, run_id: null, status: null, start: at, end: null, trigger_id: id, schedule_text: text });
+    renderApp("/", { calendar: [planned("tr1", "weekday-digest", "每个工作日 08:00（Asia/Shanghai）"), planned("tr2", "lead-sync", null)] });
+    const strip = await screen.findByRole("region", { name: "今天的运行" });
+    const ridge = within(strip).getByTitle(/计划 2 次/);
+    expect(ridge.title).toContain("weekday-digest · 每个工作日 08:00（Asia/Shanghai）");
+    expect(ridge.title).toContain("\nlead-sync");
+  });
+
+  it("shows how to connect an agent on a deployment without tasks", async () => {
+    renderApp("/", { overview: EMPTY_OVERVIEW });
+    expect(await screen.findByRole("heading", { name: "接入你的 Agent" })).toBeTruthy();
+  });
+});
+
+describe("admin passwords", () => {
+  it.each(["create", "reset"] as const)("locks %s password controls while submitting and shows the submitted password", async (action) => {
+    let submitted: { password: string } | undefined;
+    let resolve: ((response: Response) => void) | undefined;
+    renderApp("/admin/users", { admin: true, adminSubmit: async (body) => {
+      submitted = body as { password: string };
+      return new Promise<Response>((done) => { resolve = done; });
+    } });
+    if (action === "create") fireEvent.click(await screen.findByRole("button", { name: "创建" }));
+    else {
+      fireEvent.click(await screen.findByRole("button", { name: "Bob 的操作" }));
+      fireEvent.click(await screen.findByRole("menuitem", { name: "重置密码" }));
+    }
+    const dialog = await screen.findByRole("dialog");
+    if (action === "create") fireEvent.change(within(dialog).getByLabelText("用户名"), { target: { value: "bob" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: action === "create" ? "创建" : "重置密码" }));
+    await waitFor(() => expect(resolve).toBeDefined());
+    const regenerate = within(dialog).getByRole("button", { name: "重新生成" }) as HTMLButtonElement;
+    expect(regenerate.disabled).toBe(true);
+    expect((within(dialog).getByRole("button", { name: "取消" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(regenerate);
+    await act(async () => resolve!(json({ ...ME, id: "bob", username: "bob" })));
+    expect(await within(dialog).findByRole("button", { name: "完成" })).toBeTruthy();
+    expect(dialog.querySelector("code")?.textContent).toBe(submitted!.password);
+  });
+});
+
+describe("task page", () => {
+  it("shows activation, the schedule, credentials and versions, read-only", async () => {
+    renderApp(`/tasks/${TASK.id}`);
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    expect(screen.getByText("已激活")).toBeTruthy();
+    expect((await screen.findAllByText("每个工作日 08:00")).length).toBeGreaterThan(0);
+    expect(screen.getByTitle("0 8 * * 1-5 · Asia/Shanghai")).toBeTruthy();
+    expect(await screen.findByText("凭证 1")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "有凭证不可用" })).toBeTruthy();
+    // A missing credential with a pending request opens the fill dialog.
+    fireEvent.click(screen.getByRole("button", { name: "填写" }));
+    expect(await within(await screen.findByRole("dialog")).findByText("weekday-digest 需要凭证")).toBeTruthy();
+    // Without run control in the project: no editing, running or pausing.
+    for (const name of [/运行$/, /暂停/, /编辑/, /重试/, /手动执行/]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+  });
+
+  it("starts a run with a fresh idempotency key and opens it", async () => {
+    const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer" });
+    fireEvent.click(await screen.findByRole("button", { name: "手动执行" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${NEW_RUN.id}`));
+    const post = server.requests.find((r) => r.method === "POST")!;
+    expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/runs`);
+    expect(post.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await screen.findByText("控制台发起")).toBeTruthy();
+  });
+
+  it("stays on the task when the run is refused", async () => {
+    const { router } = renderApp(`/tasks/${TASK.id}`, { role: "owner", startError: "run_in_progress" });
+    fireEvent.click(await screen.findByRole("button", { name: "手动执行" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "手动执行" }).hasAttribute("disabled")).toBe(false));
+    expect(router.state.location.pathname).toBe(`/tasks/${TASK.id}`);
+  });
+
+  it("hides manual runs from viewers", async () => {
+    renderApp(`/tasks/${TASK.id}`, { role: "viewer" });
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    await screen.findByRole("img", { name: "有凭证不可用" });
+    expect(screen.queryByRole("button", { name: "手动执行" })).toBeNull();
+  });
+
+  it("hides manual runs when the agent turned them off", async () => {
+    renderApp(`/tasks/${TASK.id}`, { role: "owner", manualRun: false });
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    await screen.findByRole("img", { name: "有凭证不可用" });
+    expect(screen.queryByRole("button", { name: "手动执行" })).toBeNull();
+  });
+});
+
+describe("run page", () => {
+  it("retries a finished run whatever the task's manual run switch says", async () => {
+    const { router, server } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "maintainer", manualRun: false });
+    fireEvent.click(await screen.findByRole("button", { name: "重试" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${NEW_RUN.id}`));
+    const post = server.requests.find((r) => r.method === "POST")!;
+    expect(post.path).toBe(`/api/v1/runs/${FAILED_RUN.id}/rerun`);
+    expect(post.idempotencyKey).toBeTruthy();
+  });
+
+  it("offers no retry to viewers", async () => {
+    renderApp(`/runs/${FAILED_RUN.id}`, { role: "viewer" });
+    await screen.findByText("退出码 1");
+    await screen.findByRole("heading", { name: /失败/ });
+    expect(screen.queryByRole("button", { name: "重试" })).toBeNull();
+  });
+});
+
+describe("tools", () => {
+  it("shows the task's tools with their kind and marks a name the project never registered", async () => {
+    renderApp(`/tasks/${TASK.id}`);
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    const runtime = screen.getByRole("group", { name: "运行环境" });
+    expect(await within(runtime).findByText("MCP")).toBeTruthy();
+    expect(within(runtime).getByText("crm-mcp")).toBeTruthy();
+    expect(within(runtime).getByText("ledger")).toBeTruthy();
+    expect(within(runtime).getByRole("img", { name: "未登记" })).toBeTruthy();
+    // A script tool shows its file tree instead of an address.
+    expect(within(runtime).getByText("SCRIPT")).toBeTruthy();
+    expect(within(runtime).getByText("3f9a0c4be1d2 · 2 个文件")).toBeTruthy();
+    expect(within(runtime).getByText("fmt-lib").getAttribute("title")).toBe(`格式化金额\n${TREE}`);
+    // The chip itself carries the warning.
+    expect(screen.getByRole("button", { name: /Python 3\.12/ }).querySelector(".dot--bad")).toBeTruthy();
+  });
+
+  it("lists registered tools read-only in settings", async () => {
+    renderApp("/settings/tools");
+    expect(await screen.findByText("查询客户和商机")).toBeTruthy();
+    expect(screen.getByText("crm.example.com")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "复制 crm-mcp 的地址" })).toBeTruthy();
+    // Script tools have files, not an address.
+    expect(screen.getByText("SCRIPT")).toBeTruthy();
+    expect(screen.getByTitle(TREE).textContent).toBe("3f9a0c4be1d2 · 2 个文件");
+    expect(screen.queryByRole("button", { name: "复制 fmt-lib 的地址" })).toBeNull();
+    // A tool without an address is listed without one.
+    expect(screen.getByText("没有地址")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "复制 bare-http 的地址" })).toBeNull();
+    for (const name of [/登记/, /移除/, /删除/, /编辑/]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+  });
+});
+
+describe("tokens page", () => {
+  it("offers the skill install command beside the connection addresses", async () => {
+    renderApp("/settings/tokens");
+    const connect = await screen.findByRole("region", { name: "接入" });
+    expect(within(connect).getByText("lerryn skills install")).toBeTruthy();
+    expect(within(connect).getByRole("button", { name: "复制 Skill 安装命令" })).toBeTruthy();
+  });
+});
+
+describe("credentials page", () => {
+  const manyCredentials = (): Schemas["Credential"][] => Array.from({ length: 201 }, (_, i) => ({
+    ...CREDENTIAL, id: `credential-${i}`, name: `CRED_${String(i).padStart(3, "0")}`, grants: [], expires_at: null,
+  }));
+
+  it("loads later credentials with revoke controls while retaining requests and historical records", async () => {
+    const credentials = manyCredentials();
+    credentials[198] = { ...credentials[198]!, status: "revoked", revoked_at: iso(-60) };
+    credentials[199] = { ...credentials[199]!, status: "expired", expires_at: iso(-60) };
+    const { server } = renderApp("/settings/credentials", { credentials, pendingCredentialRequests: [TASK_REQUEST] });
+    await screen.findByText("CRED_199");
+    expect(screen.getByText("PRICE_API_TOKEN")).toBeTruthy();
+    expect(screen.getByText("CRED_198")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "更新 CRED_198" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "撤销 CRED_199" })).toBeNull();
+    expect(screen.queryByText("CRED_200")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "显示更多" }));
+    const revoke = await screen.findByRole("button", { name: "撤销 CRED_200" });
+    expect(screen.getByRole("button", { name: "更新 CRED_200" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "显示更多" })).toBeNull();
+    fireEvent.click(revoke);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "撤销" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "撤销 CRED_200" })).toBeNull());
+    expect(screen.getByText("CRED_200")).toBeTruthy();
+    expect(server.requests.some((r) => r.method === "DELETE" && r.path === "/api/v1/credentials/credential-200")).toBe(true);
+  });
+
+  it("keeps earlier credentials visible and retries a failed later page", async () => {
+    const credentials = manyCredentials();
+    let fail = true;
+    const cursors: (string | null)[] = [];
+    renderApp("/settings/credentials", { credentialPage: async (url) => {
+      const cursor = url.searchParams.get("cursor");
+      cursors.push(cursor);
+      if (!cursor) return json({ items: credentials.slice(0, 200), next_cursor: "next" });
+      return fail ? problem(403, "permission_denied") : json({ items: credentials.slice(200), next_cursor: null });
+    } });
+    await screen.findByText("CRED_199");
+    fireEvent.click(screen.getByRole("button", { name: "显示更多" }));
+    const retry = await screen.findByRole("button", { name: "重试" });
+    expect(screen.getByText("CRED_199")).toBeTruthy();
+    expect(screen.queryByText("CRED_200")).toBeNull();
+    fail = false;
+    fireEvent.click(retry);
+    expect(await screen.findByRole("button", { name: "更新 CRED_200" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "重试" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "显示更多" })).toBeNull();
+    expect(cursors).toEqual([null, "next", "next"]);
+  });
+
+  it("lists credentials without values and updates through a fill-in request", async () => {
+    const { server } = renderApp("/settings/credentials");
+    await screen.findByText("LLM_API_KEY");
+    expect(screen.getByText("1 个任务")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "即将过期" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "更新 LLM_API_KEY" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("替换当前内容")).toBeTruthy();
+    const post = server.requests.find((r) => r.method === "POST")!;
+    expect(post.path).toBe("/api/v1/credential-requests");
+    expect(post.body).toMatchObject({ credential_id: CREDENTIAL.id, fields: [{ name: "LLM_API_KEY" }] });
+
+    fireEvent.change(within(dialog).getByLabelText(/^LLM_API_KEY/, { selector: "input" }), { target: { value: "sk-rotated" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(server.requests.find((r) => r.path.endsWith("/values"))).toMatchObject({ path: "/api/v1/credential-requests/req2/values", body: { values: { LLM_API_KEY: "sk-rotated" } } });
+    expect(server.requests.some((r) => r.method === "DELETE")).toBe(false);
+  });
+
+  it("withdraws an update request closed without saving", async () => {
+    const { server } = renderApp("/settings/credentials");
+    fireEvent.click(await screen.findByRole("button", { name: "更新 LLM_API_KEY" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(server.requests.some((r) => r.method === "DELETE" && r.path === "/api/v1/credential-requests/req2")).toBe(true));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(server.requests.some((r) => r.path.endsWith("/values"))).toBe(false);
+  });
+});
+
+describe("login", () => {
+  it("offers company sign-in when SSO is configured", async () => {
+    renderApp("/login", { signedIn: false, methods: ["password", "oidc"] });
+    expect(await screen.findByRole("button", { name: "企业账号登录" })).toBeTruthy();
+    expect(screen.getByLabelText("用户名")).toBeTruthy();
+  });
+
+  it("leads with company sign-in and keeps a quiet admin entry when local password login is off", async () => {
+    renderApp("/login", { signedIn: false, methods: ["oidc"], adminPasswordLogin: true });
+    await screen.findByRole("button", { name: "企业账号登录" });
+    expect(screen.queryByLabelText("用户名")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "管理员登录" }));
+    expect(screen.getByLabelText("用户名")).toBeTruthy();
+  });
+
+  it("offers no password form at all when not even admins may use one", async () => {
+    renderApp("/login", { signedIn: false, methods: ["oidc"], adminPasswordLogin: false });
+    await screen.findByRole("button", { name: "企业账号登录" });
+    expect(screen.queryByLabelText("用户名")).toBeNull();
+    expect(screen.queryByRole("button", { name: "管理员登录" })).toBeNull();
+  });
+
+  it("explains an SSO failure sent back by the callback", async () => {
+    renderApp("/login?error=access_denied", { signedIn: false, methods: ["password", "oidc"] });
+    expect(await screen.findByText("企业账号登录没有完成，请重试")).toBeTruthy();
+  });
+});
+
+describe("helpers", () => {
+  it("splits a unified diff into coloured lines", () => {
+    expect(diffLines("--- a/main.py\n+++ b/main.py\n@@ -1 +1 @@\n-old\n+new\n same\n")).toEqual([
+      { kind: "hunk", text: "@@ -1 +1 @@" },
+      { kind: "del", text: "-old" },
+      { kind: "add", text: "+new" },
+      { kind: "ctx", text: " same" },
+    ]);
+  });
+
+  it("counts down the pairing code", () => {
+    expect(countdown(272_000)).toBe("4:32");
+    expect(countdown(-5)).toBe("0:00");
+  });
+
+  it("generates distinct readable passwords", () => {
+    const a = generatePassword();
+    expect(a).toMatch(/^[A-Za-z2-9]{4}-[A-Za-z2-9]{4}-[A-Za-z2-9]{4}$/);
+    expect(generatePassword()).not.toBe(a);
+  });
+
+  it("routes console links inside the app and leaves the fill page to the server", () => {
+    expect(consolePath("http://lerryn.test/runs/r1", "http://lerryn.test")).toBe("/runs/r1");
+    expect(consolePath("http://lerryn.test/c/abc", "http://lerryn.test")).toBeNull();
+    expect(consolePath("https://evil.test/runs/r1", "http://lerryn.test")).toBeNull();
+  });
+});

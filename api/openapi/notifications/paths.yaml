@@ -1,0 +1,133 @@
+# notifications 资源的路径（技术设计第 14 节）。在根文件 paths 中按路径登记。
+channels:
+  get:
+    operationId: listNotificationChannels
+    tags: [notifications]
+    summary: 列出通知渠道
+    description: 列出当前用户的通知渠道、订阅和最近一次发送结果。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    responses:
+      "200":
+        description: 通知渠道。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/NotificationChannelList"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  post:
+    operationId: createNotificationChannel
+    tags: [notifications]
+    summary: 添加通知渠道
+    description: |
+      添加一个通知渠道和它的订阅。订阅只能指向当前用户能查看的项目或任务。webhook 类型返回签名密钥，只出现这一次。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/CreateNotificationChannelRequest"
+    responses:
+      "201":
+        description: 已添加。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/CreatedNotificationChannel"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+channel:
+  patch:
+    operationId: updateNotificationChannel
+    tags: [notifications]
+    summary: 修改通知渠道
+    description: 修改名称、目标地址、启用状态或订阅。subscriptions 给出时整体替换。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ChannelID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/UpdateNotificationChannelRequest"
+    responses:
+      "200":
+        description: 修改后的通知渠道。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/NotificationChannel"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  delete:
+    operationId: deleteNotificationChannel
+    tags: [notifications]
+    summary: 删除通知渠道
+    description: 删除通知渠道和它的订阅、发送记录。等待重试的通知不再发送。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ChannelID"
+    responses:
+      "204":
+        description: 已删除。
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+channelTest:
+  post:
+    operationId: testNotificationChannel
+    tags: [notifications]
+    summary: 发送测试通知
+    description: 立即向渠道发送一条 `test` 类型的通知，返回这次发送的结果。不重试。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ChannelID"
+    responses:
+      "200":
+        description: 发送结果。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/NotificationDelivery"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+channelDeliveries:
+  get:
+    operationId: listNotificationDeliveries
+    tags: [notifications]
+    summary: 列出发送记录
+    description: 列出渠道的发送记录，最新的在前。发送记录保留 30 天。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ChannelID"
+      - name: status
+        in: query
+        schema:
+          $ref: "./schemas.yaml#/NotificationDeliveryStatus"
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页发送记录。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/NotificationDeliveryPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

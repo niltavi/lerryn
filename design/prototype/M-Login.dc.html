@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>移动端 · 登录</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app m-app {{theme}}" style="width: 390px; height: 844px; min-height: 0; padding: 96px 24px 40px; gap: 28px;">
+  <div class="stack" style="align-items: center; gap: 14px;">
+    <span class="rail-logo" style="width: 72px; height: 72px; border-radius: 22px; margin: 0;"><img src="/_blob/46d7ba75db40f7da30f9bb6f6115b8fb" alt="Lerryn" width="52" height="20" style="width: 52px;"></span>
+    <h1 class="h2">Lerryn</h1>
+  </div>
+
+  <x-import component-from-global-scope="Lerryn.Button" size="lg" is-block="{{yes}}"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>扫码配对</x-import>
+
+  <div class="or">或</div>
+
+  <div class="stack" style="gap: 12px;">
+    <x-import component-from-global-scope="Lerryn.TextField">
+      <x-import component-from-global-scope="Lerryn.Label">服务器</x-import>
+      <x-import component-from-global-scope="Lerryn.Input" placeholder="lerryn.example.com"></x-import>
+    </x-import>
+    <x-import component-from-global-scope="Lerryn.TextField">
+      <x-import component-from-global-scope="Lerryn.Label">用户名</x-import>
+      <x-import component-from-global-scope="Lerryn.Input"></x-import>
+    </x-import>
+    <div class="wl-field">
+      <label class="wl-field__label" for="m-pw">密码</label>
+      <input id="m-pw" class="wl-field__input" type="password" autocomplete="current-password">
+    </div>
+    <x-import component-from-global-scope="Lerryn.Button" variant="secondary" size="lg" is-block="{{yes}}">登录</x-import>
+  </div>
+
+  <span class="row caption muted" style="justify-content: center; gap: 6px; margin-top: auto;"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>只读</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'theme-dark' : '', yes: true };
+  }
+}
+</script>
+</body>
+</html>

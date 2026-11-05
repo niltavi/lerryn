@@ -1,0 +1,669 @@
+# Lerryn 公开 API 的根文件。各资源的路径和 schema 放在同名目录下，
+# 由 `make generate` 用 Redocly CLI 打包成 api/bundled/openapi.yaml。
+# 约定见 api/README.md。
+openapi: 3.1.0
+info:
+  title: Lerryn API
+  version: 0.9.0
+  summary: 由外部 Agent 操作的自动化沙箱。
+  description: |
+    Lerryn 的公开 HTTP API。MCP 工具、CLI 和前端客户端都由这份契约生成。
+
+    通用约定：
+
+    - 路径以 `/api/v1` 开头。v1 内只做增量变更。
+    - 鉴权：Agent 和 CLI 用访问令牌（`Authorization: Bearer wl_pat_...`），控制台用 cookie 会话。
+    - 错误一律以 `application/problem+json` 返回，结构见 `Problem`，按 `code` 和 `next_actions` 决定下一步。
+    - 每个响应都带 `X-Request-Id` 头，与错误体中的 `request_id` 相同，排查问题时提供它。
+    - 列表接口使用游标分页：`?limit=&cursor=`，响应带 `items` 和 `next_cursor`。
+    - 返回的资源带 `links.console`，指向控制台中的对应页面。
+  contact:
+    name: Lerryn
+    url: https://github.com/niltavi/lerryn
+  license:
+    name: AGPL-3.0-only
+    identifier: AGPL-3.0-only
+servers:
+  - url: http://localhost:33333
+    description: 默认的本地部署地址。实际地址为部署配置中的 server.public_url。
+security:
+  - accessToken: []
+  - sessionCookie: []
+tags:
+  - name: discover
+    description: 发现：服务端版本、能力、运行时、Skill 版本和当前身份。
+  - name: auth
+    description: 内置账号的注册、登录和登出，单点登录，移动端配对。
+  - name: me
+    description: 当前用户、他的访问令牌和移动设备。
+  - name: projects
+    description: 项目、成员和角色。
+  - name: tasks
+    description: 任务、版本、校验和激活。
+  - name: runs
+    description: 运行、事件、日志和产物。
+  - name: triggers
+    description: 定时和 webhook 触发器。
+  - name: overview
+    description: 控制台概览看板。
+  - name: credentials
+    description: 凭证、填写请求和授权。凭证明文只出现在 fillCredentialRequest 的请求体中，不出现在任何响应里。
+  - name: notifications
+    description: 通知渠道和订阅。
+  - name: admin
+    description: 平台管理：账号、设置、执行节点和审计。只有管理员能调用。
+  - name: skills
+    description: 随服务端发行的 Agent Skill。
+  - name: tools
+    description: 项目中登记的工具，供任务清单引用。
+paths:
+  /api/v1/discover:
+    $ref: ./discover/paths.yaml#/discover
+  /api/v1/auth/register:
+    $ref: ./auth/paths.yaml#/register
+  /api/v1/auth/login:
+    $ref: ./auth/paths.yaml#/login
+  /api/v1/auth/logout:
+    $ref: ./auth/paths.yaml#/logout
+  /api/v1/auth/oidc/start:
+    $ref: ./auth/paths.yaml#/oidcStart
+  /api/v1/auth/oidc/callback:
+    $ref: ./auth/paths.yaml#/oidcCallback
+  /api/v1/auth/pairing:
+    $ref: ./auth/paths.yaml#/pairing
+  /api/v1/auth/pairing/exchange:
+    $ref: ./auth/paths.yaml#/pairingExchange
+  /api/v1/me:
+    $ref: ./me/paths.yaml#/me
+  /api/v1/me/password:
+    $ref: ./me/paths.yaml#/password
+  /api/v1/me/devices:
+    $ref: ./me/paths.yaml#/devices
+  /api/v1/me/devices/{deviceId}:
+    $ref: ./me/paths.yaml#/device
+  /api/v1/me/tokens:
+    $ref: ./me/paths.yaml#/tokens
+  /api/v1/me/tokens/{tokenId}:
+    $ref: ./me/paths.yaml#/token
+  /api/v1/users:
+    $ref: ./projects/paths.yaml#/users
+  /api/v1/projects:
+    $ref: ./projects/paths.yaml#/projects
+  /api/v1/projects/{projectId}:
+    $ref: ./projects/paths.yaml#/project
+  /api/v1/projects/{projectId}/members:
+    $ref: ./projects/paths.yaml#/members
+  /api/v1/projects/{projectId}/members/{userId}:
+    $ref: ./projects/paths.yaml#/member
+  /api/v1/projects/{projectId}/tasks/{taskName}:
+    $ref: ./tasks/paths.yaml#/applyTask
+  /api/v1/projects/{projectId}/task-imports:
+    $ref: ./tasks/paths.yaml#/taskImports
+  /api/v1/tasks:
+    $ref: ./tasks/paths.yaml#/tasks
+  /api/v1/tasks/{taskId}:
+    $ref: ./tasks/paths.yaml#/task
+  /api/v1/tasks/{taskId}/activation:
+    $ref: ./tasks/paths.yaml#/activation
+  /api/v1/tasks/{taskId}/console:
+    $ref: ./tasks/paths.yaml#/console
+  /api/v1/tasks/{taskId}/versions:
+    $ref: ./tasks/paths.yaml#/versions
+  /api/v1/tasks/{taskId}/versions/{seq}:
+    $ref: ./tasks/paths.yaml#/version
+  /api/v1/tasks/{taskId}/versions/{seq}/file:
+    $ref: ./tasks/paths.yaml#/versionFile
+  /api/v1/tasks/{taskId}/versions/{seq}/diff:
+    $ref: ./tasks/paths.yaml#/versionDiff
+  /api/v1/tasks/{taskId}/versions/{seq}/validate:
+    $ref: ./tasks/paths.yaml#/versionValidate
+  /api/v1/tasks/{taskId}/credentials:
+    $ref: ./tasks/paths.yaml#/taskCredentials
+  /api/v1/tasks/{taskId}/export:
+    $ref: ./tasks/paths.yaml#/taskExport
+  /api/v1/tasks/{taskId}/triggers:
+    $ref: ./triggers/paths.yaml#/taskTriggers
+  /api/v1/tasks/{taskId}/runs:
+    $ref: ./runs/paths.yaml#/taskRuns
+  /api/v1/triggers/{triggerId}/rotate-token:
+    $ref: ./triggers/paths.yaml#/rotateToken
+  /api/v1/runs:
+    $ref: ./runs/paths.yaml#/runs
+  /api/v1/runs/{runId}:
+    $ref: ./runs/paths.yaml#/run
+  /api/v1/runs/{runId}/cancel:
+    $ref: ./runs/paths.yaml#/cancel
+  /api/v1/runs/{runId}/rerun:
+    $ref: ./runs/paths.yaml#/rerun
+  /api/v1/runs/{runId}/events:
+    $ref: ./runs/paths.yaml#/events
+  /api/v1/runs/{runId}/logs:
+    $ref: ./runs/paths.yaml#/logs
+  /api/v1/runs/{runId}/logs/stream:
+    $ref: ./runs/paths.yaml#/logStream
+  /api/v1/runs/{runId}/logs/download:
+    $ref: ./runs/paths.yaml#/logDownload
+  /api/v1/runs/{runId}/artifacts:
+    $ref: ./runs/paths.yaml#/artifacts
+  /api/v1/artifacts/{artifactId}/download:
+    $ref: ./runs/paths.yaml#/artifactDownload
+  /api/v1/events/stream:
+    $ref: ./runs/paths.yaml#/eventStream
+  /api/v1/overview:
+    $ref: ./overview/paths.yaml#/overview
+  /api/v1/overview/calendar:
+    $ref: ./overview/paths.yaml#/calendar
+  /api/v1/credential-requests:
+    $ref: ./credentials/paths.yaml#/credentialRequests
+  /api/v1/credential-requests/{requestId}:
+    $ref: ./credentials/paths.yaml#/credentialRequest
+  /api/v1/credential-requests/{requestId}/values:
+    $ref: ./credentials/paths.yaml#/credentialRequestValues
+  /api/v1/credentials:
+    $ref: ./credentials/paths.yaml#/credentials
+  /api/v1/credentials/{credentialId}:
+    $ref: ./credentials/paths.yaml#/credential
+  /api/v1/credentials/{credentialId}/grants/{taskId}:
+    $ref: ./credentials/paths.yaml#/grant
+  /api/v1/notification-channels:
+    $ref: ./notifications/paths.yaml#/channels
+  /api/v1/notification-channels/{channelId}:
+    $ref: ./notifications/paths.yaml#/channel
+  /api/v1/notification-channels/{channelId}/test:
+    $ref: ./notifications/paths.yaml#/channelTest
+  /api/v1/notification-channels/{channelId}/deliveries:
+    $ref: ./notifications/paths.yaml#/channelDeliveries
+  /api/v1/tools:
+    $ref: ./tools/paths.yaml#/tools
+  /api/v1/projects/{projectId}/tools:
+    $ref: ./tools/paths.yaml#/projectTools
+  /api/v1/tools/{toolId}:
+    $ref: ./tools/paths.yaml#/tool
+  /api/v1/skills:
+    $ref: ./skills/paths.yaml#/skills
+  /api/v1/skills/{name}:
+    $ref: ./skills/paths.yaml#/skill
+  /api/v1/admin/users:
+    $ref: ./admin/paths.yaml#/users
+  /api/v1/admin/users/{userId}:
+    $ref: ./admin/paths.yaml#/user
+  /api/v1/admin/users/{userId}/password:
+    $ref: ./admin/paths.yaml#/userPassword
+  /api/v1/admin/settings:
+    $ref: ./admin/paths.yaml#/settings
+  /api/v1/admin/audit-events:
+    $ref: ./admin/paths.yaml#/auditEvents
+  /api/v1/admin/runners:
+    $ref: ./runners/paths.yaml#/runners
+  /api/v1/admin/runners/{runnerId}:
+    $ref: ./runners/paths.yaml#/runner
+  /api/v1/admin/runner-tokens:
+    $ref: ./runners/paths.yaml#/runnerTokens
+  /hooks/{triggerId}:
+    $ref: ./triggers/paths.yaml#/hook
+webhooks:
+  notification:
+    post:
+      operationId: deliverNotification
+      tags: [notifications]
+      summary: 通知
+      description: |
+        通用 webhook 通知渠道收到的请求（技术设计第 14 节）。请求头：
+
+        - `X-Lerryn-Event`：事件类别，与载荷的 `type` 相同。
+        - `X-Lerryn-Delivery`：通知 ID，与载荷的 `id` 相同，重试时不变。
+        - `X-Lerryn-Signature`：`t=<Unix 秒>,v1=<十六进制签名>`，签名为 HMAC-SHA256(签名密钥, `<t>.<请求体>`)。
+          接收方应校验签名，并拒绝 `t` 与当前时间相差超过 5 分钟的请求。
+
+        接收方返回 2xx 视为送达；其他状态码或超过 10 秒未响应视为失败，按 1 分钟、5 分钟、30 分钟重试 3 次。
+        飞书和 Slack 渠道发送的是各自的消息格式，内容与这里相同，不带签名头。
+      x-operation-kind: mutate
+      x-mcp:
+        expose: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./notifications/schemas.yaml#/NotificationEvent
+      responses:
+        "200":
+          description: 已收到。2xx 都视为送达。
+        default:
+          $ref: ./common/responses.yaml#/Problem
+components:
+  headers:
+    SessionCookie:
+      $ref: ./common/headers.yaml#/SessionCookie
+  securitySchemes:
+    accessToken:
+      type: http
+      scheme: bearer
+      bearerFormat: wl_pat_<随机串>
+      description: |
+        访问令牌，供 Agent 和 CLI 使用。用户在控制台创建，只在创建时显示一次。
+        令牌代表创建它的用户，实际权限是用户权限与令牌范围（read、write、execute）的交集。
+        操作需要的范围由 `x-operation-kind` 决定：read 需要 read，mutate 需要 write，execute 需要 execute。
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: lerryn_session
+      description: |
+        Web 控制台和移动端的登录会话，HttpOnly、SameSite=Lax。写操作还会校验 `Origin`。
+        移动端的设备会话只有 read 范围。Agent 不使用会话。
+    triggerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: wl_hook_<随机串>
+      description: |
+        webhook 触发器的令牌，只能用于 `POST /hooks/{triggerId}`，每个触发器一个，可以单独轮换。
+        它不代表任何用户，不能调用其他接口。
+  parameters:
+    Limit:
+      $ref: ./common/parameters.yaml#/Limit
+    Cursor:
+      $ref: ./common/parameters.yaml#/Cursor
+    TaskID:
+      $ref: ./common/parameters.yaml#/TaskID
+    RunID:
+      $ref: ./common/parameters.yaml#/RunID
+    ProjectID:
+      $ref: ./common/parameters.yaml#/ProjectID
+    VersionSeq:
+      $ref: ./common/parameters.yaml#/VersionSeq
+    TriggerID:
+      $ref: ./common/parameters.yaml#/TriggerID
+    ArtifactID:
+      $ref: ./common/parameters.yaml#/ArtifactID
+    CredentialID:
+      $ref: ./common/parameters.yaml#/CredentialID
+    CredentialRequestID:
+      $ref: ./common/parameters.yaml#/CredentialRequestID
+    UserID:
+      $ref: ./common/parameters.yaml#/UserID
+    ChannelID:
+      $ref: ./common/parameters.yaml#/ChannelID
+    RunnerID:
+      $ref: ./common/parameters.yaml#/RunnerID
+    DeviceID:
+      $ref: ./common/parameters.yaml#/DeviceID
+    ProjectFilter:
+      $ref: ./common/parameters.yaml#/ProjectFilter
+    IfMatch:
+      $ref: ./common/parameters.yaml#/IfMatch
+    IdempotencyKey:
+      $ref: ./common/parameters.yaml#/IdempotencyKey
+    DryRun:
+      $ref: ./common/parameters.yaml#/DryRun
+    Since:
+      $ref: ./common/parameters.yaml#/Since
+    Until:
+      $ref: ./common/parameters.yaml#/Until
+  responses:
+    Problem:
+      $ref: ./common/responses.yaml#/Problem
+  schemas:
+    Problem:
+      $ref: ./common/schemas.yaml#/Problem
+    ErrorCode:
+      $ref: ./common/schemas.yaml#/ErrorCode
+    NextAction:
+      $ref: ./common/schemas.yaml#/NextAction
+    FieldError:
+      $ref: ./common/schemas.yaml#/FieldError
+    CursorPage:
+      $ref: ./common/schemas.yaml#/CursorPage
+    Links:
+      $ref: ./common/schemas.yaml#/Links
+    TokenScope:
+      $ref: ./common/schemas.yaml#/TokenScope
+    NetworkPolicy:
+      $ref: ./common/schemas.yaml#/NetworkPolicy
+    TaskRef:
+      $ref: ./common/schemas.yaml#/TaskRef
+    ProjectRef:
+      $ref: ./common/schemas.yaml#/ProjectRef
+    UserRef:
+      $ref: ./common/schemas.yaml#/UserRef
+    ProjectRole:
+      $ref: ./common/schemas.yaml#/ProjectRole
+    Discovery:
+      $ref: ./discover/schemas.yaml#/Discovery
+    ServerInfo:
+      $ref: ./discover/schemas.yaml#/ServerInfo
+    ApiInfo:
+      $ref: ./discover/schemas.yaml#/ApiInfo
+    Capabilities:
+      $ref: ./discover/schemas.yaml#/Capabilities
+    LoginMethod:
+      $ref: ./discover/schemas.yaml#/LoginMethod
+    RuntimeInfo:
+      $ref: ./discover/schemas.yaml#/RuntimeInfo
+    SkillCatalog:
+      $ref: ./discover/schemas.yaml#/SkillCatalog
+    SkillSummary:
+      $ref: ./discover/schemas.yaml#/SkillSummary
+    ToolKind:
+      $ref: ./tools/schemas.yaml#/ToolKind
+    Tool:
+      $ref: ./tools/schemas.yaml#/Tool
+    ToolList:
+      $ref: ./tools/schemas.yaml#/ToolList
+    RegisterToolRequest:
+      $ref: ./tools/schemas.yaml#/RegisterToolRequest
+    SkillList:
+      $ref: ./skills/schemas.yaml#/SkillList
+    SkillInfo:
+      $ref: ./skills/schemas.yaml#/SkillInfo
+    Skill:
+      $ref: ./skills/schemas.yaml#/Skill
+    SkillFile:
+      $ref: ./skills/schemas.yaml#/SkillFile
+    Principal:
+      $ref: ./discover/schemas.yaml#/Principal
+    AuthMethod:
+      $ref: ./discover/schemas.yaml#/AuthMethod
+    RegisterRequest:
+      $ref: ./auth/schemas.yaml#/RegisterRequest
+    LoginRequest:
+      $ref: ./auth/schemas.yaml#/LoginRequest
+    DeviceInfo:
+      $ref: ./auth/schemas.yaml#/DeviceInfo
+    PairingCode:
+      $ref: ./auth/schemas.yaml#/PairingCode
+    ExchangePairingRequest:
+      $ref: ./auth/schemas.yaml#/ExchangePairingRequest
+    Username:
+      $ref: ./auth/schemas.yaml#/Username
+    Password:
+      $ref: ./auth/schemas.yaml#/Password
+    Me:
+      $ref: ./auth/schemas.yaml#/Me
+    IdentityInfo:
+      $ref: ./auth/schemas.yaml#/IdentityInfo
+    AccessToken:
+      $ref: ./me/schemas.yaml#/AccessToken
+    AccessTokenPage:
+      $ref: ./me/schemas.yaml#/AccessTokenPage
+    CreateTokenRequest:
+      $ref: ./me/schemas.yaml#/CreateTokenRequest
+    CreatedToken:
+      $ref: ./me/schemas.yaml#/CreatedToken
+    UpdateMeRequest:
+      $ref: ./me/schemas.yaml#/UpdateMeRequest
+    ChangePasswordRequest:
+      $ref: ./me/schemas.yaml#/ChangePasswordRequest
+    Device:
+      $ref: ./me/schemas.yaml#/Device
+    DeviceList:
+      $ref: ./me/schemas.yaml#/DeviceList
+    Project:
+      $ref: ./projects/schemas.yaml#/Project
+    ProjectPage:
+      $ref: ./projects/schemas.yaml#/ProjectPage
+    ProjectName:
+      $ref: ./projects/schemas.yaml#/ProjectName
+    CreateProjectRequest:
+      $ref: ./projects/schemas.yaml#/CreateProjectRequest
+    UpdateProjectRequest:
+      $ref: ./projects/schemas.yaml#/UpdateProjectRequest
+    Member:
+      $ref: ./projects/schemas.yaml#/Member
+    MemberPage:
+      $ref: ./projects/schemas.yaml#/MemberPage
+    SetMemberRequest:
+      $ref: ./projects/schemas.yaml#/SetMemberRequest
+    UserRefPage:
+      $ref: ./projects/schemas.yaml#/UserRefPage
+    TaskName:
+      $ref: ./tasks/schemas.yaml#/TaskName
+    Manifest:
+      $ref: ./tasks/schemas.yaml#/Manifest
+    RuntimeSpec:
+      $ref: ./tasks/schemas.yaml#/RuntimeSpec
+    StageSpec:
+      $ref: ./tasks/schemas.yaml#/StageSpec
+    Limits:
+      $ref: ./tasks/schemas.yaml#/Limits
+    ManifestCredential:
+      $ref: ./tasks/schemas.yaml#/ManifestCredential
+    RetryPolicy:
+      $ref: ./tasks/schemas.yaml#/RetryPolicy
+    PanelSpec:
+      $ref: ./tasks/schemas.yaml#/PanelSpec
+    PanelColumn:
+      $ref: ./tasks/schemas.yaml#/PanelColumn
+    TaskFileInput:
+      $ref: ./tasks/schemas.yaml#/TaskFileInput
+    TaskFile:
+      $ref: ./tasks/schemas.yaml#/TaskFile
+    ApplyTaskRequest:
+      $ref: ./tasks/schemas.yaml#/ApplyTaskRequest
+    ApplyTaskResult:
+      $ref: ./tasks/schemas.yaml#/ApplyTaskResult
+    TaskVersion:
+      $ref: ./tasks/schemas.yaml#/TaskVersion
+    TaskState:
+      $ref: ./tasks/schemas.yaml#/TaskState
+    Task:
+      $ref: ./tasks/schemas.yaml#/Task
+    TaskSummary:
+      $ref: ./tasks/schemas.yaml#/TaskSummary
+    TaskSummaryPage:
+      $ref: ./tasks/schemas.yaml#/TaskSummaryPage
+    TaskVersionSummary:
+      $ref: ./tasks/schemas.yaml#/TaskVersionSummary
+    TaskVersionPage:
+      $ref: ./tasks/schemas.yaml#/TaskVersionPage
+    TaskFileContent:
+      $ref: ./tasks/schemas.yaml#/TaskFileContent
+    TaskDiff:
+      $ref: ./tasks/schemas.yaml#/TaskDiff
+    FileDiff:
+      $ref: ./tasks/schemas.yaml#/FileDiff
+    ValidationIssue:
+      $ref: ./tasks/schemas.yaml#/ValidationIssue
+    ValidationReport:
+      $ref: ./tasks/schemas.yaml#/ValidationReport
+    SetTaskActivationRequest:
+      $ref: ./tasks/schemas.yaml#/SetTaskActivationRequest
+    TaskConsole:
+      $ref: ./tasks/schemas.yaml#/TaskConsole
+    SetTaskConsoleRequest:
+      $ref: ./tasks/schemas.yaml#/SetTaskConsoleRequest
+    TaskCredential:
+      $ref: ./tasks/schemas.yaml#/TaskCredential
+    TaskCredentialList:
+      $ref: ./tasks/schemas.yaml#/TaskCredentialList
+    TaskBundle:
+      $ref: ./tasks/schemas.yaml#/TaskBundle
+    TaskBundleVersion:
+      $ref: ./tasks/schemas.yaml#/TaskBundleVersion
+    ImportTaskRequest:
+      $ref: ./tasks/schemas.yaml#/ImportTaskRequest
+    ImportedVersion:
+      $ref: ./tasks/schemas.yaml#/ImportedVersion
+    ImportedTask:
+      $ref: ./tasks/schemas.yaml#/ImportedTask
+    ImportTaskResult:
+      $ref: ./tasks/schemas.yaml#/ImportTaskResult
+    RunStatus:
+      $ref: ./runs/schemas.yaml#/RunStatus
+    StartRunRequest:
+      $ref: ./runs/schemas.yaml#/StartRunRequest
+    RerunRequest:
+      $ref: ./runs/schemas.yaml#/RerunRequest
+    RunError:
+      $ref: ./runs/schemas.yaml#/RunError
+    RunStage:
+      $ref: ./runs/schemas.yaml#/RunStage
+    RunResult:
+      $ref: ./runs/schemas.yaml#/RunResult
+    RunResultStatus:
+      $ref: ./runs/schemas.yaml#/RunResultStatus
+    TriggerKind:
+      $ref: ./runs/schemas.yaml#/TriggerKind
+    RunTrigger:
+      $ref: ./runs/schemas.yaml#/RunTrigger
+    SkipReason:
+      $ref: ./runs/schemas.yaml#/SkipReason
+    Canceller:
+      $ref: ./runs/schemas.yaml#/Canceller
+    Run:
+      $ref: ./runs/schemas.yaml#/Run
+    RunnerRef:
+      $ref: ./runs/schemas.yaml#/RunnerRef
+    RunBrief:
+      $ref: ./runs/schemas.yaml#/RunBrief
+    RunSummary:
+      $ref: ./runs/schemas.yaml#/RunSummary
+    RunPage:
+      $ref: ./runs/schemas.yaml#/RunPage
+    RunEventKind:
+      $ref: ./runs/schemas.yaml#/RunEventKind
+    RunEvent:
+      $ref: ./runs/schemas.yaml#/RunEvent
+    ToolCallRecord:
+      $ref: ./runs/schemas.yaml#/ToolCallRecord
+    RunEventPage:
+      $ref: ./runs/schemas.yaml#/RunEventPage
+    LogLine:
+      $ref: ./runs/schemas.yaml#/LogLine
+    LogPage:
+      $ref: ./runs/schemas.yaml#/LogPage
+    LogStreamEnd:
+      $ref: ./runs/schemas.yaml#/LogStreamEnd
+    RunUpdate:
+      $ref: ./runs/schemas.yaml#/RunUpdate
+    Artifact:
+      $ref: ./runs/schemas.yaml#/Artifact
+    ArtifactLinks:
+      $ref: ./runs/schemas.yaml#/ArtifactLinks
+    ArtifactPage:
+      $ref: ./runs/schemas.yaml#/ArtifactPage
+    TriggerType:
+      $ref: ./triggers/schemas.yaml#/TriggerType
+    CatchUp:
+      $ref: ./triggers/schemas.yaml#/CatchUp
+    TriggerInput:
+      $ref: ./triggers/schemas.yaml#/TriggerInput
+    SetTriggersRequest:
+      $ref: ./triggers/schemas.yaml#/SetTriggersRequest
+    CronDetail:
+      $ref: ./triggers/schemas.yaml#/CronDetail
+    WebhookDetail:
+      $ref: ./triggers/schemas.yaml#/WebhookDetail
+    Trigger:
+      $ref: ./triggers/schemas.yaml#/Trigger
+    TriggerSet:
+      $ref: ./triggers/schemas.yaml#/TriggerSet
+    WebhookAccepted:
+      $ref: ./triggers/schemas.yaml#/WebhookAccepted
+    Overview:
+      $ref: ./overview/schemas.yaml#/Overview
+    OverviewCounts:
+      $ref: ./overview/schemas.yaml#/OverviewCounts
+    AttentionKind:
+      $ref: ./overview/schemas.yaml#/AttentionKind
+    AttentionItem:
+      $ref: ./overview/schemas.yaml#/AttentionItem
+    ActiveRun:
+      $ref: ./overview/schemas.yaml#/ActiveRun
+    UpcomingFire:
+      $ref: ./overview/schemas.yaml#/UpcomingFire
+    CalendarItem:
+      $ref: ./overview/schemas.yaml#/CalendarItem
+    Calendar:
+      $ref: ./overview/schemas.yaml#/Calendar
+    CredentialFieldName:
+      $ref: ./credentials/schemas.yaml#/CredentialFieldName
+    CredentialFieldSpec:
+      $ref: ./credentials/schemas.yaml#/CredentialFieldSpec
+    CreateCredentialRequestBody:
+      $ref: ./credentials/schemas.yaml#/CreateCredentialRequestBody
+    FillCredentialRequestBody:
+      $ref: ./credentials/schemas.yaml#/FillCredentialRequestBody
+    CredentialRequestStatus:
+      $ref: ./credentials/schemas.yaml#/CredentialRequestStatus
+    CredentialRequest:
+      $ref: ./credentials/schemas.yaml#/CredentialRequest
+    CredentialRequestPage:
+      $ref: ./credentials/schemas.yaml#/CredentialRequestPage
+    CredentialStatus:
+      $ref: ./credentials/schemas.yaml#/CredentialStatus
+    CredentialRef:
+      $ref: ./credentials/schemas.yaml#/CredentialRef
+    CredentialGrant:
+      $ref: ./credentials/schemas.yaml#/CredentialGrant
+    Credential:
+      $ref: ./credentials/schemas.yaml#/Credential
+    CredentialPage:
+      $ref: ./credentials/schemas.yaml#/CredentialPage
+    GrantCredentialRequest:
+      $ref: ./credentials/schemas.yaml#/GrantCredentialRequest
+    NotificationChannelKind:
+      $ref: ./notifications/schemas.yaml#/NotificationChannelKind
+    NotificationEventType:
+      $ref: ./notifications/schemas.yaml#/NotificationEventType
+    NotificationSubscriptionInput:
+      $ref: ./notifications/schemas.yaml#/NotificationSubscriptionInput
+    NotificationSubscription:
+      $ref: ./notifications/schemas.yaml#/NotificationSubscription
+    NotificationDeliveryStatus:
+      $ref: ./notifications/schemas.yaml#/NotificationDeliveryStatus
+    NotificationDelivery:
+      $ref: ./notifications/schemas.yaml#/NotificationDelivery
+    NotificationDeliveryPage:
+      $ref: ./notifications/schemas.yaml#/NotificationDeliveryPage
+    NotificationChannel:
+      $ref: ./notifications/schemas.yaml#/NotificationChannel
+    NotificationChannelList:
+      $ref: ./notifications/schemas.yaml#/NotificationChannelList
+    CreatedNotificationChannel:
+      $ref: ./notifications/schemas.yaml#/CreatedNotificationChannel
+    CreateNotificationChannelRequest:
+      $ref: ./notifications/schemas.yaml#/CreateNotificationChannelRequest
+    UpdateNotificationChannelRequest:
+      $ref: ./notifications/schemas.yaml#/UpdateNotificationChannelRequest
+    NotificationEventKind:
+      $ref: ./notifications/schemas.yaml#/NotificationEventKind
+    NotificationRun:
+      $ref: ./notifications/schemas.yaml#/NotificationRun
+    NotificationCredential:
+      $ref: ./notifications/schemas.yaml#/NotificationCredential
+    NotificationEvent:
+      $ref: ./notifications/schemas.yaml#/NotificationEvent
+    RunnerStatus:
+      $ref: ./runners/schemas.yaml#/RunnerStatus
+    Runner:
+      $ref: ./runners/schemas.yaml#/Runner
+    RunnerPage:
+      $ref: ./runners/schemas.yaml#/RunnerPage
+    UpdateRunnerRequest:
+      $ref: ./runners/schemas.yaml#/UpdateRunnerRequest
+    CreateRunnerTokenRequest:
+      $ref: ./runners/schemas.yaml#/CreateRunnerTokenRequest
+    RunnerToken:
+      $ref: ./runners/schemas.yaml#/RunnerToken
+    AdminUser:
+      $ref: ./admin/schemas.yaml#/AdminUser
+    AdminUserPage:
+      $ref: ./admin/schemas.yaml#/AdminUserPage
+    AdminCreateUserRequest:
+      $ref: ./admin/schemas.yaml#/AdminCreateUserRequest
+    AdminUpdateUserRequest:
+      $ref: ./admin/schemas.yaml#/AdminUpdateUserRequest
+    AdminResetPasswordRequest:
+      $ref: ./admin/schemas.yaml#/AdminResetPasswordRequest
+    OidcInfo:
+      $ref: ./admin/schemas.yaml#/OidcInfo
+    Settings:
+      $ref: ./admin/schemas.yaml#/Settings
+    UpdateSettingsRequest:
+      $ref: ./admin/schemas.yaml#/UpdateSettingsRequest
+    AuditActor:
+      $ref: ./admin/schemas.yaml#/AuditActor
+    AuditEvent:
+      $ref: ./admin/schemas.yaml#/AuditEvent
+    AuditEventPage:
+      $ref: ./admin/schemas.yaml#/AuditEventPage

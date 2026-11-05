@@ -1,0 +1,192 @@
+# projects 资源的路径（技术设计第 12.2 节）。在根文件 paths 中按路径登记。
+projects:
+  get:
+    operationId: listProjects
+    tags: [projects]
+    summary: 列出项目
+    description: 列出调用者所在的项目，个人项目在前，其余按名称排序。每项带调用者的角色。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页项目。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/ProjectPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  post:
+    operationId: createProject
+    tags: [projects]
+    summary: 建立项目
+    description: 建立一个共享项目，调用者成为它的所有者。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/CreateProjectRequest"
+    responses:
+      "201":
+        description: 已建立。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Project"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+project:
+  get:
+    operationId: getProject
+    tags: [projects]
+    summary: 读取项目
+    description: 返回一个项目。不是成员时返回 `not_found`。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+    responses:
+      "200":
+        description: 项目。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Project"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  patch:
+    operationId: updateProject
+    tags: [projects]
+    summary: 修改项目
+    description: 修改项目名称。只有所有者可以修改。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/UpdateProjectRequest"
+    responses:
+      "200":
+        description: 修改后的项目。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Project"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+members:
+  get:
+    operationId: listMembers
+    tags: [projects]
+    summary: 列出成员
+    description: 列出项目的成员和角色。项目的任何成员都可以查看。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页成员。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/MemberPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+member:
+  put:
+    operationId: setMember
+    tags: [projects]
+    summary: 设置成员角色
+    description: |
+      把用户加入项目，或修改他的角色。只有所有者可以操作。不能降级最后一个所有者（409 `last_owner`）。
+      个人项目不能加入其他成员。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+      - $ref: "../common/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/SetMemberRequest"
+    responses:
+      "200":
+        description: 成员。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Member"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  delete:
+    operationId: removeMember
+    tags: [projects]
+    summary: 移除成员
+    description: |
+      把用户移出项目。所有者可以移除任何成员，成员也可以移除自己。不能移除最后一个所有者（409 `last_owner`）。
+      被移除的用户为这个项目的任务授权的凭证仍归他本人所有，授权保留，可以由他本人取消。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+      - $ref: "../common/parameters.yaml#/UserID"
+    responses:
+      "204":
+        description: 已移除。
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+users:
+  get:
+    operationId: searchUsers
+    tags: [projects]
+    summary: 查找用户
+    description: 按用户名或显示名的开头查找未停用的用户，用于添加项目成员。只返回用户名和显示名。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - name: q
+        in: query
+        required: true
+        description: 用户名或显示名的开头，不区分大小写。
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页用户。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/UserRefPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

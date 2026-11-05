@@ -1,0 +1,268 @@
+# 各资源共用的 schema。在根文件 components.schemas 中逐个登记。
+
+# 扩展字段逐个声明，不写 additionalProperties: true。oapi-codegen 为后者生成的
+# AdditionalProperties 在部分响应类型上会被静默丢弃（见 docs/spikes/s2-openapi-codegen.md）。
+Problem:
+  type: object
+  description: |
+    错误详情，遵循 RFC 9457（problem details），所有错误响应都以 `application/problem+json` 返回。
+    在标准字段之外扩展了 `code`、`next_actions`、`request_id`，校验失败时另带 `errors`。
+    Agent 按 `code` 判断错误类别，按 `next_actions` 决定下一步，不解析 `title` 和 `detail` 的文字。
+  required: [type, title, status, code, request_id]
+  properties:
+    type:
+      type: string
+      format: uri-reference
+      description: 错误类型 URI，固定为 `urn:lerryn:error:<code>`。
+      examples: ["urn:lerryn:error:credential_missing"]
+    title:
+      type: string
+      description: 错误类别的简短说明。同一个 code 的 title 不变。
+      examples: [缺少凭证]
+    status:
+      type: integer
+      minimum: 400
+      maximum: 599
+      description: HTTP 状态码，与响应状态一致。
+    detail:
+      type: string
+      description: 本次错误的具体说明，面向人和 Agent 阅读，不用于程序判断。
+      examples: [任务引用的凭证 LLM_API_KEY 尚未填写]
+    instance:
+      type: string
+      format: uri-reference
+      description: 出错的请求路径。
+    code:
+      $ref: "#/ErrorCode"
+    next_actions:
+      type: array
+      description: 建议的下一步，按优先级排列。没有建议时省略。
+      items:
+        $ref: "#/NextAction"
+    request_id:
+      type: string
+      description: 本次请求的 ID，与响应头 `X-Request-Id` 相同。
+      examples: [req_7FZ2CQ4M3XKJ6N5W2Y4T3A6B]
+    errors:
+      type: array
+      description: 字段级错误，仅在 `code` 为 `validation_failed` 时出现。
+      items:
+        $ref: "#/FieldError"
+    current_version:
+      type: integer
+      description: 资源当前的版本号，仅在 `code` 为 `version_conflict` 时出现。读取这个版本和差异后再重新提交。
+
+# 错误码用 oneOf + const 声明，以便每个值带上含义和下一步，供 Skill 参考资料生成。
+# title 是生成 Go 常量时使用的名字（ErrorCode + title）。新增错误码只能追加。
+ErrorCode:
+  type: string
+  description: |
+    稳定的错误类别。HTTP 错误的 `Problem.code` 和运行失败的错误类别共用这一组值。
+  oneOf:
+    - title: ValidationFailed
+      const: validation_failed
+      description: 清单或参数校验失败。下一步：按 `errors` 字段修正后重新提交。
+    - title: VersionConflict
+      const: version_conflict
+      description: 任务已被其他会话修改。下一步：读取最新版本和差异后重新提交，不要覆盖其他会话的修改。
+    - title: IdempotencyConflict
+      const: idempotency_conflict
+      description: 同一幂等键对应了不同的请求。下一步：换新的幂等键，或按原请求重试。
+    - title: CredentialMissing
+      const: credential_missing
+      description: 引用的凭证不存在或尚未填写。下一步：创建凭证填写请求，把链接交给用户。
+    - title: CredentialUnavailable
+      const: credential_unavailable
+      description: 凭证已撤销、过期，或未授权给该任务。下一步：请凭证所有者更新或授权。
+    - title: DependencyInstallFailed
+      const: dependency_install_failed
+      description: 依赖安装失败。下一步：查看准备阶段的日志，修正锁文件。
+    - title: RunnerUnavailable
+      const: runner_unavailable
+      description: 没有满足标签要求的在线 runner。下一步：联系管理员，或调整 runner_labels。
+    - title: QueueFull
+      const: queue_full
+      description: 队列已满。下一步：稍后重试。
+    - title: ScriptError
+      const: script_error
+      description: 脚本以非 0 状态退出。下一步：查看日志和失败的阶段。
+    - title: Timeout
+      const: timeout
+      description: 超过执行时限。下一步：优化脚本，或调整 limits.timeout。
+    - title: RegistrationDisabled
+      const: registration_disabled
+      description: 管理员已关闭开放注册。下一步：联系管理员创建账号，或使用单点登录。
+    - title: InsufficientScope
+      const: insufficient_scope
+      description: 访问令牌的范围不足。下一步：换用范围足够的令牌。
+    - title: NotFound
+      const: not_found
+      description: 资源不存在或无权访问。下一步：确认 ID 和权限。
+    - title: Unauthenticated
+      const: unauthenticated
+      description: 缺少有效的访问令牌或会话。下一步：在 Authorization 头中提供有效的访问令牌。
+    - title: UsernameTaken
+      const: username_taken
+      description: 用户名已被占用，不区分大小写。下一步：换一个用户名。
+    - title: RateLimited
+      const: rate_limited
+      description: 短时间内请求过多，例如连续登录失败。下一步：等待一分钟后再试。
+    - title: RunInProgress
+      const: run_in_progress
+      description: 任务的清单为 concurrency forbid，上一个运行还没有结束。下一步：用 run_get 等它结束，或用 run_cancel 取消后再发起。
+    - title: OutOfMemory
+      const: out_of_memory
+      description: 任务进程超出内存上限被杀死。只出现在运行的错误类别中。下一步：降低内存占用，或调大 limits.memory。
+    - title: RunInterrupted
+      const: run_interrupted
+      description: 运行进行中时 runner 重启或失联，运行被中断，容器已停止。只出现在运行的错误类别中。下一步：查看已保留的日志，确认脚本可以重复执行后重新发起运行。
+    - title: OriginNotAllowed
+      const: origin_not_allowed
+      description: 用会话发起的写操作缺少 Origin 头，或 Origin 与部署地址不一致。下一步：从控制台页面发起请求；Agent 和脚本请改用访问令牌。
+    - title: InternalError
+      const: internal_error
+      description: 服务端内部错误。下一步：稍后重试；持续出现时把 request_id 交给管理员。
+    - title: PermissionDenied
+      const: permission_denied
+      description: 能查看资源，但当前用户在项目中的角色不允许这个操作，或操作只对管理员开放。下一步：请项目所有者调整角色，或请管理员处理。
+    - title: PreconditionRequired
+      const: precondition_required
+      description: 修改已有资源时缺少 If-Match。下一步：读取资源，把读到的版本号放进 If-Match（MCP 参数 if_match）后重新提交。
+    - title: VersionNotTested
+      const: version_not_tested
+      description: 部署要求激活前必须测试，而这个版本还没有成功的测试运行。下一步：用 run_start 带 test 为 true 测试这个版本，检查结果后再激活。
+    - title: TaskArchived
+      const: task_archived
+      description: 任务已归档，不能再运行或修改。下一步：用同一个任务名重新提交，会建立一个新任务。
+    - title: PasswordLoginDisabled
+      const: password_login_disabled
+      description: 管理员已关闭普通用户的本地密码登录。下一步：使用单点登录。
+    - title: LastOwner
+      const: last_owner
+      description: 项目至少要有一个所有者，不能移除或降级最后一个所有者。下一步：先把其他成员设为所有者。
+    - title: RequestClosed
+      const: request_closed
+      description: 凭证填写请求已经填写过、过期或被取消，不能再提交。下一步：用 getCredentialRequest 查看状态；还需要填写时重新发起请求。
+    - title: Expired
+      const: expired
+      description: 日志或产物已按部署的保留策略清理，内容不再可读；运行记录仍在。下一步：需要这些内容时重新运行任务，不要反复读取。
+    - title: ManualRunDisabled
+      const: manual_run_disabled
+      description: 任务关闭了控制台的手动执行，从控制台会话发起的运行被拒绝。访问令牌发起的运行不受影响。下一步：需要从控制台运行时，请 Agent 用 setTaskConsole 打开手动执行。
+
+NextAction:
+  type: object
+  description: 一条建议的下一步操作。
+  required: [action, hint]
+  properties:
+    action:
+      type: string
+      description: 建议调用的操作，取 MCP 工具名（例如 `credential_request`）或 operationId。
+      examples: [credential_request]
+    hint:
+      type: string
+      description: 面向 Agent 的说明。
+      examples: [为该任务创建凭证填写请求，并把链接交给用户]
+
+FieldError:
+  type: object
+  description: |
+    一处字段级错误，格式参照 RFC 9457 的示例。通常带 `pointer`、`parameter`、`header` 之一，
+    指明出错的位置；三者至多出现一个。
+  required: [detail]
+  properties:
+    detail:
+      type: string
+      description: 错误说明。
+    pointer:
+      type: string
+      description: 请求体中的位置，JSON Pointer，以 `#` 开头。
+      examples: ["#/triggers/0/timezone"]
+    parameter:
+      type: string
+      description: 出错的查询参数或路径参数名。
+      examples: [limit]
+    header:
+      type: string
+      description: 出错的请求头名。
+      examples: [If-Match]
+
+CursorPage:
+  type: object
+  description: |
+    游标分页的公共字段。列表响应用 `allOf` 把本结构和 `items` 组合起来，写法见 api/README.md。
+  required: [next_cursor]
+  properties:
+    next_cursor:
+      type: [string, "null"]
+      description: 下一页的游标，原样传给下一次请求的 `cursor` 参数。为 null 表示没有更多数据。游标不透明，不要解析或拼接。
+
+Links:
+  type: object
+  description: 与资源相关的链接。
+  required: [console]
+  properties:
+    console:
+      type: string
+      format: uri
+      description: 控制台中对应页面的完整地址，可以直接交给用户打开。
+      examples: [https://lerryn.example.com/]
+
+TokenScope:
+  type: string
+  description: |
+    访问令牌的范围，与 `x-operation-kind` 一一对应：read 操作需要 read，mutate 操作需要 write，
+    execute 操作需要 execute。
+  enum: [read, write, execute]
+
+NetworkPolicy:
+  type: string
+  description: 任务容器的网络策略。none 为无网络；full 可以访问外部网络。
+  enum: [none, full]
+
+TaskRef:
+  type: object
+  description: 对任务的简短引用，用于列表和关联字段。
+  required: [id, name, project_id]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      description: 任务名。
+    project_id:
+      type: string
+      format: uuid
+
+ProjectRef:
+  type: object
+  description: 对项目的简短引用。
+  required: [id, name]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+
+UserRef:
+  type: object
+  description: 对用户的简短引用。只包含成员之间本来就能看到的信息。
+  required: [id, username, display_name]
+  properties:
+    id:
+      type: string
+      format: uuid
+    username:
+      type: string
+    display_name:
+      type: [string, "null"]
+      description: 显示名，未设置时为 null，客户端改用 username。
+
+ProjectRole:
+  type: string
+  description: |
+    项目角色（技术设计第 12.2 节）。viewer 查看任务、运行、日志和产物；maintainer 另外可以运行控制、
+    修改任务和触发器；owner 另外可以管理成员和项目设置。
+  enum: [viewer, maintainer, owner]

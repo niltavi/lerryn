@@ -1,0 +1,176 @@
+# me 资源的路径：当前用户和他的访问令牌。在根文件 paths 中按路径登记。
+# 这些操作面向控制台，不作为 MCP 工具暴露；Agent 用 discover 确认自己的身份。
+me:
+  get:
+    operationId: getMe
+    tags: [me]
+    summary: 读取当前用户
+    description: 返回当前调用者对应的用户。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    responses:
+      "200":
+        description: 当前用户。
+        content:
+          application/json:
+            schema:
+              $ref: "../auth/schemas.yaml#/Me"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  patch:
+    operationId: updateMe
+    tags: [me]
+    summary: 修改个人信息
+    description: 修改当前用户的显示名、邮箱、界面语言和时区。只修改给出的字段；空字符串表示清除。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/UpdateMeRequest"
+    responses:
+      "200":
+        description: 修改后的用户。
+        content:
+          application/json:
+            schema:
+              $ref: "../auth/schemas.yaml#/Me"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+password:
+  post:
+    operationId: changePassword
+    tags: [me]
+    summary: 修改密码
+    description: |
+      修改内置账号的密码，需要提供当前密码。成功后当前用户的其他会话和设备会话全部失效，访问令牌不受影响。
+      当前密码错误返回 401 `unauthenticated`，连续失败按登录同样的规则限速。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/ChangePasswordRequest"
+    responses:
+      "204":
+        description: 已修改。
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+devices:
+  get:
+    operationId: listDevices
+    tags: [me]
+    summary: 列出移动设备
+    description: 列出当前用户已登录的移动设备（只读的设备会话），最近使用的在前。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    responses:
+      "200":
+        description: 设备。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/DeviceList"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+device:
+  delete:
+    operationId: revokeDevice
+    tags: [me]
+    summary: 移除移动设备
+    description: 结束一个设备会话，该设备需要重新配对或登录。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/DeviceID"
+    responses:
+      "204":
+        description: 已移除。
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+tokens:
+  get:
+    operationId: listTokens
+    tags: [me]
+    summary: 列出访问令牌
+    description: 列出当前用户的访问令牌，按创建时间从新到旧排列，包括已撤销和已过期的。不返回令牌本身。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页访问令牌。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AccessTokenPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  post:
+    operationId: createToken
+    tags: [me]
+    summary: 创建访问令牌
+    description: |
+      为当前用户创建访问令牌，供 Agent 和 CLI 使用。令牌只在本次响应中出现一次，平台只保存它的哈希。
+      只能在登录会话中创建，不能用访问令牌创建新的访问令牌。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/CreateTokenRequest"
+    responses:
+      "201":
+        description: 已创建。`token` 只出现这一次。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/CreatedToken"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+token:
+  delete:
+    operationId: revokeToken
+    tags: [me]
+    summary: 撤销访问令牌
+    description: 立即撤销当前用户的一个访问令牌。撤销后再用它调用任何接口都返回 `unauthenticated`。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - name: tokenId
+        in: path
+        required: true
+        description: 访问令牌的 ID。
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "204":
+        description: 已撤销。
+      default:
+        $ref: "../common/responses.yaml#/Problem"

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>运行 · 执行完成</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app {{theme}}">
+<div class="app">
+
+<nav class="rail" aria-label="主导航">
+  <a class="rail-logo" href="Main.dc.html" aria-label="Lerryn"><img src="/_blob/46d7ba75db40f7da30f9bb6f6115b8fb" alt="" width="32" height="12"></a>
+  <a class="ri on" href="Main.dc.html" aria-label="概览" data-tip="概览"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></a>
+  <a class="ri" href="Runs.dc.html" aria-label="运行" data-tip="运行"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></a>
+  <a class="ri" href="Settings-Credentials.dc.html" aria-label="凭证，1 个待填写" data-tip="凭证"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg><span class="pip"></span></a>
+  <a class="ri" href="Admin-Users.dc.html" aria-label="管理" data-tip="管理"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></a>
+  <div class="rail-foot">
+    <a class="ri" href="Settings-Tokens.dc.html" aria-label="个人设置" data-tip="张林 · 个人设置"><span class="avatar">张</span></a>
+  </div>
+</nav>
+
+<main class="board">
+  <div class="board-top">
+    <nav class="eyebrow" aria-label="位置"><a href="Task.dc.html" class="row" style="gap: 2px;"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>weekday-digest</a><span class="mono-sm">run_01JDA5F3</span></nav>
+    <div class="tools">
+      <span data-tip="复制运行 ID" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="复制运行 ID"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></x-import></span>
+      <span data-tip="复制链接" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="复制链接"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg></x-import></span>
+    </div>
+  </div>
+
+  <div class="verdict verdict--ok">
+    <div class="verdict-main">
+      <span class="g g--ok g--lg" aria-hidden="true"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s22}}"></x-import></span>
+      <h1 class="verdict-word">执行完成</h1>
+    </div>
+    <span class="verdict-time">1m 07s</span>
+    <span class="muted">今天 08:21</span>
+  </div>
+
+  <div class="chips" aria-label="运行信息">
+    <a class="chip" href="Run-Failed.dc.html" style="color: var(--ink);"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>重跑自<span class="g g--bad" style="width: 18px; height: 18px;" role="img" aria-label="执行失败"><x-import component-from-global-scope="Lerryn.Icon" name="x" size="{{s11}}"></x-import></span><span class="mono-sm muted">v7</span></a>
+    <div class="disc">
+      <button class="chip" type="button" aria-haspopup="true"><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import>Agent 发起</button>
+      <div class="pop" role="dialog" aria-label="时间线">
+        <ol class="events">
+          <li class="event"><span class="event-t">08:21:04</span><span class="event-dot"></span><span>Claude Code · 张林的笔记本</span></li>
+          <li class="event"><span class="event-t">08:21:05</span><span class="event-dot"></span><span>准备 · runner-01</span></li>
+          <li class="event event--run"><span class="event-t">08:21:07</span><span class="event-dot"></span><span>运行</span></li>
+          <li class="event event--ok"><span class="event-t">08:22:12</span><span class="event-dot"></span><span>完成 · 退出码 0</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="disc">
+      <button class="chip" type="button" aria-haspopup="true"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M3 12h6"/><path d="M15 12h6"/></svg>v8</button>
+      <div class="pop" role="dialog" aria-label="版本与环境">
+        <dl class="kv">
+          <dt>版本</dt><dd class="mono-sm">v7 → v8</dd>
+          <dt>环境</dt><dd class="mono-sm">env_b72d10</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="disc">
+      <button class="chip" type="button" aria-haspopup="true"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>工具 43</button>
+      <div class="pop" role="dialog" aria-label="工具调用">
+        <div class="pop-row"><span class="mono-sm" style="color: var(--ink);">crm-mcp · search_leads</span><span class="mono-sm muted">×1</span></div>
+        <div class="pop-row"><span class="mono-sm" style="color: var(--ink);">crm-mcp · get_lead</span><span class="mono-sm muted">×42</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flutes" aria-label="阶段">
+    <a class="flute" href="#logs" style="flex-grow: 11.8;"><span class="flute-bar"></span><span class="flute-name">获取输入</span><span class="flute-t">11.8s</span></a>
+    <a class="flute" href="#logs" style="flex-grow: 48.2;"><span class="flute-bar"></span><span class="flute-name">调用模型</span><span class="flute-t">48.2s</span></a>
+    <a class="flute" href="#logs" style="flex-grow: 3.6;"><span class="flute-bar"></span><span class="flute-name">保存结果</span><span class="flute-t">3.6s</span></a>
+  </div>
+
+  <div class="panels">
+    <x-import component-from-global-scope="Lerryn.Card">
+      <div class="panel-head">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s18}}"></x-import></span>结果</span>
+        <span class="tag">任务上报</span>
+      </div>
+      <div class="hero" style="gap: 12px 36px;">
+        <div class="stat"><span class="stat-n stat-n--md">42</span><span class="stat-l">新线索</span></div>
+        <div class="stat"><span class="stat-n stat-n--md">7</span><span class="stat-l">高意向</span></div>
+        <div class="stat"><span class="stat-n stat-n--md" style="color: var(--ink-muted);">3</span><span class="stat-l">去重</span></div>
+      </div>
+    </x-import>
+    <x-import component-from-global-scope="Lerryn.Card">
+      <div class="panel-head">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s18}}"></x-import></span>来源</span>
+      </div>
+      <div class="hbars" role="img" aria-label="来源：官网表单 18，展会 11，转介绍 8，广告 5">
+        <div class="hbar"><span>官网表单</span><span class="hbar-track"><span style="width: 100%;"></span></span><span class="v">18</span></div>
+        <div class="hbar"><span>展会</span><span class="hbar-track"><span style="width: 61%;"></span></span><span class="v">11</span></div>
+        <div class="hbar"><span>转介绍</span><span class="hbar-track"><span style="width: 44%;"></span></span><span class="v">8</span></div>
+        <div class="hbar"><span>广告</span><span class="hbar-track"><span style="width: 28%;"></span></span><span class="v">5</span></div>
+      </div>
+    </x-import>
+    <x-import component-from-global-scope="Lerryn.Card">
+      <div class="panel-head">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s18}}"></x-import></span>高意向</span>
+        <span class="caption muted">意向分</span>
+      </div>
+      <table class="ptable">
+        <tbody>
+          <tr><td>华东连锁药房</td><td class="r num">92</td></tr>
+          <tr><td>汽车零部件工厂</td><td class="r num">88</td></tr>
+          <tr><td>跨境电商团队</td><td class="r num">85</td></tr>
+          <tr><td>区域物流公司</td><td class="r num">81</td></tr>
+        </tbody>
+      </table>
+    </x-import>
+  </div>
+
+  <section class="stack" aria-label="文件">
+    <span class="sec-label">文件 <span class="num">3</span></span>
+    <x-import component-from-global-scope="Lerryn.Card" class="flush">
+      <div class="file">
+        <span class="ic-box"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+        <span style="min-width: 0;"><span class="file-name" style="display: block;">digest-2026-11-02.md</span><span class="caption muted">4.2 KB</span></span>
+        <span class="tools"><span data-tip="收起预览" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="tertiary" size="sm" is-icon-only="{{yes}}" accessibility-label="收起预览"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></x-import></span><span data-tip="下载" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="下载 digest-2026-11-02.md"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></x-import></span></span>
+      </div>
+      <pre class="preview" aria-label="digest-2026-11-02.md"># 新线索日报 · 2026-11-02
+
+共 42 条新线索，高意向 7 条，去重跳过 3 条。
+
+## 高意向
+1. 华东连锁药房 · 采购主管 · 300 家门店排班
+2. 汽车零部件工厂 · IT 经理 · 质检记录对接
+3. 跨境电商团队 · 运营负责人 · 多店铺数据汇总
+……</pre>
+      <div class="file">
+        <span class="ic-box"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"/><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"/></svg></span>
+        <span style="min-width: 0;"><span class="file-name" style="display: block;">leads-2026-11-02.json</span><span class="caption muted">38.6 KB</span></span>
+        <span class="tools"><span data-tip="预览" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="预览 leads-2026-11-02.json"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></x-import></span><span data-tip="下载" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="下载 leads-2026-11-02.json"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></x-import></span></span>
+      </div>
+      <div class="file">
+        <span class="ic-box"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></svg></span>
+        <span style="min-width: 0;"><span class="file-name" style="display: block;">report.html</span><span class="caption muted">12.1 KB</span></span>
+        <span class="tools"><span data-tip="网页文件只能下载" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="下载 report.html"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></x-import></span></span>
+      </div>
+    </x-import>
+  </section>
+
+  <div class="disc" id="logs">
+    <button class="chip" type="button" aria-expanded="false"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>日志 · 44 行<svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+</main>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'theme-dark' : '', yes: true, s11: 11, s16: 16, s18: 18, s22: 22 };
+  }
+}
+</script>
+</body>
+</html>

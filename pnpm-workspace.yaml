@@ -1,0 +1,7 @@
+packages:
+  # 设计语言：tokens、组件库与示例 App，全部在 design/ 下
+  - design/ui-native
+  - design/gallery
+  # 产品代码（技术设计第 13、16 节规划的 apps/web、apps/mobile、packages/*）
+  - apps/*
+  - packages/*

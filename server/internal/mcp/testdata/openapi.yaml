@@ -1,0 +1,238 @@
+# S3 验证用的测试规范，不是正式契约。正式契约在 api/openapi/，由 W1 维护。
+#
+# 这里只放验证 MCP 工具注册和进程内转发需要的东西：
+#   - getRun：读取，暴露为工具 run_get
+#   - startRun：执行，暴露为工具 run_start；带路径、查询、请求头参数和请求体
+#   - login：没有 x-mcp，不暴露
+# 另外放了 3.1 特有的写法（type 数组、const、examples、webhooks），确认解析库能处理。
+openapi: 3.1.0
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+info:
+  title: Lerryn S3 spike
+  version: 0.0.0-spike
+  license:
+    name: AGPL-3.0-only
+    identifier: AGPL-3.0-only
+servers:
+  - url: /api/v1
+security:
+  - accessToken: []
+paths:
+  /runs/{runId}:
+    get:
+      operationId: getRun
+      summary: 读取运行
+      description: 返回一次运行的状态、阶段、退出码和控制台链接。
+      x-operation-kind: read
+      x-mcp:
+        expose: true
+        tool: run_get
+        description: >-
+          Read one run: status, current phase, exit code and the console link.
+          While status is queued or running, call again after a few seconds.
+          On failure, read the logs with run_logs before changing the task.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: 运行
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /tasks/{taskId}/runs:
+    post:
+      operationId: startRun
+      summary: 发起运行
+      description: 发起一次运行。返回 202 和运行对象；可选 wait 参数等待一段时间后再返回。
+      x-operation-kind: execute
+      x-mcp:
+        expose: true
+        tool: run_start
+        description: >-
+          Start a run of a task. Set test=true before the task is activated.
+          Pass an idempotency_key so that a retry after a timeout does not start
+          a second run. Use wait (seconds) to get the state after a short wait
+          instead of polling run_get right away.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: 任务 ID
+          schema:
+            type: string
+            pattern: "^task_[0-9A-Za-z]+$"
+        - name: wait
+          in: query
+          description: 最多等待的秒数，到时返回当前状态
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 60
+            default: 0
+        - name: Idempotency-Key
+          in: header
+          description: 幂等键。相同键和相同请求体返回首次的结果
+          schema:
+            type: string
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRunRequest"
+      responses:
+        "202":
+          description: 已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /auth/login:
+    post:
+      operationId: login
+      summary: 登录
+      description: 内置账号登录。不暴露给 MCP。
+      x-operation-kind: mutate
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  writeOnly: true
+      responses:
+        "204":
+          description: 已登录
+        default:
+          $ref: "#/components/responses/Problem"
+webhooks:
+  runFinished:
+    post:
+      operationId: runFinishedWebhook
+      summary: 运行结束通知
+      x-operation-kind: read
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Run"
+      responses:
+        "200":
+          description: 已收到
+components:
+  securitySchemes:
+    accessToken:
+      type: http
+      scheme: bearer
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      description: 运行 ID
+      schema:
+        type: string
+        pattern: "^run_[0-9A-Za-z]+$"
+        examples: [run_01JD9ABCDEF]
+  responses:
+    Problem:
+      description: 错误，RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    RunStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, cancelled, timed_out]
+    Run:
+      type: object
+      required: [id, task_id, status, links]
+      properties:
+        object:
+          const: run
+        id:
+          type: string
+          readOnly: true
+        task_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        test:
+          type: boolean
+        exit_code:
+          type: [integer, "null"]
+        links:
+          type: object
+          properties:
+            console:
+              type: string
+              format: uri
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        test:
+          type: boolean
+          default: false
+          description: 测试运行。任务激活前只能发起测试运行
+        inputs:
+          type: object
+          description: 本次运行的输入参数，按任务清单的 inputs 校验
+          additionalProperties: true
+        reason:
+          type: [string, "null"]
+          maxLength: 200
+          description: 发起原因，写进审计记录
+        id:
+          type: string
+          readOnly: true
+          description: 只在响应中出现，输入 schema 里应该被去掉
+    NextAction:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+        hint:
+          type: string
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+        detail:
+          type: string
+        next_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/NextAction"
+        request_id:
+          type: string

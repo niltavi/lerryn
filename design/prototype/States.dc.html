@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>状态与 Agent 面板</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app {{theme}}" style="width: 1440px; height: 720px; min-height: 0; padding: 48px; display: flex; flex-direction: column; gap: 44px;">
+
+  <section class="stack" style="gap: 16px;" aria-label="运行状态">
+    <span class="sec-label">运行状态</span>
+    <div class="row" style="gap: 10px;">
+      <span class="rs rs--queued"><x-import component-from-global-scope="Lerryn.Icon" name="clock" size="{{s14}}"></x-import>排队中</span>
+      <span class="rs rs--preparing"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="准备中"></x-import>准备中</span>
+      <span class="rs rs--running"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import>运行中</span>
+      <span class="rs rs--canceling"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="取消中"></x-import>取消中</span>
+      <span class="rs rs--succeeded"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s14}}"></x-import>执行完成</span>
+      <span class="rs rs--failed"><x-import component-from-global-scope="Lerryn.Icon" name="x" size="{{s14}}"></x-import>执行失败</span>
+      <span class="rs rs--timeout"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></svg>已超时</span>
+      <span class="rs rs--canceled"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>已取消</span>
+      <span class="rs rs--interrupted"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/></svg>运行中断</span>
+      <span class="rs rs--skipped"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>已跳过</span>
+    </div>
+    <div class="row" style="gap: 10px;">
+      <span class="g g--idle" role="img" aria-label="排队中" title="排队中"><x-import component-from-global-scope="Lerryn.Icon" name="clock" size="{{s13}}"></x-import></span>
+      <span class="g g--run" role="img" aria-label="准备中" title="准备中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="准备中"></x-import></span>
+      <span class="g g--run" role="img" aria-label="运行中" title="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span>
+      <span class="g g--idle" role="img" aria-label="取消中" title="取消中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="取消中"></x-import></span>
+      <span class="g g--ok" role="img" aria-label="执行完成" title="执行完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></span>
+      <span class="g g--bad" role="img" aria-label="执行失败" title="执行失败"><x-import component-from-global-scope="Lerryn.Icon" name="x" size="{{s13}}"></x-import></span>
+      <span class="g g--bad" role="img" aria-label="已超时" title="已超时"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></svg></span>
+      <span class="g g--idle" role="img" aria-label="已取消" title="已取消"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></span>
+      <span class="g g--warn" role="img" aria-label="运行中断" title="运行中断"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/></svg></span>
+      <span class="g g--idle" role="img" aria-label="已跳过" title="已跳过"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg></span>
+    </div>
+  </section>
+
+  <section class="stack" style="gap: 16px;" aria-label="Agent 面板">
+    <span class="sec-label"><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import>Agent 面板</span>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; align-items: stretch;">
+      <x-import component-from-global-scope="Lerryn.Card">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import></span>metric</span>
+        <div class="stat"><span class="stat-n stat-n--md">42</span><span class="stat-l">新线索</span></div>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Card">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import></span>bars</span>
+        <div class="bars" style="height: 64px;" role="img" aria-label="柱状示例"><span class="bar" style="height: 40%;"></span><span class="bar" style="height: 70%;"></span><span class="bar" style="height: 55%;"></span><span class="bar" style="height: 100%;"></span><span class="bar" style="height: 80%;"></span></div>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Card">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import></span>breakdown</span>
+        <div class="hbars" role="img" aria-label="占比示例">
+          <div class="hbar" style="grid-template-columns: 40px minmax(0, 1fr) 24px;"><span>官网</span><span class="hbar-track"><span style="width: 100%;"></span></span><span class="v">18</span></div>
+          <div class="hbar" style="grid-template-columns: 40px minmax(0, 1fr) 24px;"><span>展会</span><span class="hbar-track"><span style="width: 61%;"></span></span><span class="v">11</span></div>
+        </div>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Card">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import></span>table</span>
+        <table class="ptable"><tbody><tr><td>华东连锁药房</td><td class="r num">92</td></tr><tr><td>零部件工厂</td><td class="r num">88</td></tr></tbody></table>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Card">
+        <span class="panel-title"><span><x-import component-from-global-scope="Lerryn.Icon" name="wave" size="{{s16}}"></x-import></span>text</span>
+        <p class="body-sm">3 条线索缺少联系方式，已在 CRM 中标记。</p>
+      </x-import>
+    </div>
+  </section>
+
+  <section class="stack" style="gap: 16px;" aria-label="日志提示">
+    <span class="sec-label">日志</span>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;">
+      <div class="log"><div class="log-more" style="border: 0; padding: 14px;"><button type="button"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>更早 12,400 行</button></div></div>
+      <div class="log"><div class="row body-sm" style="padding: 14px 16px; gap: 8px; color: var(--warning-ink);"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>50 MiB 后已截断</div></div>
+      <div class="log"><div class="row body-sm muted" style="padding: 14px 16px; gap: 8px;"><x-import component-from-global-scope="Lerryn.Icon" name="clock" size="{{s16}}"></x-import>超过 30 天，已清理</div></div>
+      <div class="log"><div class="row body-sm" style="padding: 14px 16px; gap: 8px; color: var(--run);"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" color="var(--run)" accessibility-label="重新连接中"></x-import>重新连接 · 第 3 次</div></div>
+    </div>
+  </section>
+
+  <section class="stack" style="gap: 16px;" aria-label="空与缺失">
+    <span class="sec-label">空与缺失</span>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch;">
+      <x-import component-from-global-scope="Lerryn.Card">
+        <div class="row" style="gap: 14px; padding: 4px;"><span class="g g--idle g--lg" aria-hidden="true"><x-import component-from-global-scope="Lerryn.Icon" name="calendar-clock" size="{{s22}}"></x-import></span><span class="stack" style="gap: 0;"><span class="h4">等待首次执行</span><span class="mono-sm muted">今天 18:00</span></span></div>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Card">
+        <div class="row" style="gap: 14px; padding: 4px;"><span class="g g--idle g--lg" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg></span><span class="stack" style="gap: 0;"><span class="h4">找不到</span><a class="body-sm" href="Main.dc.html">回到概览</a></span></div>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Card">
+        <div class="row" style="gap: 14px; padding: 4px; color: var(--ink-muted);"><span class="g g--idle g--lg" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9.5 12.5 5 5"/><path d="m14.5 12.5-5 5"/></svg></span><span class="stack" style="gap: 0;"><span class="file-name" style="color: var(--ink);">leads-2026-10-01.json</span><span class="caption">已过期</span></span></div>
+      </x-import>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'theme-dark' : '', s13: 13, s14: 14, s16: 16, s22: 22 };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# 反向代理：把请求分给两个 server。server 之间不直接通信，任意一个都能处理任意请求。
+# LERRYN_SITE_ADDRESS 填域名（例如 lerryn.example.com）时，Caddy 自动申请 TLS 证书。
+
+{$LERRYN_SITE_ADDRESS::80} {
+	# /metrics 只在 server 的内部监听地址上提供，不经过这里。
+	@metrics path /metrics /metrics/*
+	respond @metrics 404
+
+	reverse_proxy server-1:33333 server-2:33333 {
+		lb_policy round_robin
+		lb_try_duration 5s
+		health_uri /readyz
+		health_interval 5s
+		health_timeout 2s
+		# SSE、MCP 的流式响应和运行等待的长轮询不能被缓冲。
+		flush_interval -1
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

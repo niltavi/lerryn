@@ -1,0 +1,12 @@
+/*
+ * @lerryn/ui-web 的样式入口。App 的全局 CSS 按这个顺序引入：
+ *   @import "tailwindcss";
+ *   @import "@heroui/styles";
+ *   @import "@lerryn/ui-web/styles.css";
+ */
+@import "./tokens.css";
+@import "./theme.css";
+@import "./console.css";
+
+/* 组件源码里用到的 Tailwind 类也要生成 */
+@source "../src";

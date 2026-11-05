@@ -1,0 +1,10 @@
+# 各资源共用的响应。在根文件 components.responses 中逐个登记。
+#
+# 每个操作都用 `default: {$ref: Problem}` 声明错误响应；需要在文档中突出某个状态码时，
+# 再额外列出该状态码并同样引用 Problem。
+Problem:
+  description: 错误。结构见 `Problem`。
+  content:
+    application/problem+json:
+      schema:
+        $ref: "./schemas.yaml#/Problem"

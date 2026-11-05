@@ -1,0 +1,167 @@
+# auth 资源的 schema。在根文件 components.schemas 中逐个登记。
+RegisterRequest:
+  type: object
+  description: 注册内置账号。只有用户名和密码是必填的。
+  required: [username, password]
+  additionalProperties: false
+  properties:
+    username:
+      $ref: "#/Username"
+    password:
+      $ref: "#/Password"
+    display_name:
+      type: string
+      maxLength: 64
+      description: 显示名，可选。
+    email:
+      type: string
+      format: email
+      maxLength: 254
+      description: 邮箱，可选，不做验证。
+
+LoginRequest:
+  type: object
+  description: 用密码登录。
+  required: [username, password]
+  additionalProperties: false
+  properties:
+    username:
+      type: string
+      minLength: 1
+      maxLength: 32
+      description: 用户名，不区分大小写。
+    password:
+      type: string
+      minLength: 1
+      maxLength: 256
+      description: 密码。
+    device:
+      $ref: "#/DeviceInfo"
+      description: 移动端登录时给出。带这一项时建立只读的设备会话，而不是 Web 会话。
+
+DeviceInfo:
+  type: object
+  description: 移动设备的信息，显示在个人设置的设备列表中。
+  required: [name, platform]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: 设备名，例如“张林的 iPhone”。
+    platform:
+      type: string
+      enum: [ios, android, other]
+    os_version:
+      type: string
+      maxLength: 32
+      description: 系统版本，例如 `iOS 26.1`。
+
+PairingCode:
+  type: object
+  description: 一次性的移动端配对码。
+  required: [code, uri, expires_at]
+  properties:
+    code:
+      type: string
+      description: 配对码，8 个字符，也可以手动输入。
+      examples: [K7Q2XN4V]
+    uri:
+      type: string
+      description: 二维码的内容：`lerryn://pair?server=<部署地址>&code=<配对码>`。
+    expires_at:
+      type: string
+      format: date-time
+
+ExchangePairingRequest:
+  type: object
+  required: [server, code, device]
+  additionalProperties: false
+  properties:
+    server:
+      type: string
+      format: uri
+      description: 二维码中的部署地址，服务端核对它与自己的 `server.public_url` 一致。
+    code:
+      type: string
+      minLength: 1
+      maxLength: 16
+    device:
+      $ref: "#/DeviceInfo"
+
+Username:
+  type: string
+  description: |
+    用户名：2 到 32 个字符，只能包含 ASCII 字母、数字、点、下划线和连字符，以字母或数字开头。
+    不区分大小写，注册后不能修改。
+  minLength: 2
+  maxLength: 32
+  pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$"
+  examples: [alice]
+
+Password:
+  type: string
+  description: 密码，至少 8 个字符。不要求包含特定种类的字符。
+  minLength: 8
+  maxLength: 256
+
+Me:
+  type: object
+  description: 当前登录的用户。
+  required: [id, username, display_name, email, is_admin, personal_project_id, created_at, locale, timezone, has_password, identities]
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: 用户 ID。
+    username:
+      type: string
+      description: 用户名。
+    display_name:
+      type: [string, "null"]
+      description: 显示名，未设置时为 null。
+    email:
+      type: [string, "null"]
+      description: 邮箱，未设置时为 null。
+    is_admin:
+      type: boolean
+      description: 是否为平台管理员。
+    personal_project_id:
+      type: string
+      format: uuid
+      description: 个人项目的 ID。
+    created_at:
+      type: string
+      format: date-time
+      description: 注册时间。
+    locale:
+      type: [string, "null"]
+      enum: [zh-CN, en]
+      description: 界面语言，未设置时为 null，客户端按浏览器或系统语言选择。
+    timezone:
+      type: [string, "null"]
+      description: 显示时间用的 IANA 时区，未设置时为 null，客户端用设备时区。
+    has_password:
+      type: boolean
+      description: 是否设置了内置账号密码。只用单点登录的用户为 false，不能修改密码。
+    identities:
+      type: array
+      description: 关联的单点登录身份。
+      items:
+        $ref: "#/IdentityInfo"
+
+IdentityInfo:
+  type: object
+  description: 一个关联的 OIDC 身份。
+  required: [issuer, username, linked_at]
+  properties:
+    issuer:
+      type: string
+      description: OIDC 提供方的 issuer。
+    username:
+      type: [string, "null"]
+      description: 提供方给出的 preferred_username。
+    linked_at:
+      type: string
+      format: date-time

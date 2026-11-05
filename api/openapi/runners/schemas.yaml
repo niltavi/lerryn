@@ -1,0 +1,91 @@
+# runners 资源的 schema：管理员查看和管理执行节点（技术设计第 4.5、12.1 节）。
+# runner 自己与 server 之间的协议是内部协议，不在这份契约里。
+RunnerStatus:
+  type: string
+  description: online 在线；offline 失联（超过租约时间没有心跳）；disabled 已被管理员停用，不再领取新运行。
+  enum: [online, offline, disabled]
+
+Runner:
+  type: object
+  description: 一个执行节点。
+  required: [id, name, labels, status, slots, running, version, last_seen_at, disabled_at, created_at]
+  properties:
+    id:
+      type: string
+      description: runner 第一次启动时生成的稳定 ID。
+    name:
+      type: string
+    labels:
+      type: array
+      items:
+        type: string
+    status:
+      $ref: "#/RunnerStatus"
+    slots:
+      type: integer
+      description: 同时执行的运行数上限。
+    running:
+      type: integer
+      description: 当前领取且未结束的运行数。
+    version:
+      type: [string, "null"]
+      description: runner 的发行版本，内嵌 runner 与 server 相同。
+    last_seen_at:
+      type: string
+      format: date-time
+    disabled_at:
+      type: [string, "null"]
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+
+RunnerPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/Runner"
+
+UpdateRunnerRequest:
+  type: object
+  required: [disabled]
+  additionalProperties: false
+  properties:
+    disabled:
+      type: boolean
+      description: true 停用：不再领取新运行，正在执行的运行继续。false 恢复。
+
+CreateRunnerTokenRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      maxLength: 64
+      description: 备注，例如准备部署的机器。
+    expires_in_hours:
+      type: integer
+      minimum: 1
+      maximum: 720
+      default: 24
+      description: 注册令牌多少小时后失效。
+
+RunnerToken:
+  type: object
+  description: runner 注册令牌。runner 用它换取自己的凭证，令牌只能用一次。
+  required: [id, token, expires_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    token:
+      type: string
+      description: 令牌本身，只出现这一次。
+    expires_at:
+      type: string
+      format: date-time

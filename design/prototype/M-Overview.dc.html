@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>移动端 · 概览</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app m-app {{theme}}" style="width: 390px; height: 1040px; min-height: 0;">
+  <header class="m-top">
+    <span class="rail-logo" style="width: 36px; height: 36px; border-radius: 11px; margin: 0;"><img src="/_blob/46d7ba75db40f7da30f9bb6f6115b8fb" alt="Lerryn" width="26" height="10" style="width: 26px;"></span>
+    <button class="chip" type="button" style="height: 36px; padding: 0 12px;" aria-label="切换项目，当前为增长团队">增长团队<svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <span class="avatar">张</span>
+  </header>
+
+  <div class="m-body">
+    <div class="hero" style="gap: 12px 36px;">
+      <div class="stat stat--bad"><span class="stat-n">3</span><span class="stat-l">需要处理</span></div>
+      <div class="stat stat--run"><span class="stat-n stat-n--md">3</span><span class="stat-l">运行中</span></div>
+      <div class="stat"><span class="stat-n stat-n--md">11:00</span><span class="stat-l">下一次</span></div>
+    </div>
+
+    <section class="strip" aria-label="今天的运行">
+      <div class="strip-plot" style="height: 84px; gap: 2px;">
+        <sc-for list="{{ridges}}" as="r" hint-placeholder-count="48"><a class="ridge {{r.cls}}" href="{{r.href}}" style="height: {{r.h}}px; min-width: 2px; border-radius: 3px 3px 1px 1px;" aria-label="{{r.label}}"></a></sc-for>
+        <span class="strip-now" style="left: 44.9%; top: -10px;"></span>
+      </div>
+      <div class="strip-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+    </section>
+
+    <section class="att" aria-label="需要处理">
+      <a class="att-item" href="M-Run.dc.html" style="grid-template-columns: 40px minmax(0, 1fr) auto; padding: 12px 14px; gap: 12px;">
+        <span class="g g--bad g--lg" style="width: 40px; height: 40px;" role="img" aria-label="已超时"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></svg></span>
+        <span style="min-width: 0;"><span class="att-name" style="font-size: 16px;">dataset-backup</span><span class="att-why">上传对象存储超时</span></span>
+        <span class="att-t">02:00</span>
+      </a>
+      <a class="att-item" href="M-Run.dc.html" style="grid-template-columns: 40px minmax(0, 1fr) auto; padding: 12px 14px; gap: 12px;">
+        <span class="g g--warn g--lg" style="width: 40px; height: 40px;" role="img" aria-label="运行中断"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/></svg></span>
+        <span style="min-width: 0;"><span class="att-name" style="font-size: 16px;">competitor-price-watch</span><span class="att-why">runner-03 失联</span></span>
+        <span class="att-t">07:30</span>
+      </a>
+      <a class="att-item" href="M-Credential.dc.html" style="grid-template-columns: 40px minmax(0, 1fr) auto; padding: 12px 14px; gap: 12px;">
+        <span class="g g--key g--lg" style="width: 40px; height: 40px;" role="img" aria-label="待填写的凭证"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg></span>
+        <span style="min-width: 0;"><span class="att-name mono" style="font-size: 15px;">PRICE_API_TOKEN</span><span class="att-why">competitor-price-watch</span></span>
+        <span class="att-t">20:00</span>
+      </a>
+    </section>
+
+    <section class="stack" style="gap: 8px;" aria-label="运行中">
+      <span class="sec-label">运行中</span>
+      <div class="m-list">
+        <a class="m-item" href="M-Run.dc.html"><span class="g g--run" role="img" aria-label="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span><span style="min-width: 0;"><span class="li-name">lead-sync-bitable</span><span class="mini" style="margin-top: 6px;" aria-hidden="true"><span></span><span></span><span class="run"></span></span></span><span class="num" style="font-size: 17px;">38s</span></a>
+        <a class="m-item" href="M-Run.dc.html"><span class="g g--run" role="img" aria-label="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span><span class="li-name">ticket-triage</span><span class="num" style="font-size: 17px;">46m</span></a>
+        <a class="m-item" href="M-Task.dc.html"><span class="g g--idle" role="img" aria-label="排队中"><x-import component-from-global-scope="Lerryn.Icon" name="clock" size="{{s13}}"></x-import></span><span class="li-name">invoice-ocr-webhook</span><span class="num" style="font-size: 17px; color: var(--ink-muted);">8s</span></a>
+      </div>
+    </section>
+
+    <section class="stack" style="gap: 8px;" aria-label="按计划">
+      <span class="sec-label">按计划</span>
+      <div class="m-list">
+        <a class="m-item" href="M-Task.dc.html"><span class="g g--ok" role="img" aria-label="执行完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></span><span class="li-name">weekday-digest</span><span class="li-meta">明天 08:00</span></a>
+        <a class="m-item" href="M-Task.dc.html"><span class="g g--idle" role="img" aria-label="等待首次执行"><x-import component-from-global-scope="Lerryn.Icon" name="calendar-clock" size="{{s13}}"></x-import></span><span class="li-name">meeting-notes-archive</span><span class="li-meta">18:00</span></a>
+        <a class="m-item" href="M-Task.dc.html"><span class="g g--ok" role="img" aria-label="执行完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></span><span class="li-name">weekly-sales-report</span><span class="li-meta">11/9</span></a>
+        <a class="m-item" href="M-Task.dc.html"><span class="g g--idle" role="img" aria-label="已暂停"><x-import component-from-global-scope="Lerryn.Icon" name="pause" size="{{s13}}"></x-import></span><span class="li-name" style="color: var(--ink-muted);">contract-expiry-reminder</span><span class="li-meta">—</span></a>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const special = { 4: [4, 'ridge--bad'], 15: [4, 'ridge--warn'], 16: [6, 'ridge--bad'], 18: [4, ''], 20: [4, 'ridge--run'], 21: [4, 'ridge--run'] };
+    const pad = (x) => String(x).padStart(2, '0');
+    const ridges = [];
+    for (let i = 0; i < 48; i++) {
+      const s = special[i] || (i >= 22 ? [i === 36 ? 4 : 3, 'ridge--plan'] : [3, '']);
+      const t = pad(Math.floor(i / 2)) + ':' + (i % 2 ? '30' : '00');
+      ridges.push({ cls: s[1], h: 10 + s[0] * 9, href: s[1] === 'ridge--bad' || s[1] === 'ridge--warn' ? 'M-Run.dc.html' : 'M-Overview.dc.html', label: t + ' 起 ' + s[0] + ' 次' + (i >= 22 ? '计划' : '运行') });
+    }
+    return { theme: this.props.dark ? 'theme-dark' : '', s13: 13, ridges: ridges };
+  }
+}
+</script>
+</body>
+</html>

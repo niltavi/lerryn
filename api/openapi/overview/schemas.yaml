@@ -1,0 +1,196 @@
+# overview 资源的 schema：控制台概览看板。在根文件 components.schemas 中逐个登记。
+Overview:
+  type: object
+  description: |
+    概览看板的数据：需要处理的事、正在运行的任务、接下来的计划。只包含调用者能查看的数据，
+    凭证相关的事项只包含调用者本人的。
+  required: [generated_at, counts, attention, active, upcoming]
+  properties:
+    generated_at:
+      type: string
+      format: date-time
+    counts:
+      $ref: "#/OverviewCounts"
+    attention:
+      type: array
+      description: 需要处理的事，最新的在前，最多 50 项。
+      items:
+        $ref: "#/AttentionItem"
+    active:
+      type: array
+      description: 排队中、准备中、运行中和取消中的运行，最早开始的在前，最多 50 项。
+      items:
+        $ref: "#/ActiveRun"
+    upcoming:
+      type: array
+      description: 已激活任务接下来的计划触发，每个任务只列最近的一次，按时间排列，最多 50 项。
+      items:
+        $ref: "#/UpcomingFire"
+
+OverviewCounts:
+  type: object
+  required: [tasks, active_tasks, attention, running, queued]
+  properties:
+    tasks:
+      type: integer
+      description: 未归档的任务数。
+    active_tasks:
+      type: integer
+      description: 已激活的任务数。
+    attention:
+      type: integer
+      description: 需要处理的事项数，可能多于 attention 列出的数量。
+    running:
+      type: integer
+      description: 准备中、运行中和取消中的运行数。
+    queued:
+      type: integer
+      description: 排队中的运行数。
+
+AttentionKind:
+  type: string
+  description: |
+    需要处理的事的类别。run_failed、run_timed_out、run_interrupted：任务最近一次非测试运行以该状态结束，
+    之后没有成功的运行；credential_request：等调用者填写的凭证请求；credential_expiring：调用者的凭证将在 7 天内到期，
+    或已经过期但仍有任务引用；runner_offline：仅管理员可见，有 runner 失联。
+  enum: [run_failed, run_timed_out, run_interrupted, credential_request, credential_expiring, runner_offline]
+
+AttentionItem:
+  type: object
+  description: 一项需要处理的事。各字段与类别相关，不相关的为 null。
+  required: [kind, at, task, run_id, stage, summary, credential_request_id, credential_id, runner_id, due_at, link]
+  properties:
+    kind:
+      $ref: "#/AttentionKind"
+    at:
+      type: string
+      format: date-time
+      description: 事情发生的时间：运行结束、请求创建、runner 最后在线的时间。
+    task:
+      oneOf:
+        - $ref: "../common/schemas.yaml#/TaskRef"
+        - type: "null"
+    run_id:
+      type: [string, "null"]
+      format: uuid
+    stage:
+      type: [string, "null"]
+      description: 运行失败时所在阶段的显示名。
+    summary:
+      type: string
+      description: 简短的原因，已脱敏，最长 200 个字符。例如凭证名、错误说明或 runner 名。
+    credential_request_id:
+      type: [string, "null"]
+      format: uuid
+    credential_id:
+      type: [string, "null"]
+      format: uuid
+    runner_id:
+      type: [string, "null"]
+    due_at:
+      type: [string, "null"]
+      format: date-time
+      description: 截止时间：填写请求或凭证的到期时间。
+    link:
+      type: string
+      format: uri
+      description: 处理这件事的页面：运行详情、凭证填写页或执行节点页。
+
+ActiveRun:
+  type: object
+  description: 一个未结束的运行。
+  required: [run_id, task, status, test, trigger, queued_at, started_at, current_stage, links]
+  properties:
+    run_id:
+      type: string
+      format: uuid
+    task:
+      $ref: "../common/schemas.yaml#/TaskRef"
+    status:
+      $ref: "../runs/schemas.yaml#/RunStatus"
+    test:
+      type: boolean
+    trigger:
+      $ref: "../runs/schemas.yaml#/TriggerKind"
+    queued_at:
+      type: string
+      format: date-time
+    started_at:
+      type: [string, "null"]
+      format: date-time
+    current_stage:
+      type: [string, "null"]
+      description: 正在进行的阶段的显示名。
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+UpcomingFire:
+  type: object
+  description: 一个任务的下一次计划触发。
+  required: [task, trigger_id, at, schedule_text]
+  properties:
+    task:
+      $ref: "../common/schemas.yaml#/TaskRef"
+    trigger_id:
+      type: string
+      format: uuid
+    at:
+      type: string
+      format: date-time
+    schedule_text:
+      type: string
+      description: 人可读的频率，例如“每个工作日 08:00”。
+
+CalendarItem:
+  type: object
+  description: 日历中的一项：已有的运行，或尚未发生的计划触发。
+  required: [kind, task, run_id, status, start, end]
+  properties:
+    kind:
+      type: string
+      enum: [run, planned]
+    task:
+      $ref: "../common/schemas.yaml#/TaskRef"
+    run_id:
+      type: [string, "null"]
+      format: uuid
+      description: kind 为 run 时的运行 ID。
+    status:
+      description: kind 为 run 时的运行状态。
+      oneOf:
+        - $ref: "../runs/schemas.yaml#/RunStatus"
+        - type: "null"
+    start:
+      type: string
+      format: date-time
+      description: 运行的开始时间（未开始时为排队时间），或计划触发的时间。
+    end:
+      type: [string, "null"]
+      format: date-time
+      description: 运行的结束时间。未结束的运行和计划触发为 null。
+    trigger_id:
+      type: [string, "null"]
+      format: uuid
+      description: kind 为 planned 时产生这次触发的触发器，其他情况为 null。
+    schedule_text:
+      type: [string, "null"]
+      description: kind 为 planned 时触发器人可读的频率，例如“每个工作日 08:00（Asia/Shanghai）”；其他情况为 null。
+
+Calendar:
+  type: object
+  description: 一段时间内的运行和计划触发，按开始时间排列。
+  required: [from, to, items, truncated]
+  properties:
+    from:
+      type: string
+      format: date-time
+    to:
+      type: string
+      format: date-time
+    items:
+      type: array
+      items:
+        $ref: "#/CalendarItem"
+    truncated:
+      type: boolean
+      description: 超过 2000 项时只返回最早的 2000 项。

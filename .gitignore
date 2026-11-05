@@ -1,0 +1,20 @@
+node_modules/
+.expo/
+dist/
+*.tsbuildinfo
+uniwind-types.d.ts
+ios/
+android/
+.DS_Store
+
+# Go
+/bin/
+*.test
+coverage.out
+
+# 本地运行数据
+/data/
+
+# 控制台构建产物，由 make web 从 apps/web/dist 复制，嵌入服务端二进制
+/server/internal/console/webdist/*
+!/server/internal/console/webdist/.keep

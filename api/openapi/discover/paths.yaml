@@ -1,0 +1,53 @@
+# discover 资源的路径。在根文件 paths 中按路径登记。
+discover:
+  get:
+    operationId: discover
+    tags: [discover]
+    summary: 发现平台能力
+    description: |
+      返回服务端版本、API 版本、本部署启用的能力、运行时目录、与服务端匹配的 Skill 版本，以及当前调用者的身份。
+
+      Agent 接入后先调用本接口，按返回结果决定后续操作，不凭记忆假设接口和字段。
+      本接口允许匿名调用，匿名时 `principal` 为 null；带上访问令牌可以确认令牌有效以及它的范围。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: discover
+      title: 发现平台能力
+      description: |
+        读取 Lerryn 服务端的版本、可用运行时、部署能力、匹配的 Skill 版本和当前身份。
+        开始建立或修改任务前先调用一次；Skill 版本与本地不一致时，从服务端获取匹配的版本。
+    security:
+      - {}
+      - accessToken: []
+      - sessionCookie: []
+    responses:
+      "200":
+        description: 发现结果。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Discovery"
+            example:
+              server:
+                version: v0.9.0
+                commit: 4a78fd0
+                build_date: "2026-11-02T08:00:00Z"
+              api:
+                version: v1
+                spec_version: 0.9.0
+              capabilities:
+                login_methods: [password]
+                registration_open: true
+                first_account: false
+                network_policies: [none, full]
+                require_test_before_activate: true
+              runtimes: []
+              skills:
+                version: v0.9.0
+                items: []
+              principal: null
+              links:
+                console: http://localhost:33333/
+      default:
+        $ref: "../common/responses.yaml#/Problem"

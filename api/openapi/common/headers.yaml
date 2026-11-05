@@ -1,0 +1,7 @@
+# 各资源共用的响应头。在根文件 components.headers 中逐个登记。
+SessionCookie:
+  description: |
+    会话 cookie `lerryn_session`，HttpOnly、SameSite=Lax，部署地址为 https 时带 Secure。
+    登出时以过期的 cookie 清除。
+  schema:
+    type: string

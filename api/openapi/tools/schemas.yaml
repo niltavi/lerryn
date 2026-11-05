@@ -1,0 +1,92 @@
+# tools 资源的 schema。在根文件 components.schemas 中登记。
+
+ToolKind:
+  type: string
+  description: |
+    工具类型：http 为 HTTP API，mcp 为外部 MCP 服务，script 为脚本工具（一组文件，引用它的任务运行时以只读方式挂载）。
+  enum: [http, mcp, script]
+
+Tool:
+  type: object
+  description: 项目中登记的一个工具。
+  required: [id, project_id, name, kind, description, url, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+      readOnly: true
+    project_id:
+      type: string
+      format: uuid
+      readOnly: true
+    name:
+      type: string
+      description: 项目内唯一的工具名，任务清单的 `tools` 按它引用。
+      examples: [crm-mcp]
+    kind:
+      $ref: "#/ToolKind"
+    description:
+      type: string
+      description: 工具的用途、主要接口和需要的凭证，供 Agent 判断是否使用。
+    url:
+      type: string
+      description: 工具的地址，运行时交给任务。script 工具为空字符串。
+      examples: ["https://crm.example.com/mcp"]
+    files:
+      type: array
+      description: script 工具的文件，不含内容；其他类型省略。
+      items:
+        $ref: "../tasks/schemas.yaml#/TaskFile"
+    tree_hash:
+      type: string
+      description: script 工具全部文件的 SHA-256 摘要，与任务版本的 tree_hash 算法相同；运行日志记录挂载的是哪一份。其他类型省略。
+    created_at:
+      type: string
+      format: date-time
+      readOnly: true
+    updated_at:
+      type: string
+      format: date-time
+      readOnly: true
+
+ToolList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/Tool"
+
+RegisterToolRequest:
+  type: object
+  description: |
+    http 和 mcp 工具需要 `url`，不能带 `files`；script 工具需要 `files`，不能带 `url`。
+    script 工具的文件规则与任务文件相同：最多 100 个，总大小不超过 1 MiB。
+  required: [name, kind, description]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      description: 工具名：小写字母、数字和连字符，以字母或数字开头。
+      pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+      examples: [crm-mcp]
+    kind:
+      $ref: "#/ToolKind"
+    description:
+      type: string
+      minLength: 1
+      maxLength: 2000
+      description: 工具的用途、主要接口和需要的凭证。
+    url:
+      type: string
+      format: uri
+      maxLength: 2048
+      description: http 或 https 地址，不含用户名和密码。script 工具不填。
+    files:
+      type: array
+      minItems: 1
+      maxItems: 100
+      description: script 工具的全部文件。再次登记时整体替换。
+      items:
+        $ref: "../tasks/schemas.yaml#/TaskFileInput"

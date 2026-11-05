@@ -1,0 +1,44 @@
+# 标准拓扑中 server 的配置，两个 server 共用。server.public_url 由 compose.yaml 的环境变量设置。
+# 所有项的说明见 docs/deploy.md 的配置参考。
+
+server:
+  listen: ":33333"
+  # runner 首次启动时用这个注册令牌换取自己的凭证（技术设计第 4.5 节）。
+  runner_registration_token_file: /run/secrets/runner-registration-token
+  # Caddy 所在的 backend 网络（compose.yaml 中固定的子网）。只有来自这里的请求，
+  # X-Forwarded-For 才被当作客户端地址，用于登录限流和审计；否则所有用户共用
+  # Caddy 的地址，十次失败登录就会锁住所有人。runner 也在这个网络上，但它们
+  # 经 Caddy 访问 server。
+  trusted_proxies: ["172.30.10.0/24"]
+
+database:
+  driver: postgres
+  # 口令不写在这里：pgx 按 PGPASSFILE（compose.yaml 中为 /run/secrets/pgpass）读取。
+  dsn: "postgres://lerryn@postgres:5432/lerryn?sslmode=disable"
+
+storage:
+  driver: s3
+  s3:
+    endpoint: "http://minio:9000"
+    bucket: "lerryn"
+    region: "us-east-1"
+    path_style: true
+    access_key_id_file: /run/secrets/s3-access-key-id
+    secret_access_key_file: /run/secrets/s3-secret-access-key
+
+secrets:
+  # 所有 server 必须使用同一个主密钥。
+  master_key_file: /var/lib/lerryn/secrets/master.key
+
+# server 角色不执行任务；runner 一节只在 all-in-one 中使用。
+runner:
+  mode: remote
+
+metrics:
+  enabled: true
+  # 只在容器网络内可达，不经过反向代理，也不映射到宿主机。
+  listen: ":9090"
+
+log:
+  level: info
+  format: json

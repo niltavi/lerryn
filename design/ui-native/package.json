@@ -1,0 +1,57 @@
+{
+  "name": "@lerryn/ui-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lerryn 的 React Native 组件库：HeroUI Native + Uniwind 上的 Niltavi 主题与领域组件。",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme.css": "./styles/theme.css",
+    "./tokens": "./src/theme/tokens.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "styles"
+  ],
+  "scripts": {
+    "tokens": "node ../scripts/sync-tokens.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@expo-google-fonts/ibm-plex-mono": ">=0.4.0",
+    "@expo-google-fonts/dm-sans": ">=0.4.0",
+    "expo-font": "*",
+    "heroui-native": "^1.0.10",
+    "lucide-react-native": ">=1.0.0",
+    "react": ">=19.0.0",
+    "react-native": ">=0.81.0",
+    "react-native-reanimated": "^4.1.1",
+    "react-native-svg": "^15.12.1",
+    "uniwind": ">=1.12.0"
+  },
+  "devDependencies": {
+    "@expo-google-fonts/ibm-plex-mono": "0.4.1",
+    "@expo-google-fonts/dm-sans": "0.4.2",
+    "@gorhom/bottom-sheet": "5.2.14",
+    "@types/react": "~19.2.2",
+    "expo-blur": "~57.0.3",
+    "expo-font": "~57.0.4",
+    "heroui-native": "1.0.10",
+    "lucide-react-native": "1.58.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-worklets": "0.10.1",
+    "tailwind-merge": "3.7.0",
+    "tailwind-variants": "3.3.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "uniwind": "1.12.2"
+  }
+}

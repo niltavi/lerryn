@@ -1,0 +1,44 @@
+# 专用 runner 主机上的部署：一台主机一个 runner（技术设计第 15.2 节）。
+# runner 需要访问本机的 Docker API，这基本等于拥有主机的 root 权限，所以不和 server、数据库混部。
+#
+#   sudo mkdir -p /var/lib/lerryn-runner && sudo chown 65532:65532 /var/lib/lerryn-runner
+#   # 把注册令牌写入 secrets/runner-registration-token，在 .env 中设置 DOCKER_GID 和 LERRYN_SERVER_URL
+#   docker compose -f runner-host.compose.yaml up -d
+
+name: lerryn-runner
+
+services:
+  runner:
+    image: ${LERRYN_IMAGE:-ghcr.io/niltavi/lerryn}:${LERRYN_VERSION:-0.9.0}
+    command: ["runner"]
+    restart: unless-stopped
+    environment:
+      LERRYN_CONFIG: /etc/lerryn/runner.yaml
+      LERRYN_RUNNER_DATA_DIR: /var/lib/lerryn-runner
+      # server 的对外地址，例如 https://lerryn.example.com。键名以 M5 的 runner 实现为准。
+      LERRYN_RUNNER_SERVER_URL: ${LERRYN_SERVER_URL:?set LERRYN_SERVER_URL in .env}
+      LERRYN_RUNNER_LABELS: ${LERRYN_RUNNER_LABELS:-default}
+    group_add:
+      - "${DOCKER_GID:?set DOCKER_GID in .env to the group ID of /var/run/docker.sock}"
+    volumes:
+      - type: bind
+        source: ./runner.yaml
+        target: /etc/lerryn/runner.yaml
+        read_only: true
+      - type: bind
+        source: /var/lib/lerryn-runner
+        target: /var/lib/lerryn-runner
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    secrets:
+      - runner-registration-token
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+secrets:
+  runner-registration-token:
+    file: ./secrets/runner-registration-token

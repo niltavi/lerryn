@@ -1,0 +1,84 @@
+# tools 资源的路径：项目中登记的工具（技术设计第 7.8 节）。在根文件 paths 中按路径登记。
+# 三类：HTTP API、外部 MCP 服务和脚本工具。
+tools:
+  get:
+    operationId: listTools
+    tags: [tools]
+    summary: 列出工具
+    description: |
+      返回调用者能查看的项目中登记的工具。任务清单的 `tools` 只能引用任务所在项目中登记的工具名。
+      任务运行时，引用的每个工具的地址经环境变量交给任务：`LERRYN_TOOL_<名称>_URL`（名称转大写，`-` 换成 `_`），
+      全部工具另以 JSON 数组放在 `LERRYN_TOOLS` 中。工具需要的凭证在清单的 `credentials` 中单独声明。
+      script 工具没有地址，它的文件以只读方式挂载在 `/sbx/tools/<名称>`，目录经 `LERRYN_TOOL_<名称>_DIR` 交给任务。
+      mcp 工具可以在任务里用 `sbx mcp call <工具名> <MCP 工具名> --args '<JSON>'` 调用（Python 中 `sbx.mcp_call`，Node 中 `sbx.mcpCall`），
+      这样的调用记入运行事件（`tool.call`）；任务直接发请求，平台看不到。调用外部服务需要清单的 `network` 为 `full`。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectFilter"
+    responses:
+      "200":
+        description: 工具列表，按项目和名称排列。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/ToolList"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+projectTools:
+  post:
+    operationId: registerTool
+    tags: [tools]
+    summary: 登记工具
+    description: |
+      在项目中登记一个 HTTP API、外部 MCP 服务或脚本工具，供项目中的任务在清单的 `tools` 中引用。
+      同名工具已存在时更新它的类型、说明、地址或文件，已引用它的任务下次运行时使用新的登记。
+      说明、地址或文件中含有调用者凭证的值时请求被拒绝（422 `validation_failed`）。
+      需要项目的维护者或所有者角色。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/RegisterToolRequest"
+    responses:
+      "200":
+        description: 登记后的工具。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Tool"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+tool:
+  delete:
+    operationId: removeTool
+    tags: [tools]
+    summary: 移除工具
+    description: |
+      从项目中移除工具。引用它的任务版本不再通过校验，之后的运行在准备阶段以 validation_failed 失败；
+      已经在运行的任务不受影响。需要项目的维护者或所有者角色。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - name: toolId
+        in: path
+        required: true
+        description: 工具 ID。
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "204":
+        description: 已移除。
+      default:
+        $ref: "../common/responses.yaml#/Problem"

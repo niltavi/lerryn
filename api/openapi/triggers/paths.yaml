@@ -1,0 +1,118 @@
+# triggers 资源的路径（技术设计第 8 节）。在根文件 paths 中按路径登记。
+taskTriggers:
+  get:
+    operationId: listTriggers
+    tags: [triggers]
+    summary: 读取触发器
+    description: 返回任务的全部触发器、触发器集合的版本号、人可读的频率和接下来的触发时间。webhook 令牌不返回。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    responses:
+      "200":
+        description: 触发器。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TriggerSet"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  put:
+    operationId: setTriggers
+    tags: [triggers]
+    summary: 设置触发器
+    description: |
+      整体替换任务的触发器，不产生新的任务版本。按 `name` 对应已有触发器，没有列出的被删除。
+      已有触发器时必须带 `If-Match`（读到的 `revision`），与当前不一致时返回 412 `version_conflict`。
+      `dry_run=true` 只校验并返回人可读的频率和接下来的触发时间。修改只影响之后的触发，不改动已经建立的运行。
+      新建的 webhook 触发器的令牌只在这次响应中出现。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: true
+      tool: trigger_set
+      title: 设置触发器
+      description: |
+        整体替换任务的触发器（没有列出的会被删除）。cron 必须带 timezone（IANA 时区名，例如 Asia/Shanghai），
+        先用 dry_run 为 true 确认 schedule_text 和 next_fires，并向用户复述。已有触发器时 if_match 必填，值为读到的 revision。
+        触发器只在任务激活后生效。webhook 的令牌只在创建时返回一次，交给调用方保存。
+      hints:
+        destructive: true
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/DryRun"
+      - $ref: "../common/parameters.yaml#/IfMatch"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/SetTriggersRequest"
+    responses:
+      "200":
+        description: 设置后的触发器，或预览结果。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TriggerSet"
+      "412":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+rotateToken:
+  post:
+    operationId: rotateTriggerToken
+    tags: [triggers]
+    summary: 轮换 webhook 令牌
+    description: 为 webhook 触发器生成新令牌，旧令牌立即失效。新令牌只在这次响应中出现。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TriggerID"
+    responses:
+      "200":
+        description: 带新令牌的触发器。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Trigger"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+hook:
+  post:
+    operationId: triggerWebhook
+    tags: [triggers]
+    summary: webhook 触发
+    description: |
+      外部系统用触发器令牌调用，产生一次运行（技术设计第 8.3 节）。请求体原样存为运行输入，任务在 `/sbx/in/body` 读取，
+      请求的 Content-Type 放在环境变量 `LERRYN_INPUT_CONTENT_TYPE` 中。请求体超过触发器的上限时返回 413。
+      带 `Idempotency-Key` 时，重复投递只产生一次运行。任务未激活或触发器已停用时返回 404 `not_found`。
+      按触发器限流，超出时返回 429 `rate_limited`。
+    x-operation-kind: execute
+    x-mcp:
+      expose: false
+    security:
+      - triggerToken: []
+    parameters:
+      - $ref: "../common/parameters.yaml#/TriggerID"
+      - $ref: "../common/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: false
+      content:
+        "*/*":
+          schema:
+            type: string
+            contentMediaType: application/octet-stream
+    responses:
+      "202":
+        description: 已接受。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/WebhookAccepted"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

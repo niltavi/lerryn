@@ -1,0 +1,220 @@
+# admin 资源的 schema：账号管理、部署设置和审计（技术设计第 12.1、12.7 节）。在根文件 components.schemas 中逐个登记。
+AdminUser:
+  type: object
+  description: 管理员看到的一个账号。
+  required: [id, username, display_name, email, is_admin, has_password, sso, disabled_at, created_at, last_seen_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    username:
+      type: string
+    display_name:
+      type: [string, "null"]
+    email:
+      type: [string, "null"]
+    is_admin:
+      type: boolean
+    has_password:
+      type: boolean
+      description: 是否设置了内置账号密码。
+    sso:
+      type: boolean
+      description: 是否关联了单点登录身份。
+    disabled_at:
+      type: [string, "null"]
+      format: date-time
+      description: 停用时间。停用的账号不能登录，它的会话、访问令牌和设备会话立即失效。
+    created_at:
+      type: string
+      format: date-time
+    last_seen_at:
+      type: [string, "null"]
+      format: date-time
+      description: 最近一次用会话或访问令牌访问的时间，精确到分钟左右。
+
+AdminUserPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/AdminUser"
+
+AdminCreateUserRequest:
+  type: object
+  description: 管理员建立内置账号。开放注册关闭时也可以建立。
+  required: [username, password]
+  additionalProperties: false
+  properties:
+    username:
+      $ref: "../auth/schemas.yaml#/Username"
+    password:
+      $ref: "../auth/schemas.yaml#/Password"
+    display_name:
+      type: string
+      maxLength: 64
+    email:
+      type: string
+      format: email
+      maxLength: 254
+    is_admin:
+      type: boolean
+      default: false
+
+AdminUpdateUserRequest:
+  type: object
+  description: |
+    修改账号。只修改给出的字段。不能停用自己，也不能取消自己的管理员身份，避免部署失去管理员。
+  minProperties: 1
+  additionalProperties: false
+  properties:
+    is_admin:
+      type: boolean
+    disabled:
+      type: boolean
+      description: true 停用，false 恢复。
+    display_name:
+      type: string
+      maxLength: 64
+
+AdminResetPasswordRequest:
+  type: object
+  required: [password]
+  additionalProperties: false
+  properties:
+    password:
+      $ref: "../auth/schemas.yaml#/Password"
+
+OidcInfo:
+  type: object
+  description: 配置文件中的单点登录设置，只读。client secret 不返回。
+  required: [issuer, client_id, username_claim, callback_url, user_count]
+  properties:
+    issuer:
+      type: string
+    client_id:
+      type: string
+    username_claim:
+      type: string
+      description: 用作用户名的声明，默认 `preferred_username`。
+    callback_url:
+      type: string
+      format: uri
+      description: 需要在 OIDC 提供方登记的回调地址。
+    user_count:
+      type: integer
+      description: 关联了单点登录身份的账号数。
+
+Settings:
+  type: object
+  description: 部署级设置（技术设计第 12.1 节）。可修改的项存在数据库中，修改立即生效。
+  required: [open_registration, local_password_login, require_test_before_activate, oidc, updated_at, updated_by]
+  properties:
+    open_registration:
+      type: boolean
+      description: 是否开放注册。关闭后新账号只能由管理员建立，或通过单点登录首次登录产生。
+    local_password_login:
+      type: boolean
+      description: |
+        普通用户能否用内置账号密码登录。只有配置了单点登录时才能关闭；关闭后管理员仍可用密码登录，供应急使用。
+    require_test_before_activate:
+      type: boolean
+      description: 激活前必须测试。来自部署配置，这里只读。
+    oidc:
+      description: 单点登录设置，没有配置时为 null。
+      oneOf:
+        - $ref: "#/OidcInfo"
+        - type: "null"
+    updated_at:
+      type: [string, "null"]
+      format: date-time
+      description: 最近一次修改的时间，从未修改时为 null。
+    updated_by:
+      oneOf:
+        - $ref: "../common/schemas.yaml#/UserRef"
+        - type: "null"
+
+UpdateSettingsRequest:
+  type: object
+  description: 要修改的设置。只修改给出的字段。
+  minProperties: 1
+  additionalProperties: false
+  properties:
+    open_registration:
+      type: boolean
+    local_password_login:
+      type: boolean
+
+AuditActor:
+  type: object
+  description: 审计记录的操作者。
+  required: [kind, id, name]
+  properties:
+    kind:
+      type: string
+      enum: [user, token, runner, trigger, anonymous, system]
+      description: token 表示用访问令牌操作，`id` 为令牌所属的用户，`name` 为令牌名。
+    id:
+      type: [string, "null"]
+      description: 用户 ID、runner ID 或触发器 ID。匿名和系统操作为 null。
+    name:
+      type: [string, "null"]
+      description: 记录时的用户名、令牌名或 runner 名。
+
+AuditEvent:
+  type: object
+  description: 一条审计记录（技术设计第 12.7 节）。不含任何明文凭证。
+  required: [id, ts, actor, action, kind, resource_kind, resource_id, result, via, tool, ip, request_id, details]
+  properties:
+    id:
+      type: string
+      format: uuid
+    ts:
+      type: string
+      format: date-time
+    actor:
+      $ref: "#/AuditActor"
+    action:
+      type: string
+      description: 操作，通常为 operationId，例如 `setTaskActivation`；平台内部的动作用点分名称，例如 `runner.claim`。
+    kind:
+      type: [string, "null"]
+      enum: [read, mutate, execute]
+      description: 操作的 x-operation-kind。
+    resource_kind:
+      type: string
+      description: 资源类别，例如 task、credential、user、setting。
+    resource_id:
+      type: [string, "null"]
+    result:
+      type: string
+      enum: [success, failure, denied]
+    via:
+      type: [string, "null"]
+      enum: [api, mcp, console, runner, hook]
+      description: 入口。经 MCP 的操作为 mcp，`tool` 为工具名。
+    tool:
+      type: [string, "null"]
+    ip:
+      type: [string, "null"]
+    request_id:
+      type: [string, "null"]
+    details:
+      type: [object, "null"]
+      additionalProperties: true
+      description: 与操作相关的补充信息，例如角色变化前后的值。
+
+AuditEventPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/AuditEvent"

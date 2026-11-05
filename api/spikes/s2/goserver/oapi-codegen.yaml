@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+# 与 server/internal/httpapi 的正式配置保持一致，只多开了 embedded-spec，用来检查 3.1 文档能否原样嵌入。
+package: goserver
+output: server.gen.go
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  # 只被 webhooks 引用的 schema 会被裁剪掉，生成的代码随即无法编译（见 S2 文档问题清单）。
+  skip-prune: true

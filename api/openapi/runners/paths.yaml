@@ -1,0 +1,81 @@
+# runners 资源的路径：只有平台管理员能调用。在根文件 paths 中按路径登记。
+runners:
+  get:
+    operationId: listRunners
+    tags: [admin]
+    summary: 列出执行节点
+    description: 列出全部执行节点、它们的标签、状态和占用。失联节点上中断的运行用 listRuns 的 `runner_id` 查询。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - name: status
+        in: query
+        description: 只返回这个状态的节点。
+        schema:
+          $ref: "./schemas.yaml#/RunnerStatus"
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页执行节点。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/RunnerPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+runner:
+  patch:
+    operationId: updateRunner
+    tags: [admin]
+    summary: 停用或恢复执行节点
+    description: 停用后节点不再领取新运行，正在执行的运行继续到结束。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunnerID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/UpdateRunnerRequest"
+    responses:
+      "200":
+        description: 修改后的节点。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Runner"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+runnerTokens:
+  post:
+    operationId: createRunnerToken
+    tags: [admin]
+    summary: 生成 runner 注册令牌
+    description: 生成一次性的注册令牌，新部署的 runner 用它注册。令牌只在这次响应中出现。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/CreateRunnerTokenRequest"
+    responses:
+      "201":
+        description: 注册令牌。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/RunnerToken"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

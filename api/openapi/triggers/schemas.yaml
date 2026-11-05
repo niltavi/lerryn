@@ -1,0 +1,185 @@
+# triggers 资源的 schema（技术设计第 8 节）。在根文件 components.schemas 中逐个登记。
+TriggerType:
+  type: string
+  description: cron 为定时触发；webhook 为外部系统以 HTTP 请求触发。
+  enum: [cron, webhook]
+
+CatchUp:
+  type: string
+  description: |
+    服务停机错过计划时间后的处理（技术设计第 8.2 节）。skip：不补跑，记一条已跳过的运行，注明错过的次数和时间范围；
+    latest：恢复后只补跑一次，其余记为已跳过。计划时间早于当前时间超过 60 秒（部署可调）视为错过。
+  enum: [skip, latest]
+
+TriggerInput:
+  type: object
+  description: |
+    一个触发器的期望状态。setTriggers 按 `name` 对应已有的触发器：同名同类型的保留 ID 和 webhook 令牌，
+    没有列出的被删除。cron 必须给出 schedule 和 timezone。
+  required: [name, type]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+      description: 触发器名，任务内唯一。
+      examples: [weekday-morning]
+    type:
+      $ref: "#/TriggerType"
+    enabled:
+      type: boolean
+      default: true
+      description: 为 false 时保留触发器但不触发。任务未激活时所有触发器都不触发。
+    schedule:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: 只用于 cron：五段 cron 表达式（分 时 日 月 周），也接受 `@daily`、`@hourly` 这类简写。
+      examples: ["0 8 * * 1-5"]
+    timezone:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: 只用于 cron，必填：IANA 时区名。夏令时按该时区的本地时间计算。
+      examples: [Asia/Shanghai]
+    catch_up:
+      $ref: "#/CatchUp"
+    max_body_bytes:
+      type: integer
+      minimum: 1024
+      maximum: 10485760
+      default: 1048576
+      description: 只用于 webhook：请求体上限，超过时返回 413。
+    params:
+      type: object
+      additionalProperties: true
+      description: 这个触发器产生的运行使用的参数，整体替换清单中的 `params`。省略时使用清单的 `params`。含有已登记凭证的值（或它的 base64、URL 编码、JSON 转义）时请求被拒绝，返回 422 `validation_failed`。
+
+SetTriggersRequest:
+  type: object
+  description: 任务的全部触发器。整体替换：没有列出的触发器会被删除。
+  required: [triggers]
+  additionalProperties: false
+  properties:
+    triggers:
+      type: array
+      maxItems: 20
+      items:
+        $ref: "#/TriggerInput"
+
+CronDetail:
+  type: object
+  required: [schedule, timezone, schedule_text, next_fires]
+  properties:
+    schedule:
+      type: string
+    timezone:
+      type: string
+    schedule_text:
+      type: string
+      description: 人可读的频率，例如“每个工作日 08:00”。Agent 应向用户复述它和 next_fires。
+    next_fires:
+      type: array
+      maxItems: 5
+      description: 接下来最多 5 次计划触发的时间（UTC）。
+      items:
+        type: string
+        format: date-time
+
+WebhookDetail:
+  type: object
+  required: [url, token_prefix, token, max_body_bytes]
+  properties:
+    url:
+      type: string
+      format: uri
+      description: 调用地址。用 POST 请求，令牌放在 Authorization 头中，写成 `Bearer <令牌>`。
+    token_prefix:
+      type: string
+      description: 令牌的前几个字符，用来辨认。
+    token:
+      type: [string, "null"]
+      description: 令牌本身，只在建立触发器或轮换令牌的那次响应中出现，其余时候为 null。请立即交给调用方保存。
+    max_body_bytes:
+      type: integer
+
+Trigger:
+  type: object
+  description: 任务的一个触发器。
+  required: [id, name, type, enabled, catch_up, params, cron, webhook, next_fire_at, last_fired_at, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    type:
+      $ref: "#/TriggerType"
+    enabled:
+      type: boolean
+    catch_up:
+      $ref: "#/CatchUp"
+    params:
+      type: [object, "null"]
+      additionalProperties: true
+      description: 触发器的参数，没有设置时为 null。
+    cron:
+      description: type 为 cron 时的详情，否则为 null。
+      oneOf:
+        - $ref: "#/CronDetail"
+        - type: "null"
+    webhook:
+      description: type 为 webhook 时的详情，否则为 null。
+      oneOf:
+        - $ref: "#/WebhookDetail"
+        - type: "null"
+    next_fire_at:
+      type: [string, "null"]
+      format: date-time
+      description: 下一次触发时间。任务未激活、触发器停用或为 webhook 时为 null。
+    last_fired_at:
+      type: [string, "null"]
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+TriggerSet:
+  type: object
+  description: 一个任务的全部触发器。
+  required: [task_id, revision, dry_run, task_active, triggers]
+  properties:
+    task_id:
+      type: string
+      format: uuid
+    revision:
+      type: integer
+      description: 触发器集合的版本号，每次 setTriggers 加 1。修改时作为 If-Match 传回。
+    dry_run:
+      type: boolean
+      description: 为 true 时是预览，没有保存。
+    task_active:
+      type: boolean
+      description: 任务是否已激活。未激活时触发器不会产生运行，next_fire_at 为 null，但 cron.next_fires 仍给出预计时间。
+    triggers:
+      type: array
+      items:
+        $ref: "#/Trigger"
+
+WebhookAccepted:
+  type: object
+  description: webhook 触发的结果。
+  required: [run_id, status, duplicate]
+  properties:
+    run_id:
+      type: string
+      format: uuid
+      description: 产生的运行。因重叠或队列已满被跳过时，也会有一条已跳过的运行。
+    status:
+      $ref: "../runs/schemas.yaml#/RunStatus"
+    duplicate:
+      type: boolean
+      description: 同一个 Idempotency-Key 已经触发过，这里返回的是第一次的运行。

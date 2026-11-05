@@ -1,0 +1,59 @@
+{
+  "name": "@lerryn/ui-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lerryn 的 Web 组件库：HeroUI v3 上的Niltavi 主题，以及运行状态、阶段、结果、日志等领域组件。",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./styles/index.css",
+    "./tokens.css": "./styles/tokens.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "styles"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@lerryn/core": "workspace:*",
+    "uqr": "0.1.3"
+  },
+  "peerDependencies": {
+    "@heroui/react": "^3.2.0",
+    "@heroui/styles": "^3.2.0",
+    "@tanstack/react-virtual": "^3.13.0",
+    "lucide-react": ">=1.0.0",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@heroui/react": "3.2.6",
+    "@heroui/styles": "3.2.6",
+    "@internationalized/date": "3.12.4",
+    "@react-aria/ssr": "3.10.1",
+    "@react-aria/utils": "3.34.1",
+    "@tanstack/react-query": "5.105.2",
+    "@tanstack/react-virtual": "3.14.25",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "jsdom": "30.1.3",
+    "lucide-react": "1.58.0",
+    "react": "19.2.3",
+    "react-aria": "3.53.1",
+    "react-aria-components": "1.22.1",
+    "react-dom": "19.2.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,222 @@
+# admin 资源的路径：账号管理、部署设置和审计。在根文件 paths 中按路径登记。
+# 只有平台管理员能调用，其他用户得到 403 `permission_denied`。管理员身份不带来访问别人项目或凭证的权限。
+users:
+  get:
+    operationId: adminListUsers
+    tags: [admin]
+    summary: 列出账号
+    description: 列出部署中的全部账号，按用户名排序。可以按文字和状态筛选。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - name: q
+        in: query
+        description: 用户名、显示名或邮箱中包含的文字，不区分大小写。
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: status
+        in: query
+        description: 只返回启用或已停用的账号。
+        schema:
+          type: string
+          enum: [active, disabled]
+      - name: admin
+        in: query
+        description: true 只返回管理员。
+        schema:
+          type: boolean
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页账号。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AdminUserPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  post:
+    operationId: adminCreateUser
+    tags: [admin]
+    summary: 建立账号
+    description: |
+      建立内置账号，同时建立它的个人项目。用户名已被占用时返回 409 `username_taken`。
+      只能在登录会话中调用：访问令牌泄露后不能借此建立新的管理员。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/AdminCreateUserRequest"
+    responses:
+      "201":
+        description: 已建立。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AdminUser"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+user:
+  patch:
+    operationId: adminUpdateUser
+    tags: [admin]
+    summary: 修改账号
+    description: |
+      设置或取消管理员、停用或恢复账号、修改显示名。停用立即生效：该账号的会话、访问令牌和设备会话立即失效，
+      已经在执行的运行不受影响。
+      只能在登录会话中调用：访问令牌泄露后不能借此设置管理员。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    parameters:
+      - $ref: "../common/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/AdminUpdateUserRequest"
+    responses:
+      "200":
+        description: 修改后的账号。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AdminUser"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+userPassword:
+  post:
+    operationId: adminResetPassword
+    tags: [admin]
+    summary: 重置密码
+    description: |
+      为账号设置新密码，该账号的会话和设备会话全部失效，访问令牌不受影响。只用单点登录的账号也可以借此获得密码。
+      只能在登录会话中调用：访问令牌泄露后不能借此重设密码、登录并创建新的访问令牌。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    parameters:
+      - $ref: "../common/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/AdminResetPasswordRequest"
+    responses:
+      "204":
+        description: 已重置。
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+settings:
+  get:
+    operationId: getSettings
+    tags: [admin]
+    summary: 读取设置
+    description: 返回部署级设置和单点登录配置的只读信息。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    responses:
+      "200":
+        description: 设置。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Settings"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  patch:
+    operationId: updateSettings
+    tags: [admin]
+    summary: 修改设置
+    description: |
+      修改开放注册和本地密码登录，立即生效，所有 server 副本在几秒内一致。没有配置单点登录时不能关闭本地密码登录
+      （422 `validation_failed`）。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/UpdateSettingsRequest"
+    responses:
+      "200":
+        description: 修改后的设置。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Settings"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+auditEvents:
+  get:
+    operationId: listAuditEvents
+    tags: [admin]
+    summary: 查询审计记录
+    description: 查询审计记录，从新到旧排列。可以按时间、操作者、操作、资源和结果筛选（技术设计第 12.7 节）。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/Since"
+      - $ref: "../common/parameters.yaml#/Until"
+      - name: actor_id
+        in: query
+        description: 操作者的用户 ID、runner ID 或触发器 ID。
+        schema:
+          type: string
+          maxLength: 128
+      - name: action
+        in: query
+        description: 操作，例如 `login`、`revokeCredential`。
+        schema:
+          type: string
+          maxLength: 64
+      - name: resource_kind
+        in: query
+        schema:
+          type: string
+          maxLength: 32
+      - name: resource_id
+        in: query
+        schema:
+          type: string
+          maxLength: 128
+      - name: result
+        in: query
+        schema:
+          type: string
+          enum: [success, failure, denied]
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页审计记录。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AuditEventPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

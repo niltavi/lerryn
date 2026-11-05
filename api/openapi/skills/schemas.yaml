@@ -1,0 +1,67 @@
+# skills 资源的 schema。在根文件 components.schemas 中登记。
+
+SkillList:
+  type: object
+  description: 服务端随版本发行的 Skill。
+  required: [version, items]
+  properties:
+    version:
+      type: string
+      description: Skill 的版本，即服务端版本。
+      examples: [v0.9.0]
+    items:
+      type: array
+      items:
+        $ref: "#/SkillInfo"
+
+SkillInfo:
+  type: object
+  description: 一个 Skill 及其文件清单。
+  required: [name, description, files]
+  properties:
+    name:
+      type: string
+      description: Skill 名称，也是安装时的目录名。
+      examples: [lerryn-automation]
+    description:
+      type: string
+      description: Skill 的触发场景说明，即 SKILL.md 中的 description。
+    files:
+      type: array
+      description: Skill 目录下的文件，相对路径，以 / 分隔，按路径排序；包含 SKILL.md。
+      items:
+        type: string
+      examples: [[SKILL.md, references/manifest.md]]
+
+Skill:
+  type: object
+  description: 一个 Skill 的全部内容。
+  required: [name, description, version, files]
+  properties:
+    name:
+      type: string
+      examples: [lerryn-automation]
+    description:
+      type: string
+      description: SKILL.md 中的 description。
+    version:
+      type: string
+      description: Skill 的版本，即服务端版本。
+    files:
+      type: array
+      description: Skill 目录下的全部文件，按路径排序。
+      items:
+        $ref: "#/SkillFile"
+
+SkillFile:
+  type: object
+  description: Skill 的一个文件。
+  required: [path, content]
+  properties:
+    path:
+      type: string
+      description: 相对 Skill 目录的路径，以 / 分隔。
+      examples: [references/manifest.md]
+    content:
+      type: string
+      description: 文件内容，UTF-8 文本。

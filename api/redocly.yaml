@@ -1,0 +1,5 @@
+# Redocly CLI 只用来打包（make api-bundle），规范检查交给 Spectral（api/.spectral.yaml）。
+extends:
+  - minimal
+# 不向 Redocly 上报使用统计。Makefile 另外导出了 REDOCLY_TELEMETRY=off。
+telemetry: off

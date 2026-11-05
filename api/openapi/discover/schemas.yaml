@@ -1,0 +1,187 @@
+# discover 接口的 schema。在根文件 components.schemas 中逐个登记。
+Discovery:
+  type: object
+  description: |
+    Agent 接入时读取的平台信息。各字段只做增量扩展，Agent 遇到不认识的字段应忽略。
+  required: [server, api, capabilities, runtimes, skills, principal, links]
+  properties:
+    server:
+      $ref: "#/ServerInfo"
+    api:
+      $ref: "#/ApiInfo"
+    capabilities:
+      $ref: "#/Capabilities"
+    runtimes:
+      type: array
+      description: 可用的运行时目录。任务清单的 `runtime` 只能从这里选。
+      items:
+        $ref: "#/RuntimeInfo"
+    skills:
+      $ref: "#/SkillCatalog"
+    principal:
+      description: 当前调用者的身份。匿名调用时为 null。
+      oneOf:
+        - $ref: "#/Principal"
+        - type: "null"
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+      description: "`console` 指向控制台首页。"
+
+ServerInfo:
+  type: object
+  description: 服务端的构建信息。
+  required: [version, commit, build_date]
+  properties:
+    version:
+      type: string
+      description: 服务端发行版本。本地开发构建为 `dev`。
+      examples: [v0.9.0]
+    commit:
+      type: string
+      description: 构建时的 git 提交，未知时为 `none`。
+      examples: [4a78fd0]
+    build_date:
+      type: [string, "null"]
+      format: date-time
+      description: 构建时间（UTC）。开发构建没有记录时为 null。
+
+ApiInfo:
+  type: object
+  description: 接口契约的版本。
+  required: [version, spec_version]
+  properties:
+    version:
+      type: string
+      description: API 主版本，对应路径前缀 `/api/<version>`。主版本内只做增量变更。
+      examples: [v1]
+    spec_version:
+      type: string
+      description: 服务端实现的 OpenAPI 契约版本（`info.version`）。
+      examples: [0.9.0]
+
+Capabilities:
+  type: object
+  description: |
+    本部署启用的能力。Agent 据此选择操作路径，不要凭记忆假设。
+    新能力以新增字段的形式加入。
+  required: [login_methods, registration_open, first_account, network_policies, require_test_before_activate]
+  properties:
+    login_methods:
+      type: array
+      description: |
+        人登录控制台可用的方式。Agent 一律使用访问令牌，不受此项影响。
+        管理员关闭本地密码登录后不含 password，此时 admin_password_login 为 true。
+      uniqueItems: true
+      items:
+        $ref: "#/LoginMethod"
+    admin_password_login:
+      type: boolean
+      description: |
+        本地密码登录对普通用户关闭、只有管理员还能用密码登录时为 true（技术设计第 12.1 节）。
+        控制台据此以单点登录为主入口，另给管理员留一个密码登录的入口；其他情况为 false。
+    registration_open:
+      type: boolean
+      description: 是否开放注册。关闭时新账号只能由管理员创建，或通过单点登录首次登录产生。
+    first_account:
+      type: boolean
+      description: |
+        部署中还没有任何账号。此时下一个注册的账号成为管理员，即使开放注册已关闭也可以注册。
+        控制台据此在注册页提示首个账号。
+    network_policies:
+      type: array
+      description: 任务清单的 `network` 字段可用的取值。
+      uniqueItems: true
+      items:
+        $ref: "../common/schemas.yaml#/NetworkPolicy"
+    require_test_before_activate:
+      type: boolean
+      description: 为 true 时，任务版本必须有一次成功的测试运行才能激活。
+
+LoginMethod:
+  type: string
+  description: 控制台登录方式。password 为内置账号的用户名和密码；oidc 为单点登录。
+  enum: [password, oidc]
+
+RuntimeInfo:
+  type: object
+  description: 运行时目录中的一项。任务清单的 `runtime` 字段按这里的取值填写。
+  required: [language, version, lockfile]
+  properties:
+    language:
+      type: string
+      description: 运行时语言。
+      examples: [python]
+    version:
+      type: string
+      description: 运行时版本。
+      examples: ["3.12"]
+    lockfile:
+      type: [string, "null"]
+      description: 依赖锁文件名。不支持依赖管理的运行时为 null。
+      examples: [uv.lock]
+
+SkillCatalog:
+  type: object
+  description: 与服务端版本匹配的 Skill。
+  required: [version, items]
+  properties:
+    version:
+      type: string
+      description: |
+        服务端提供的 Skill 版本，随服务端发行。Agent 本地 Skill 的版本与它不同时，
+        从服务端重新获取 Skill。
+      examples: [v0.9.0]
+    items:
+      type: array
+      description: 服务端提供的 Skill 列表。
+      items:
+        $ref: "#/SkillSummary"
+
+SkillSummary:
+  type: object
+  description: 一个 Skill 的摘要。
+  required: [name, description]
+  properties:
+    name:
+      type: string
+      description: Skill 名称。
+      examples: [lerryn-automation]
+    description:
+      type: string
+      description: Skill 的触发场景说明，即 SKILL.md 中的 description。
+
+Principal:
+  type: object
+  description: 当前调用者。访问令牌代表创建它的用户。
+  required: [user_id, username, display_name, is_admin, auth_method, scopes, personal_project_id]
+  properties:
+    user_id:
+      type: string
+      format: uuid
+      description: 用户 ID。
+    personal_project_id:
+      type: string
+      format: uuid
+      description: 当前用户个人项目的 ID。建立任务时用它作为 project_id。
+    username:
+      type: string
+      description: 用户名。
+    display_name:
+      type: [string, "null"]
+      description: 显示名，未设置时为 null。
+    is_admin:
+      type: boolean
+      description: 是否为平台管理员。
+    auth_method:
+      $ref: "#/AuthMethod"
+    scopes:
+      type: array
+      description: 本次请求的有效范围。会话拥有全部范围；访问令牌为创建时选择的范围。
+      uniqueItems: true
+      items:
+        $ref: "../common/schemas.yaml#/TokenScope"
+
+AuthMethod:
+  type: string
+  description: 本次请求的鉴权方式。access_token 为访问令牌；session 为控制台或移动端的会话。
+  enum: [access_token, session]

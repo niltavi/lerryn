@@ -1,0 +1,112 @@
+# projects 资源的 schema（技术设计第 12.2 节）。在根文件 components.schemas 中逐个登记。
+Project:
+  type: object
+  description: 项目：共享和授权的单位。每个用户有一个个人项目。
+  required: [id, name, is_personal, role, owner, member_count, created_at, updated_at, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    is_personal:
+      type: boolean
+      description: 是否为某个用户的个人项目。个人项目不能删除，也不能移除它的所有者。
+    role:
+      $ref: "../common/schemas.yaml#/ProjectRole"
+      description: 调用者在这个项目中的角色。
+    owner:
+      $ref: "../common/schemas.yaml#/UserRef"
+      description: 建立项目的用户。
+    member_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+ProjectPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/Project"
+
+ProjectName:
+  type: string
+  minLength: 1
+  maxLength: 64
+  description: 项目名称。
+
+CreateProjectRequest:
+  type: object
+  required: [name]
+  additionalProperties: false
+  properties:
+    name:
+      $ref: "#/ProjectName"
+
+UpdateProjectRequest:
+  type: object
+  required: [name]
+  additionalProperties: false
+  properties:
+    name:
+      $ref: "#/ProjectName"
+
+Member:
+  type: object
+  description: 项目的一个成员。
+  required: [user, role, disabled, created_at, updated_at]
+  properties:
+    user:
+      $ref: "../common/schemas.yaml#/UserRef"
+    role:
+      $ref: "../common/schemas.yaml#/ProjectRole"
+    disabled:
+      type: boolean
+      description: 账号已被管理员停用。停用的成员保留角色，但不能登录。
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+MemberPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/Member"
+
+SetMemberRequest:
+  type: object
+  required: [role]
+  additionalProperties: false
+  properties:
+    role:
+      $ref: "../common/schemas.yaml#/ProjectRole"
+
+UserRefPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "../common/schemas.yaml#/UserRef"

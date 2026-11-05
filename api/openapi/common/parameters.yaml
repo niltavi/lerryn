@@ -1,0 +1,184 @@
+# 各资源共用的参数。在根文件 components.parameters 中逐个登记。
+Limit:
+  name: limit
+  in: query
+  description: 每页返回的条数。
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 200
+    default: 50
+
+Cursor:
+  name: cursor
+  in: query
+  description: 上一页响应中的 `next_cursor`。省略时从第一页开始。
+  schema:
+    type: string
+    maxLength: 1024
+
+TaskID:
+  name: taskId
+  in: path
+  required: true
+  description: 任务 ID。
+  schema:
+    type: string
+    format: uuid
+
+RunID:
+  name: runId
+  in: path
+  required: true
+  description: 运行 ID。
+  schema:
+    type: string
+    format: uuid
+
+ProjectID:
+  name: projectId
+  in: path
+  required: true
+  description: 项目 ID。
+  schema:
+    type: string
+    format: uuid
+
+VersionSeq:
+  name: seq
+  in: path
+  required: true
+  description: 任务的版本号，从 1 开始。
+  schema:
+    type: integer
+    minimum: 1
+
+TriggerID:
+  name: triggerId
+  in: path
+  required: true
+  description: 触发器 ID。
+  schema:
+    type: string
+    format: uuid
+
+ArtifactID:
+  name: artifactId
+  in: path
+  required: true
+  description: 产物 ID。
+  schema:
+    type: string
+    format: uuid
+
+CredentialID:
+  name: credentialId
+  in: path
+  required: true
+  description: 凭证 ID。
+  schema:
+    type: string
+    format: uuid
+
+CredentialRequestID:
+  name: requestId
+  in: path
+  required: true
+  description: 凭证填写请求的 ID。
+  schema:
+    type: string
+    format: uuid
+
+UserID:
+  name: userId
+  in: path
+  required: true
+  description: 用户 ID。
+  schema:
+    type: string
+    format: uuid
+
+ChannelID:
+  name: channelId
+  in: path
+  required: true
+  description: 通知渠道 ID。
+  schema:
+    type: string
+    format: uuid
+
+RunnerID:
+  name: runnerId
+  in: path
+  required: true
+  description: 执行节点 ID。由 runner 自己生成，不是 UUID。
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 128
+
+DeviceID:
+  name: deviceId
+  in: path
+  required: true
+  description: 移动设备会话的 ID。
+  schema:
+    type: string
+    format: uuid
+
+ProjectFilter:
+  name: project_id
+  in: query
+  description: 只返回这个项目中的数据。省略时返回调用者能查看的全部项目。
+  schema:
+    type: string
+    format: uuid
+
+# 并发修改保护（技术设计第 9.3 节）。值为调用者读到的版本号，可以带或不带双引号。
+IfMatch:
+  name: If-Match
+  in: header
+  description: |
+    调用者读到的版本号，用于防止覆盖其他会话的修改。与服务端当前版本不一致时返回 412 `version_conflict`，
+    `Problem.current_version` 给出当前版本号。可以写成 `3` 或 `"3"`。
+  schema:
+    type: string
+    pattern: '^"?[0-9]{1,10}"?$'
+    examples: ["3"]
+
+# 幂等键（技术设计第 9.3 节）。
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  description: |
+    幂等键，1 到 128 个可见 ASCII 字符，建议用 UUID。24 小时内用相同的键和相同的请求重试，返回首次的结果，不会重复执行；
+    相同的键对应不同的请求时返回 409 `idempotency_conflict`。
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[\\x21-\\x7E]+$"
+
+DryRun:
+  name: dry_run
+  in: query
+  description: 为 true 时只校验并返回预览，不保存任何修改。
+  schema:
+    type: boolean
+    default: false
+
+Since:
+  name: since
+  in: query
+  description: 只返回这个时间及之后的记录。
+  schema:
+    type: string
+    format: date-time
+
+Until:
+  name: until
+  in: query
+  description: 只返回这个时间之前的记录。
+  schema:
+    type: string
+    format: date-time

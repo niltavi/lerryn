@@ -1,0 +1,17 @@
+# 标准拓扑中 remote runner 的配置。runner.data_dir 由 compose.yaml 的环境变量按 runner 分别设置。
+# 所有项的说明见 docs/deploy.md 的配置参考。
+
+runner:
+  mode: remote
+  # runner 只通过 HTTP(S) 访问 server（经反向代理），不持有数据库和对象存储的凭证。
+  server_url: "http://caddy"
+  # 首次启动时换取 runner 凭证，凭证存在 data_dir 下的 runner-credential。
+  registration_token_file: /run/secrets/runner-registration-token
+  labels: [default]
+  slots: 4
+  allowed_networks: [none, full]
+  python_image: ghcr.io/astral-sh/uv:0.13.6-python3.12-trixie-slim
+
+log:
+  level: info
+  format: json

@@ -1,0 +1,475 @@
+# runs 资源的路径。在根文件 paths 中按路径登记。
+runs:
+  get:
+    operationId: listRuns
+    tags: [runs]
+    summary: 列出运行
+    description: |
+      列出调用者能查看的运行，按排队时间从新到旧排列。可以按项目、任务、状态、来源和时间筛选。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectFilter"
+      - name: task_id
+        in: query
+        description: 只返回这个任务的运行。
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        description: 只返回这些状态的运行，可以重复给出，例如 `status=failed&status=timed_out`。
+        style: form
+        explode: true
+        schema:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "./schemas.yaml#/RunStatus"
+      - name: trigger
+        in: query
+        description: 只返回这个来源的运行。
+        schema:
+          $ref: "./schemas.yaml#/TriggerKind"
+      - name: test
+        in: query
+        description: true 只返回测试运行，false 只返回非测试运行，省略时都返回。
+        schema:
+          type: boolean
+      - name: rerun_of
+        in: query
+        description: 只返回重跑自这个运行的运行。
+        schema:
+          type: string
+          format: uuid
+      - name: runner_id
+        in: query
+        description: 只返回由这个 runner 领取的运行。
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - $ref: "../common/parameters.yaml#/Since"
+      - $ref: "../common/parameters.yaml#/Until"
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页运行。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/RunPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+taskRuns:
+  post:
+    operationId: startRun
+    tags: [runs]
+    summary: 发起运行
+    description: |
+      用任务的某个版本发起一次运行，立即返回运行 ID 和状态，不等待执行完成。
+      客户端断开不影响运行；取消必须明确调用取消接口。带 `Idempotency-Key` 重试不会重复发起。
+      队列已满时返回 429 `queue_full`；任务已归档时返回 409 `task_archived`。
+      任务关闭了控制台的手动执行（`console.manual_run` 为 false）时，用浏览器会话发起返回 409 `manual_run_disabled`；
+      访问令牌不受影响。
+    x-operation-kind: execute
+    x-mcp:
+      expose: true
+      tool: run_start
+      title: 发起运行
+      description: |
+        运行任务（默认最新版本），立即返回运行 ID。task_id 来自 task_apply 的返回。测试新版本时传 test 为 true。
+        建议带 idempotency_key（例如一个 UUID），网络出错后用同一个键重试不会重复运行。
+        之后用 run_get（可带 wait 秒数）查看状态，用 run_logs 读取日志。
+        清单为 concurrency: forbid 时，上一个运行未结束会返回 run_in_progress。
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/StartRunRequest"
+    responses:
+      "202":
+        description: 已接受，运行在排队中。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Run"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+run:
+  get:
+    operationId: getRun
+    tags: [runs]
+    summary: 读取运行
+    description: 返回运行的状态、阶段、结果和错误。带 `wait` 时，最多等待指定秒数，运行结束就立即返回。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: run_get
+      title: 查看运行
+      description: |
+        读取运行的状态、阶段、退出码、错误和任务上报的结果。
+        运行未结束时可以传 wait（最多 60 秒）等它结束；completed 只表示进程正常退出，业务结果看 result。
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+      - name: wait
+        in: query
+        description: 最多等待的秒数，运行进入终态时立即返回。
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 60
+          default: 0
+    responses:
+      "200":
+        description: 运行。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Run"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+cancel:
+  post:
+    operationId: cancelRun
+    tags: [runs]
+    summary: 取消运行
+    description: |
+      请求停止运行。排队中的运行直接取消；正在执行的运行进入取消中，容器确认停止后才变为已取消。
+      对已结束的运行调用不会改变状态。
+    x-operation-kind: execute
+    x-mcp:
+      expose: true
+      tool: run_cancel
+      title: 取消运行
+      description: 请求停止一个运行。返回时状态可能是 cancelling，容器确认停止后才变为 cancelled；用 run_get 确认。
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+    responses:
+      "202":
+        description: 已接受取消请求。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Run"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+rerun:
+  post:
+    operationId: rerunRun
+    tags: [runs]
+    summary: 重跑
+    description: |
+      以一个已结束的运行为原型发起新的运行，新运行的 `rerun_of` 指向原运行。默认使用任务的最新版本和原运行的参数，
+      `version` 记录实际使用的版本。原运行未结束时返回 409 `run_in_progress`。
+    x-operation-kind: execute
+    x-mcp:
+      expose: true
+      tool: run_rerun
+      title: 重跑
+      description: |
+        修复后重跑一个运行：新运行关联原运行，默认用最新版本和原来的参数。
+        清单 side_effects 为 true 的任务失败后，先和用户确认再重跑。建议带 idempotency_key。
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+      - $ref: "../common/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/RerunRequest"
+    responses:
+      "202":
+        description: 已接受，新运行在排队中。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Run"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+events:
+  get:
+    operationId: listRunEvents
+    tags: [runs]
+    summary: 读取运行事件
+    description: |
+      分段读取运行的事件：状态变化、阶段、结果、工具调用、产物和告警，按序号排列。
+      用 `cursor` 从上一页之后续读。控制台用它画时间线和统计工具调用。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+      - name: cursor
+        in: query
+        description: 上一页返回的 `next_cursor`。
+        schema:
+          type: string
+          maxLength: 64
+      - name: kind
+        in: query
+        description: 只返回这些类别的事件，可以重复给出。
+        style: form
+        explode: true
+        schema:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "./schemas.yaml#/RunEventKind"
+      - name: limit
+        in: query
+        description: 本页最多返回的事件数。
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 200
+    responses:
+      "200":
+        description: 一页事件。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/RunEventPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+logs:
+  get:
+    operationId: readRunLogs
+    tags: [runs]
+    summary: 读取日志
+    description: |
+      分段读取运行的日志。默认从第一行开始；`tail` 读取最后若干行；`cursor` 从上一页之后续读。
+      断线后用最后一次的 `next_cursor` 续读，不会漏行或重复。
+      日志已按保留策略清理时返回 410 `expired`，运行的 `logs_expired_at` 记录清理时间。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: run_logs
+      title: 读取日志
+      description: |
+        读取运行日志。只想看结尾时传 tail（例如 100）；要逐页读完时省略 tail，用返回的 next_cursor 继续。
+        complete 为 true 表示运行已结束且已读到最后一行。返回 expired 表示日志已按保留策略清理，不必重试。
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+      - name: cursor
+        in: query
+        description: 上一页返回的 `next_cursor`。
+        schema:
+          type: string
+          maxLength: 64
+      - name: limit
+        in: query
+        description: 本页最多返回的行数。
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 200
+      - name: tail
+        in: query
+        description: 只返回最后多少行，与 `cursor` 不能同时使用。
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    responses:
+      "200":
+        description: 一页日志。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/LogPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+logStream:
+  get:
+    operationId: streamRunLogs
+    tags: [runs]
+    summary: 实时日志
+    description: |
+      以 Server-Sent Events 推送运行日志，供控制台和移动端实时查看（技术设计第 6.5 节）。
+
+      - `line` 事件：data 为一行 `LogLine` 的 JSON，`id` 为行号。
+      - `truncated` 事件：日志超过上限开始丢弃，data 为 `{"dropped_lines": 行数}`。
+      - `end` 事件：运行已结束且最后一行已经发出，data 为 `LogStreamEnd`，随后服务端关闭连接。
+      - 每 15 秒发一行注释作为心跳。
+
+      默认从第一行开始；`tail` 先发最后若干行再跟随；断线重连时浏览器自动带 `Last-Event-ID`，从这一行之后继续。
+      `Last-Event-ID` 与 `cursor` 都给出时以 `Last-Event-ID` 为准。不能使用 SSE 的客户端改用 readRunLogs 轮询。
+      日志已按保留策略清理时返回 410 `expired`。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+      - name: Last-Event-ID
+        in: header
+        description: 已收到的最后一行的行号。
+        schema:
+          type: string
+          pattern: "^[0-9]{1,19}$"
+      - name: cursor
+        in: query
+        description: readRunLogs 返回的 `next_cursor`，从那一页之后开始推送。
+        schema:
+          type: string
+          maxLength: 64
+      - name: tail
+        in: query
+        description: 先推送最后多少行，再继续跟随。
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    responses:
+      "200":
+        description: 事件流。
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+logDownload:
+  get:
+    operationId: downloadRunLogs
+    tags: [runs]
+    summary: 下载日志
+    description: |
+      下载运行的完整日志，纯文本，每行为 `时间 流 内容`。作为附件返回。日志已按保留策略清理时返回 410 `expired`。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+    responses:
+      "200":
+        description: 日志文件。
+        headers:
+          Content-Disposition:
+            description: 固定为 attachment，文件名为 `<运行 ID>.log`。
+            schema:
+              type: string
+        content:
+          text/plain:
+            schema:
+              type: string
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+artifacts:
+  get:
+    operationId: listArtifacts
+    tags: [runs]
+    summary: 列出产物
+    description: 列出运行的产物，按路径排序，包括已按保留策略清理的产物（`expired_at` 不为 null）。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/RunID"
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页产物。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/ArtifactPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+artifactDownload:
+  get:
+    operationId: downloadArtifact
+    tags: [runs]
+    summary: 下载产物
+    description: |
+      下载一个产物。默认作为附件返回；`inline=true` 只对 `preview` 为 text 或 json 的产物生效，以纯文本内联返回，供控制台预览。
+      HTML 和脚本类产物始终作为附件，并带 `X-Content-Type-Options: nosniff`。已按保留策略清理的产物返回 410 `expired`。
+      使用对象存储时可能以 302 跳转到预签名地址。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ArtifactID"
+      - name: inline
+        in: query
+        description: 内联返回，供预览。
+        schema:
+          type: boolean
+          default: false
+    responses:
+      "200":
+        description: 产物内容。
+        headers:
+          Content-Disposition:
+            description: attachment 或 inline，带文件名。
+            schema:
+              type: string
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              contentMediaType: application/octet-stream
+      "302":
+        description: 跳转到对象存储的预签名下载地址。
+        headers:
+          Location:
+            description: 预签名地址，短时间内有效。
+            schema:
+              type: string
+              format: uri
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+eventStream:
+  get:
+    operationId: streamEvents
+    tags: [runs]
+    summary: 实时事件
+    description: |
+      以 Server-Sent Events 推送调用者能查看的运行变化，供控制台概览和移动端实时刷新。
+
+      - `run` 事件：data 为 `RunUpdate`，运行的状态或当前阶段发生变化时发出。
+      - `resync` 事件：服务端无法保证没有遗漏（例如重连间隔太久），客户端应重新读取列表。
+      - 每 15 秒发一行注释作为心跳。
+
+      事件不持久保存，重连后不补发；客户端重连时先重新读取一次列表。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectFilter"
+      - name: task_id
+        in: query
+        description: 只推送这个任务的运行。
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "200":
+        description: 事件流。
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      default:
+        $ref: "../common/responses.yaml#/Problem"

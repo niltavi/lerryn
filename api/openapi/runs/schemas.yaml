@@ -1,0 +1,601 @@
+# runs 资源的 schema。在根文件 components.schemas 中逐个登记。
+RunStatus:
+  type: string
+  description: |
+    运行状态（技术设计第 5.4 节）。queued 排队中；preparing 准备中；running 运行中；cancelling 取消中；
+    completed 进程以 0 退出（业务是否成功看 `result`）；failed 准备失败或进程非 0 退出；timed_out 已超时；
+    cancelled 已取消；interrupted 运行中断；skipped 已跳过。后六种是终态。
+  enum: [queued, preparing, running, cancelling, completed, failed, timed_out, cancelled, interrupted, skipped]
+
+StartRunRequest:
+  type: object
+  description: 发起一次运行。所有字段都可选。
+  additionalProperties: false
+  properties:
+    version:
+      type: integer
+      minimum: 1
+      description: 使用的版本号，省略时用最新版本。
+    params:
+      type: object
+      additionalProperties: true
+      description: 本次运行的参数，整体替换清单中的 `params`。含有已登记凭证的值（或它的 base64、URL 编码、JSON 转义）时请求被拒绝，返回 422 `validation_failed`。
+    test:
+      type: boolean
+      default: false
+      description: 标记为测试运行。版本的第一次成功测试运行会记在版本的 `tested_at` 上，激活前测试以此为准。
+
+RerunRequest:
+  type: object
+  description: 重跑一个运行。所有字段都可选。
+  additionalProperties: false
+  properties:
+    version:
+      type: integer
+      minimum: 1
+      description: 使用的版本号，省略时用最新版本。修复代码后重跑会用到新版本，`version` 如实记录。
+    params:
+      type: object
+      additionalProperties: true
+      description: 本次运行的参数，省略时沿用原运行的参数。沿用的参数同样检查，含有已登记凭证的值（或它的 base64、URL 编码、JSON 转义）时请求被拒绝，返回 422 `validation_failed`。
+    test:
+      type: boolean
+      description: 标记为测试运行，省略时沿用原运行。
+
+RunError:
+  type: object
+  required: [code, stage, message]
+  properties:
+    code:
+      $ref: "../common/schemas.yaml#/ErrorCode"
+    stage:
+      type: [string, "null"]
+      description: 出错时所在的阶段 ID，不在任何阶段内时为 null。
+    message:
+      type: string
+      description: 给人和 Agent 阅读的说明。
+
+RunStage:
+  type: object
+  description: |
+    运行的一个阶段。先按清单声明的顺序列出声明的阶段，再按首次上报的顺序列出任务上报了但没有声明的阶段。
+  required: [id, name, declared, after, status, started_at, finished_at, message]
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    declared:
+      type: boolean
+      description: 阶段是否在本次运行所用版本的清单中声明。没有声明的阶段以 ID 作为名称。
+    after:
+      type: array
+      items:
+        type: string
+      description: 清单中该阶段 `after` 声明的依赖阶段 ID，按声明顺序。没有依赖或没有声明的阶段为空数组。
+    status:
+      type: string
+      enum: [pending, running, done, failed]
+    started_at:
+      type: [string, "null"]
+      format: date-time
+    finished_at:
+      type: [string, "null"]
+      format: date-time
+    message:
+      type: [string, "null"]
+      description: 任务上报阶段时附带的说明。
+
+RunResult:
+  type: object
+  description: 任务用 `sbx result` 上报的业务结果。平台只转述，不判断真假。
+  required: [status, summary, data]
+  properties:
+    status:
+      $ref: "#/RunResultStatus"
+    summary:
+      type: string
+    data:
+      # Any JSON value. The types are spelled out because a schema without
+      # a type is not nullable for OpenAPI 3.0 validators, kin-openapi's
+      # response check among them.
+      type: [object, array, string, number, integer, boolean, "null"]
+      x-go-type: interface{}
+      additionalProperties: true
+      items: {}
+      description: 任务附带的结构化数据，没有时为 null。Agent 面板（清单的 `panels`）从这里取数据。
+
+RunResultStatus:
+  type: string
+  description: 任务上报的业务结果状态。
+  enum: [ok, partial, failed]
+
+TriggerKind:
+  type: string
+  description: |
+    运行的来源。manual 为经 API、MCP 或 CLI 发起（包括重跑）；cron 为定时触发；webhook 为 webhook 触发；
+    retry 为失败后的自动重试。
+  enum: [manual, cron, webhook, retry]
+
+RunTrigger:
+  type: object
+  description: 运行是怎么来的。
+  required: [kind, trigger_id, scheduled_at, user_id, client]
+  properties:
+    kind:
+      $ref: "#/TriggerKind"
+    trigger_id:
+      type: [string, "null"]
+      format: uuid
+      description: cron 和 webhook 运行对应的触发器，其他为 null。
+    scheduled_at:
+      type: [string, "null"]
+      format: date-time
+      description: cron 运行的计划时间，其他为 null。
+    user_id:
+      type: [string, "null"]
+      format: uuid
+      description: 手动发起的用户，其他为 null。
+    client:
+      type: [string, "null"]
+      description: 手动发起时使用的访问令牌名，通常对应 Agent 和机器。从会话发起或非手动运行时为 null。
+
+SkipReason:
+  type: string
+  description: |
+    已跳过的原因。overlap：任务不允许重叠，上一个运行仍未结束；queue_full：队列已满；
+    missed：服务停机错过了计划时间，不补跑；inactive：触发时任务已暂停或归档。
+  enum: [overlap, queue_full, missed, inactive]
+
+Canceller:
+  type: object
+  description: 请求取消的人。
+  required: [user_id, client, requested_at]
+  properties:
+    user_id:
+      type: [string, "null"]
+      format: uuid
+    client:
+      type: [string, "null"]
+      description: 取消时使用的访问令牌名，从会话取消时为 null。
+    requested_at:
+      type: string
+      format: date-time
+
+Run:
+  type: object
+  description: 一次运行。
+  required: [id, task_id, project_id, version, status, test, trigger, params, attempt, max_attempts, retry_of, rerun_of, skip_reason, queued_at, claimed_at, started_at, finished_at, exit_code, error, stages, result, cancel_requested, cancelled_by, runner, environment, log_lines, dropped_log_lines, logs_expired_at, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    task_id:
+      type: string
+      format: uuid
+    project_id:
+      type: string
+      format: uuid
+    version:
+      type: integer
+      description: 使用的任务版本号。
+    status:
+      $ref: "#/RunStatus"
+    test:
+      type: boolean
+      description: 是否为测试运行。
+    trigger:
+      $ref: "#/RunTrigger"
+    params:
+      type: object
+      additionalProperties: true
+      description: 本次运行实际使用的参数。参数里不应有凭证，凭证用清单的 credentials 引用。
+    attempt:
+      type: integer
+      minimum: 1
+      description: 第几次尝试。自动重试时递增，手动发起和重跑从 1 开始。
+    max_attempts:
+      type: integer
+      minimum: 1
+      description: 按清单的重试设置，最多尝试的次数。
+    retry_of:
+      type: [string, "null"]
+      format: uuid
+      description: 自动重试时，上一次尝试的运行 ID。
+    rerun_of:
+      type: [string, "null"]
+      format: uuid
+      description: 重跑时，被重跑的运行 ID。
+    skip_reason:
+      description: 状态为 skipped 时的原因，其他状态为 null。
+      oneOf:
+        - $ref: "#/SkipReason"
+        - type: "null"
+    queued_at:
+      type: string
+      format: date-time
+    claimed_at:
+      type: [string, "null"]
+      format: date-time
+      description: runner 领取、开始准备的时间。
+    started_at:
+      type: [string, "null"]
+      format: date-time
+      description: 进程开始的时间。
+    finished_at:
+      type: [string, "null"]
+      format: date-time
+    exit_code:
+      type: [integer, "null"]
+      description: 进程的退出码，没有进程或尚未结束时为 null。
+    error:
+      oneOf:
+        - $ref: "#/RunError"
+        - type: "null"
+      description: 失败、超时、中断时的原因，其他情况为 null。
+    stages:
+      type: array
+      description: 清单中声明的阶段和实际上报的阶段，按声明顺序排列，未声明的阶段排在后面。
+      items:
+        $ref: "#/RunStage"
+    result:
+      oneOf:
+        - $ref: "#/RunResult"
+        - type: "null"
+      description: 任务上报的业务结果，没有上报时为 null。进程正常结束不代表业务完成。
+    cancel_requested:
+      type: boolean
+    cancelled_by:
+      description: 请求取消的人，没有取消请求时为 null。
+      oneOf:
+        - $ref: "#/Canceller"
+        - type: "null"
+    runner:
+      description: 领取运行的 runner，尚未领取时为 null。
+      oneOf:
+        - $ref: "#/RunnerRef"
+        - type: "null"
+    environment:
+      type: [string, "null"]
+      description: 环境 ID：运行时镜像和依赖锁文件的内容哈希（技术设计第 7.3 节）。准备完成前为 null。
+    log_lines:
+      type: integer
+      format: int64
+      description: 已保存的日志行数。
+    dropped_log_lines:
+      type: integer
+      format: int64
+      description: 因超过日志上限而丢弃的行数。
+    logs_expired_at:
+      type: [string, "null"]
+      format: date-time
+      description: 日志按保留策略清理的时间，未清理时为 null。清理后 `log_lines` 保留原来的行数，读取日志返回 410 `expired`。
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+RunnerRef:
+  type: object
+  description: 对 runner 的简短引用。
+  required: [id, name]
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+
+RunBrief:
+  type: object
+  description: 运行的摘要，用于任务列表和概览。
+  required: [id, status, test, version, queued_at, started_at, finished_at, result_status, error_code]
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      $ref: "#/RunStatus"
+    test:
+      type: boolean
+    version:
+      type: integer
+    queued_at:
+      type: string
+      format: date-time
+    started_at:
+      type: [string, "null"]
+      format: date-time
+    finished_at:
+      type: [string, "null"]
+      format: date-time
+    result_status:
+      description: 任务上报的结果状态，没有上报时为 null。
+      oneOf:
+        - $ref: "#/RunResultStatus"
+        - type: "null"
+    error_code:
+      description: 失败、超时、中断时的错误类别，其他为 null。
+      oneOf:
+        - $ref: "../common/schemas.yaml#/ErrorCode"
+        - type: "null"
+
+RunSummary:
+  type: object
+  description: 运行列表中的一项。
+  required: [id, task, version, status, test, trigger, attempt, retry_of, rerun_of, skip_reason, queued_at, started_at, finished_at, error, result_status, result_summary, current_stage, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    task:
+      $ref: "../common/schemas.yaml#/TaskRef"
+    version:
+      type: integer
+    status:
+      $ref: "#/RunStatus"
+    test:
+      type: boolean
+    trigger:
+      $ref: "#/RunTrigger"
+    attempt:
+      type: integer
+    retry_of:
+      type: [string, "null"]
+      format: uuid
+    rerun_of:
+      type: [string, "null"]
+      format: uuid
+    skip_reason:
+      oneOf:
+        - $ref: "#/SkipReason"
+        - type: "null"
+    queued_at:
+      type: string
+      format: date-time
+    started_at:
+      type: [string, "null"]
+      format: date-time
+    finished_at:
+      type: [string, "null"]
+      format: date-time
+    error:
+      oneOf:
+        - $ref: "#/RunError"
+        - type: "null"
+    result_status:
+      oneOf:
+        - $ref: "#/RunResultStatus"
+        - type: "null"
+    result_summary:
+      type: [string, "null"]
+      description: 任务上报的结果摘要，没有时为 null。
+    current_stage:
+      type: [string, "null"]
+      description: 运行中时正在进行的阶段的显示名，其他为 null。
+    links:
+      $ref: "../common/schemas.yaml#/Links"
+
+RunPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/RunSummary"
+
+RunEventKind:
+  type: string
+  description: |
+    运行事件的类别。status 状态变化（data 为 `{"from": 状态, "to": 状态}`）；stage.start、stage.done、stage.fail 阶段事件；
+    result 业务结果（data 为 RunResult）；tool.call 经 `sbx mcp call` 记录的工具调用（data 为 ToolCallRecord）；
+    artifact 新增产物（data 为 `{"artifact_id": ID, "path": 路径}`）；warning 平台告警，例如容器内有进程因内存超限被杀但主进程以 0 退出；
+    log.truncated 日志超过上限开始丢弃（data 为 `{"dropped_lines": 行数, "dropped_bytes": 字节数}`）。
+    以后可能增加类别，不认识的类别应忽略。
+  enum: [status, stage.start, stage.done, stage.fail, result, tool.call, artifact, warning, log.truncated]
+
+RunEvent:
+  type: object
+  description: 运行的一个事件。只记录平台实际收到的信息，经过脱敏。
+  required: [seq, ts, kind, stage, message, data]
+  properties:
+    seq:
+      type: integer
+      format: int64
+      description: 事件序号，从 1 开始递增。
+    ts:
+      type: string
+      format: date-time
+    kind:
+      $ref: "#/RunEventKind"
+    stage:
+      type: [string, "null"]
+      description: 事件所在的阶段 ID。
+    message:
+      type: [string, "null"]
+    data:
+      # Any JSON value; see RunResult.data.
+      type: [object, array, string, number, integer, boolean, "null"]
+      x-go-type: interface{}
+      additionalProperties: true
+      items: {}
+      description: 与类别相关的数据，见 RunEventKind。没有时为 null。
+
+ToolCallRecord:
+  type: object
+  description: 平台记录的一次工具调用。参数只保留脱敏后的摘要。
+  required: [tool, method, ok, duration_ms, args_summary, error]
+  properties:
+    tool:
+      type: string
+      description: 工具名，例如 `crm-mcp`。
+    method:
+      type: string
+      description: 调用的方法，例如 MCP 工具名 `search_leads`。
+    ok:
+      type: boolean
+    duration_ms:
+      type: integer
+      format: int64
+    args_summary:
+      type: [string, "null"]
+      description: 参数摘要，最长 200 个字符。
+    error:
+      type: [string, "null"]
+
+RunEventPage:
+  type: object
+  description: 一页运行事件，按序号从小到大排列。
+  required: [events, next_cursor, complete]
+  properties:
+    events:
+      type: array
+      items:
+        $ref: "#/RunEvent"
+    next_cursor:
+      type: string
+      description: 下次读取时传入 `cursor`，从这一页之后继续。没有新事件时原样返回。
+    complete:
+      type: boolean
+      description: 运行已结束且已经读到最后一个事件。
+
+LogLine:
+  type: object
+  required: [seq, ts, stream, stage, text]
+  properties:
+    seq:
+      type: integer
+      format: int64
+      description: 行号，从 1 开始连续递增。
+    ts:
+      type: string
+      format: date-time
+    stream:
+      type: string
+      enum: [stdout, stderr, system]
+      description: system 为平台自己的消息，例如准备环境、日志截断。
+    stage:
+      type: [string, "null"]
+      description: 输出这一行时所在的阶段 ID。
+    text:
+      type: string
+      description: 一行内容，不含换行符。超过 64 KiB 的行被截断。
+
+LogPage:
+  type: object
+  required: [lines, next_cursor, complete, dropped_lines]
+  properties:
+    lines:
+      type: array
+      items:
+        $ref: "#/LogLine"
+    next_cursor:
+      type: string
+      description: 下次读取时传入 `cursor`，从这一页之后继续。没有新行时原样返回，可以稍后用它续读。
+    complete:
+      type: boolean
+      description: 运行已结束且已经读到最后一行。
+    dropped_lines:
+      type: integer
+      format: int64
+      description: 因超过单次运行的日志上限而丢弃的行数。
+
+LogStreamEnd:
+  type: object
+  description: 日志流的 `end` 事件：运行已结束，最后一行已经发出。
+  required: [status, last_seq, dropped_lines]
+  properties:
+    status:
+      $ref: "#/RunStatus"
+    last_seq:
+      type: integer
+      format: int64
+    dropped_lines:
+      type: integer
+      format: int64
+
+RunUpdate:
+  type: object
+  description: 事件流中 `run` 事件的数据：一个运行的状态或阶段发生了变化。
+  required: [run_id, task_id, project_id, status, current_stage, result_status, ts]
+  properties:
+    run_id:
+      type: string
+      format: uuid
+    task_id:
+      type: string
+      format: uuid
+    project_id:
+      type: string
+      format: uuid
+    status:
+      $ref: "#/RunStatus"
+    current_stage:
+      type: [string, "null"]
+      description: 正在进行的阶段 ID。
+    result_status:
+      oneOf:
+        - $ref: "#/RunResultStatus"
+        - type: "null"
+    ts:
+      type: string
+      format: date-time
+
+Artifact:
+  type: object
+  description: 运行产物：任务写到 `/sbx/out` 或用 `sbx artifact add` 登记的文件。产物不做脱敏。
+  required: [id, run_id, path, title, size, content_type, sha256, preview, created_at, expired_at, links]
+  properties:
+    id:
+      type: string
+      format: uuid
+    run_id:
+      type: string
+      format: uuid
+    path:
+      type: string
+      description: 相对 `/sbx/out` 的路径。
+    title:
+      type: [string, "null"]
+      description: 用 `sbx artifact add --title` 给出的标题，没有时为 null。
+    size:
+      type: integer
+      format: int64
+    content_type:
+      type: string
+      description: 按内容和扩展名判断的媒体类型。
+    sha256:
+      type: string
+    preview:
+      type: string
+      enum: [text, json, none]
+      description: 控制台能否预览。HTML、脚本和二进制一律为 none，只提供下载。
+    created_at:
+      type: string
+      format: date-time
+    expired_at:
+      type: [string, "null"]
+      format: date-time
+      description: 按保留策略清理的时间。已清理的产物仍会列出，下载返回 410 `expired`。
+    links:
+      $ref: "#/ArtifactLinks"
+
+ArtifactLinks:
+  type: object
+  required: [download]
+  properties:
+    download:
+      type: string
+      format: uri
+      description: 下载地址，需要同样的鉴权。
+
+ArtifactPage:
+  allOf:
+    - $ref: "../common/schemas.yaml#/CursorPage"
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/Artifact"

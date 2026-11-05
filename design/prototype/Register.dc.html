@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>注册</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app {{theme}}">
+<div class="auth">
+  <div class="auth-col">
+    <div class="stack" style="align-items: center; gap: 14px;">
+      <span class="rail-logo" style="width: 64px; height: 64px; border-radius: 20px; margin: 0;"><img src="/_blob/46d7ba75db40f7da30f9bb6f6115b8fb" alt="Lerryn" width="46" height="17" style="width: 46px;"></span>
+      <h1 class="h2">注册</h1>
+      <sc-if value="{{firstUser}}" hint-placeholder-val="{{ true }}">
+        <span class="tag tag--kraft"><svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>首个账号，将成为管理员</span>
+      </sc-if>
+    </div>
+
+    <div class="stack" style="gap: 14px;">
+      <x-import component-from-global-scope="Lerryn.TextField">
+        <x-import component-from-global-scope="Lerryn.Label">用户名</x-import>
+        <x-import component-from-global-scope="Lerryn.Input" placeholder="字母、数字、- 或 _"></x-import>
+      </x-import>
+      <div class="wl-field">
+        <label class="wl-field__label" for="reg-pw">密码</label>
+        <div class="pw-wrap">
+          <input id="reg-pw" class="wl-field__input" type="password" placeholder="至少 8 位" autocomplete="new-password" minlength="8" required>
+          <button class="pw-eye" type="button" aria-label="显示密码"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+      </div>
+      <x-import component-from-global-scope="Lerryn.TextField">
+        <x-import component-from-global-scope="Lerryn.Label">显示名</x-import>
+        <x-import component-from-global-scope="Lerryn.Input" placeholder="可选"></x-import>
+      </x-import>
+      <x-import component-from-global-scope="Lerryn.Button" size="lg" is-block="{{yes}}">注册</x-import>
+    </div>
+
+    <p class="body-sm" style="text-align: center;"><a href="Login.dc.html" style="font-weight: 600;">已有账号</a></p>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"firstUser":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'theme-dark' : '', yes: true, firstUser: !!this.props.firstUser };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+.git
+.github
+.claude
+node_modules
+**/node_modules
+docs
+**/dist
+server/internal/console/webdist/*
+!server/internal/console/webdist/.keep
+# The console build needs the workspace manifests, the web packages and the
+# logo; everything else under design/ and apps/ stays out of the context.
+design/*
+!design/brand/logo/svg
+!design/brand/brand.go
+!design/ui-native/package.json
+!design/gallery/package.json
+apps/*
+!apps/web
+bin
+data
+*.test
+coverage.out

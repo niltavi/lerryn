@@ -1,0 +1,25 @@
+{
+  "name": "lerryn",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "scripts": {
+    "design:test": "node --test design/scripts/*.test.mjs",
+    "design:tokens": "node design/scripts/sync-tokens.mjs",
+    "design:logo": "node design/scripts/build-logo.mjs",
+    "design:typecheck": "pnpm --filter \"./design/**\" typecheck",
+    "design:gallery": "pnpm --filter @lerryn/design-gallery start",
+    "design:gallery:ios": "pnpm --filter @lerryn/design-gallery ios",
+    "typecheck": "pnpm -r typecheck",
+    "website:build": "node website/scripts/build.mjs",
+    "website:check": "node website/scripts/check.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.72.1",
+    "@stoplight/spectral-cli": "6.17.0"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@scarf/scarf"
+    ]
+  }
+}

@@ -1,0 +1,272 @@
+/* 由 design/scripts/sync-tokens.mjs 根据 design/tokens.json 生成，不要手改。 */
+
+@theme {
+  --radius: 0.5rem;
+  --field-radius: 0.75rem;
+  --field-border-width: 1px;
+  --border-width: 1px;
+  --opacity-disabled: 0.45;
+
+  --font-display: 'DMSans_700Bold';
+  --font-display-semibold: 'DMSans_600SemiBold';
+  --font-display-heavy: 'DMSans_800ExtraBold';
+  --font-mono: 'IBMPlexMono_400Regular';
+  --font-mono-medium: 'IBMPlexMono_500Medium';
+
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
+  --radius-3xl: 16px;
+  --radius-4xl: 20px;
+  --radius-full: 9999px;
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      /* Lerryn token */
+      --kraft: #3A5CF4;
+      --kraft-strong: #3345CF;
+      --kraft-soft: #D7DFEF;
+      --kraft-edge: #3A5CF4;
+      --on-kraft: #FFFFFF;
+      --bark: #245761;
+      --paper: #F5F1E6;
+      --plate: #fef8ef;
+      --liner: #F6F3EA;
+      --liner-2: #EAE9E2;
+      --liner-3: #E3E1D7;
+      --ink: #283E38;
+      --ink-muted: #57675F;
+      --line: #D6D6CB;
+      --line-strong: #57675F;
+      --edge: #D6D6CB;
+      --run: #006099;
+      --run-soft: #D6E1E3;
+      --success: #006D43;
+      --success-soft: #D7E3D2;
+      --warning: #9A6400;
+      --on-warning: #FFFFFF;
+      --warning-ink: #824D00;
+      --warning-soft: #E8DDCB;
+      --danger: #AD0025;
+      --danger-soft: #F6D6CE;
+      --on-danger: #FFFFFF;
+      --danger-edge: #D30033;
+      --focus: #3A5CF4;
+      --backdrop: rgba(11, 18, 36, 0.45);
+      --flute-e: 0 0 0 0 transparent;
+      --flute-b: 0 0 0 0 transparent;
+      --flute-c: 0 0 0 0 transparent;
+      --flute-a: 0 0 0 0 transparent;
+
+      /* HeroUI Native 语义变量 */
+      --background: #F5F1E6;
+      --foreground: #283E38;
+      --surface: #F6F3EA;
+      --surface-foreground: #283E38;
+      --surface-secondary: #F5F1E6;
+      --surface-secondary-foreground: #283E38;
+      --surface-tertiary: #E3E1D7;
+      --surface-tertiary-foreground: #283E38;
+      --overlay: #F6F3EA;
+      --overlay-foreground: #283E38;
+      --backdrop: rgba(11, 18, 36, 0.45);
+      --muted: #57675F;
+      --default: #E5E3D9;
+      --default-foreground: #283E38;
+      --accent: #3A5CF4;
+      --accent-foreground: #FFFFFF;
+      --field-background: #F6F3EA;
+      --field-foreground: #283E38;
+      --field-placeholder: #57675F;
+      --field-border: #57675F;
+      --success: #006D43;
+      --success-foreground: #FFFFFF;
+      --warning: #9A6400;
+      --warning-foreground: #FFFFFF;
+      --danger: #AD0025;
+      --danger-foreground: #FFFFFF;
+      --segment: #F6F3EA;
+      --segment-foreground: #283E38;
+      --border: #D6D6CB;
+      --separator: #E3E1D7;
+      --focus: #3A5CF4;
+      --link: #485D78;
+      --accent-soft: #D7DFEF;
+      --accent-soft-foreground: #3345CF;
+      --accent-soft-hover: #E3E1D7;
+      --default-soft: #EAE9E2;
+      --default-soft-foreground: #283E38;
+      --default-soft-hover: #E3E1D7;
+      --success-soft-foreground: #006D43;
+      --warning-soft-foreground: #824D00;
+      --danger-soft-foreground: #AD0025;
+      --surface-hover: #EAE9E2;
+      --default-hover: #E3E1D7;
+      --info: #0078B6;
+      --info-foreground: #FFFFFF;
+      --rufous: #BF4100;
+      --rufous-foreground: #FFFFFF;
+      --secondary: #EAE9E2;
+      --secondary-foreground: #485D78;
+      --secondary-hover: #E2E3DE;
+      --tertiary: #F0ECE0;
+      --tertiary-foreground: #485D78;
+      --tertiary-hover: #E9E4D9;
+      --info-soft-foreground: #006099;
+      --rufous-soft-foreground: #A22A00;
+      --success-soft: #D7E3D2;
+      --warning-soft: #E8DDCB;
+      --danger-soft: #F6D6CE;
+      --info-soft: #D6E1E3;
+      --rufous-soft: #F1D9CA;
+      --surface-shadow: 0 0 0 0 transparent;
+      --overlay-shadow: 0 0 0 0 transparent;
+      --field-shadow: 0 0 0 0 transparent;
+    }
+
+    @variant dark {
+      /* Lerryn token */
+      --kraft: #79A4FF;
+      --kraft-strong: #9EC3FF;
+      --kraft-soft: #1B253F;
+      --kraft-edge: #79A4FF;
+      --on-kraft: #0B0938;
+      --bark: #245761;
+      --paper: #0B1224;
+      --plate: #fef8ef;
+      --liner: #101729;
+      --liner-2: #131C2F;
+      --liner-3: #151C2F;
+      --ink: #F5F1E6;
+      --ink-muted: #A1A6B3;
+      --line: #1F2638;
+      --line-strong: #A1A6B3;
+      --edge: #1F2638;
+      --run: #72CFF8;
+      --run-soft: #16273D;
+      --success: #81D998;
+      --success-soft: #162933;
+      --warning: #E6BD41;
+      --on-warning: #230A00;
+      --warning-ink: #E6BD41;
+      --warning-soft: #252931;
+      --danger: #FFA5A7;
+      --danger-soft: #2A2333;
+      --on-danger: #2C0003;
+      --danger-edge: #FF747B;
+      --focus: #79A4FF;
+      --backdrop: rgba(11, 18, 36, 0.6);
+      --flute-e: 0 0 0 0 transparent;
+      --flute-b: 0 0 0 0 transparent;
+      --flute-c: 0 0 0 0 transparent;
+      --flute-a: 0 0 0 0 transparent;
+
+      /* HeroUI Native 语义变量 */
+      --background: #0B1224;
+      --foreground: #F5F1E6;
+      --surface: #101729;
+      --surface-foreground: #F5F1E6;
+      --surface-secondary: #12192C;
+      --surface-secondary-foreground: #F5F1E6;
+      --surface-tertiary: #151C2F;
+      --surface-tertiary-foreground: #F5F1E6;
+      --overlay: #131A2C;
+      --overlay-foreground: #F5F1E6;
+      --backdrop: rgba(11, 18, 36, 0.6);
+      --muted: #A1A6B3;
+      --default: #151C2F;
+      --default-foreground: #F5F1E6;
+      --accent: #79A4FF;
+      --accent-foreground: #0B0938;
+      --field-background: #101729;
+      --field-foreground: #F5F1E6;
+      --field-placeholder: #A1A6B3;
+      --field-border: #A1A6B3;
+      --success: #81D998;
+      --success-foreground: #00180E;
+      --warning: #E6BD41;
+      --warning-foreground: #230A00;
+      --danger: #FFA5A7;
+      --danger-foreground: #2C0003;
+      --segment: #12192C;
+      --segment-foreground: #F5F1E6;
+      --border: #1F2638;
+      --separator: #151C2F;
+      --focus: #79A4FF;
+      --link: #B2C3D9;
+      --accent-soft: #1B253F;
+      --accent-soft-foreground: #9EC3FF;
+      --accent-soft-hover: #151C2F;
+      --default-soft: #131C2F;
+      --default-soft-foreground: #F5F1E6;
+      --default-soft-hover: #151C2F;
+      --success-soft-foreground: #81D998;
+      --warning-soft-foreground: #E6BD41;
+      --danger-soft-foreground: #FFA5A7;
+      --surface-hover: #131C2F;
+      --default-hover: #151C2F;
+      --info: #28B4F0;
+      --info-foreground: #00132B;
+      --rufous: #F68400;
+      --rufous-foreground: #2C0000;
+      --secondary: #131C2F;
+      --secondary-foreground: #B2C3D9;
+      --secondary-hover: #172135;
+      --tertiary: #131723;
+      --tertiary-foreground: #92A8C5;
+      --tertiary-hover: #191B21;
+      --info-soft-foreground: #72CFF8;
+      --rufous-soft-foreground: #FFAD5A;
+      --success-soft: #162933;
+      --warning-soft: #252931;
+      --danger-soft: #2A2333;
+      --info-soft: #16273D;
+      --rufous-soft: #28242E;
+      --surface-shadow: 0 0 0 0 transparent;
+      --overlay-shadow: 0 0 0 0 transparent;
+      --field-shadow: 0 0 0 0 transparent;
+    }
+  }
+}
+
+/* 让 Lerryn token 也能直接写成 className：bg-kraft、text-ink-muted、border-line-strong… */
+@theme inline static {
+  --color-kraft: var(--kraft);
+  --color-kraft-strong: var(--kraft-strong);
+  --color-kraft-soft: var(--kraft-soft);
+  --color-kraft-edge: var(--kraft-edge);
+  --color-on-kraft: var(--on-kraft);
+  --color-bark: var(--bark);
+  --color-paper: var(--paper);
+  --color-plate: var(--plate);
+  --color-liner: var(--liner);
+  --color-liner-2: var(--liner-2);
+  --color-liner-3: var(--liner-3);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-edge: var(--edge);
+  --color-run: var(--run);
+  --color-run-soft: var(--run-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-on-warning: var(--on-warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-danger-edge: var(--danger-edge);
+  --color-focus: var(--focus);
+  --color-backdrop: var(--backdrop);
+
+  --shadow-flute-e: var(--flute-e);
+  --shadow-flute-b: var(--flute-b);
+  --shadow-flute-c: var(--flute-c);
+  --shadow-flute-a: var(--flute-a);
+}

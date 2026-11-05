@@ -1,0 +1,116 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# sbx-exec: the entrypoint of every Lerryn task container.
+#
+#     sbx-exec -- <entrypoint> [args...]
+#
+# It reads the run's credentials from stdin, installs them, and then execs
+# the task's entrypoint, which keeps the same process: signals and the exit
+# code are the entrypoint's own. The task's stdin is at its end by then.
+#
+# The runner writes stdin once and closes it (tech design 12.5). Empty
+# stdin means the run has no credentials. Otherwise it is:
+#
+#     LERRYN-SECRETS 1\n
+#     <env|file> <REFERENCE> <FIELD> <LENGTH>\n<LENGTH bytes>\n   (repeated)
+#     END\n
+#
+# env sets FIELD as an environment variable of the entrypoint; file writes
+# the value to $LERRYN_SECRETS_DIR/<REFERENCE>/<FIELD> (default
+# /run/secrets, a tmpfs only the task user can read). Values are never
+# printed. Anything malformed or incomplete stops the run before the
+# entrypoint starts, with exit code 125.
+#
+# Only POSIX sh, dd and wc are used, so it runs in every runtime image.
+
+set -u
+
+die() {
+	printf 'sbx-exec: %s\n' "$1" >&2
+	exit 125
+}
+
+[ "${1-}" = "--" ] && shift
+[ $# -gt 0 ] || die "no entrypoint given"
+
+secrets_dir=${LERRYN_SECRETS_DIR:-/run/secrets}
+max_value=131072
+
+valid_name() {
+	case $1 in
+	'' | [!A-Z]* | *[!A-Z0-9_]*) return 1 ;;
+	esac
+	[ ${#1} -le 64 ]
+}
+
+# byte_count prints the size of its argument in bytes, whatever the locale.
+byte_count() {
+	printf %s "$1" | LC_ALL=C wc -c | tr -d ' '
+}
+
+if IFS= read -r header; then
+	[ "$header" = "LERRYN-SECRETS 1" ] || die "unexpected data on stdin"
+	# Only the credential files need the strict umask. The task gets the
+	# original one back below, or files it writes to /sbx/out and the
+	# events file would become unreadable to a runner that is not the
+	# task user.
+	task_umask=$(umask)
+	umask 077
+	while :; do
+		IFS= read -r line || die "the credential input ended early"
+		[ "$line" = "END" ] && break
+
+		kind=${line%% *}
+		rest=${line#* }
+		ref=${rest%% *}
+		rest=${rest#* }
+		field=${rest%% *}
+		len=${rest#* }
+		case $kind in
+		env | file) ;;
+		*) die "unknown credential kind" ;;
+		esac
+		valid_name "$ref" || die "invalid credential name"
+		valid_name "$field" || die "invalid field name in credential $ref"
+		case $len in
+		'' | *[!0-9]*) die "invalid length for $ref/$field" ;;
+		esac
+		[ "$len" -le "$max_value" ] || die "value of $ref/$field is too large"
+
+		if [ "$kind" = file ]; then
+			dir="$secrets_dir/$ref"
+			[ -d "$secrets_dir" ] || die "$secrets_dir does not exist"
+			if [ ! -d "$dir" ]; then
+				mkdir -m 700 "$dir" || die "cannot create $dir"
+			fi
+			path="$dir/$field"
+			[ -e "$path" ] && die "$ref/$field is given twice"
+			: >"$path" || die "cannot write $path"
+			if [ "$len" -gt 0 ]; then
+				dd bs=1 count="$len" of="$path" 2>/dev/null || die "cannot write $path"
+			fi
+			got=$(LC_ALL=C wc -c <"$path" | tr -d ' ')
+			[ "$got" = "$len" ] || die "the credential input ended early"
+		else
+			eval "isset=\${$field+x}"
+			[ -z "$isset" ] || die "$field is already set in the environment; the credential field cannot replace it"
+			value=
+			if [ "$len" -gt 0 ]; then
+				# The x keeps trailing newlines, which command substitution
+				# would strip.
+				value=$(dd bs=1 count="$len" 2>/dev/null; printf x)
+				value=${value%x}
+			fi
+			[ "$(byte_count "$value")" = "$len" ] || die "the credential input ended early"
+			export "$field=$value"
+			value=
+		fi
+		IFS= read -r sep || die "the credential input ended early"
+		[ -z "$sep" ] || die "malformed credential input"
+	done
+	umask "$task_umask"
+	unset header line kind rest ref field len dir path got isset value sep task_umask
+fi
+
+exec "$@"

@@ -1,0 +1,94 @@
+# lerryn 配置示例。每一项都可以用 LERRYN_ 前缀的环境变量覆盖，
+# 例如 LERRYN_SERVER_LISTEN 覆盖 server.listen，LERRYN_RUNNER_LABELS=a,b 覆盖 runner.labels。
+# 开放注册、本地密码登录等可以在后台修改的设置存在数据库里，不在这个文件中。
+
+server:
+  listen: ":33333"
+  public_url: "https://lerryn.example.com"
+  # 可选。控制台的其他访问地址（例如隧道域名），从这些地址登录后同样可以修改
+  extra_origins: []
+  # 可选。文件内容可以作为 runner 的注册令牌，与管理员生成的令牌并用
+  runner_registration_token_file: "/run/secrets/runner-registration-token"
+  # 激活前必须测试：没有成功测试运行的任务版本不能激活
+  require_test_before_activate: true
+  # 可选。反向代理所在的 CIDR 网段；只有来自这些网段的请求，X-Forwarded-For
+  # 才被当作客户端地址。为空时按直连地址限流和审计
+  trusted_proxies: ["10.0.0.0/24"]
+
+database:
+  driver: sqlite                    # sqlite 或 postgres
+  dsn: "/var/lib/lerryn/lerryn.db"
+  max_open_conns: 0                 # PostgreSQL 每个进程的连接上限，0 为 30；SQLite 不使用
+
+storage:
+  driver: local                     # local 或 s3；多个 server 时必须用 s3
+  path: "/var/lib/lerryn/storage"   # local 使用
+  s3:                               # s3 使用
+    endpoint: "https://s3.example.com"
+    region: us-east-1
+    bucket: lerryn
+    prefix: ""                      # 可选，多个部署共用一个桶时区分
+    path_style: true                # 自建的 S3 兼容服务一般需要
+    access_key_id_file: "/run/secrets/s3-access-key-id"
+    secret_access_key_file: "/run/secrets/s3-secret-access-key"
+
+secrets:
+  master_key_file: "/var/lib/lerryn/master.key"
+
+auth:
+  oidc:                             # 可选；不配置时只有内置账号
+    issuer: "https://login.example.com"
+    client_id: "lerryn"
+    client_secret_file: "/run/secrets/oidc-client-secret"
+    username_claim: preferred_username
+  initial_admin:                    # 可选；部署中还没有账号时，启动时创建这个管理员
+    username: admin
+    password_file: "/run/secrets/lerryn-admin-password"
+
+runner:
+  mode: embedded                    # embedded（all-in-one）或 remote
+  labels: [default]
+  slots: 4
+  allowed_networks: [none, full]
+  data_dir: /var/lib/lerryn/runner  # 运行目录和环境缓存；runner 在容器中时，容器内外路径必须一致
+  python_image: ghcr.io/astral-sh/uv:0.13.6-python3.12-trixie-slim
+  node_image: node:22.23.4-trixie
+  shell_image: bash:5.3.20-alpine3.24
+  # remote 模式（lerryn runner）使用
+  server_url: "https://lerryn.example.com"
+  registration_token_file: "/run/secrets/runner-registration-token"  # 首次启动换取 runner 凭证，凭证存在 data_dir 下
+
+mirrors:                            # 可选，内网环境使用
+  pypi: "https://mirrors.example.com/pypi/simple"
+  npm: "https://mirrors.example.com/npm/"
+
+mcp:
+  disable_localhost_protection: false  # 同机反向代理转发到 127.0.0.1 并保留公网 Host 时设为 true
+  json_response: false              # 代理会缓冲 SSE 时设为 true
+  max_result_bytes: 0               # 单次工具调用返回内容的上限，0 表示使用默认值
+
+metrics:                            # Prometheus 指标，默认关闭
+  enabled: false
+  listen: ""                        # 单独的监听地址，例如 ":9090"；留空时挂在 server.listen 的 /metrics 上
+  token_file: ""                    # 抓取时需要的 Bearer 令牌文件；挂在 server.listen 上时必填
+
+notify:                             # 通知出口（技术设计第 14 节）
+  allowed_networks: []              # 允许发往的内网网段，例如 ["10.20.0.0/16"]；默认只发往公网地址
+
+scheduler:                          # 定时触发、队列和重试，0 表示不限
+  max_queued_runs: 1000             # 整个部署排队中的运行上限
+  max_queued_runs_per_project: 200  # 单个项目排队中的运行上限
+  project_concurrency: 0            # 单个项目同时执行的运行上限
+  missed_after_seconds: 60          # 计划时间过去多少秒仍未处理就视为停机错过
+  webhook_rate_per_minute: 60       # 每个 webhook 触发器每分钟接受的请求数
+
+retention:                          # 保留策略（技术设计第 6.6 节），0 表示一直保留
+  runs_days: 0                      # 已结束的运行在多少天后删除，连同日志和产物；每个任务最近的一次运行始终保留
+  logs_days: 0                      # 日志在运行结束多少天后清理，运行记录保留
+  artifacts_days: 0                 # 产物在生成多少天后清理，列表中标为已清理
+  logs_max_mib: 0                   # 日志总量上限（MiB），超出时先清理最早的
+  artifacts_max_mib: 0              # 产物总量上限（MiB），超出时先清理最早的
+
+log:
+  level: info                       # debug、info、warn、error
+  format: json                      # json 或 text

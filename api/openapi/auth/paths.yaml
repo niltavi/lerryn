@@ -1,0 +1,237 @@
+# auth 资源的路径：内置账号的注册、登录和登出（技术设计第 12.1 节）。
+# 在根文件 paths 中按路径登记。这些操作面向控制台和移动端，不作为 MCP 工具暴露。
+register:
+  post:
+    operationId: register
+    tags: [auth]
+    summary: 注册内置账号
+    description: |
+      用用户名和密码注册内置账号，邮箱和显示名都是可选的。注册成功后直接登录：响应设置会话 cookie，
+      并返回当前用户。部署中的第一个账号自动成为管理员。每个账号注册时会自动获得一个个人项目。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - {}
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/RegisterRequest"
+    responses:
+      "201":
+        description: 注册成功，已登录。
+        headers:
+          Set-Cookie:
+            $ref: "../common/headers.yaml#/SessionCookie"
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Me"
+      "409":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+login:
+  post:
+    operationId: login
+    tags: [auth]
+    summary: 用密码登录
+    description: |
+      用内置账号的用户名和密码登录，成功后设置会话 cookie。用户名不区分大小写。
+      用户名不存在、密码错误、账号已停用都返回同一个 `unauthenticated` 错误，不透露是哪一种。
+      同一账号或同一来源地址的失败尝试过多时返回 `rate_limited`，不锁定账号。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - {}
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/LoginRequest"
+    responses:
+      "200":
+        description: 登录成功。
+        headers:
+          Set-Cookie:
+            $ref: "../common/headers.yaml#/SessionCookie"
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Me"
+      "401":
+        $ref: "../common/responses.yaml#/Problem"
+      "429":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+logout:
+  post:
+    operationId: logout
+    tags: [auth]
+    summary: 登出
+    description: 结束当前会话并清除会话 cookie。只适用于会话；访问令牌请用撤销令牌接口。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    responses:
+      "204":
+        description: 已登出。
+        headers:
+          Set-Cookie:
+            $ref: "../common/headers.yaml#/SessionCookie"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+
+oidcStart:
+  get:
+    operationId: oidcStart
+    tags: [auth]
+    summary: 开始单点登录
+    description: |
+      跳转到配置的 OIDC 提供方登录（技术设计第 12.1 节）。服务端生成 state、nonce 和 PKCE 校验值，放进短时有效的 cookie，
+      然后以 302 跳转。没有配置 OIDC 时返回 404 `not_found`。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    security:
+      - {}
+    parameters:
+      - name: return_to
+        in: query
+        description: 登录后回到的控制台路径，必须以 `/` 开头且不含协议和主机，省略时回到概览。
+        schema:
+          type: string
+          maxLength: 512
+          pattern: "^/([^/\\\\].*)?$"
+    responses:
+      "302":
+        description: 跳转到 OIDC 提供方。
+        headers:
+          Location:
+            description: OIDC 提供方的授权地址。
+            schema:
+              type: string
+              format: uri
+          Set-Cookie:
+            description: 保存 state、nonce 和 PKCE 校验值的 cookie，10 分钟有效。
+            schema:
+              type: string
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+oidcCallback:
+  get:
+    operationId: oidcCallback
+    tags: [auth]
+    summary: 单点登录回调
+    description: |
+      OIDC 提供方登录后回到这里。服务端校验 state 和 ID Token，按（issuer，subject）找到或建立用户，设置会话 cookie，
+      再以 302 跳回控制台。首次登录自动建立用户，用户名取 `preferred_username`，冲突时加数字后缀。
+      失败时跳回登录页，地址带 `error` 参数（错误码），不带其他细节。
+      部署配置 OIDC 时，在提供方登记的回调地址为 `<server.public_url>/api/v1/auth/oidc/callback`。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    security:
+      - {}
+    parameters:
+      - name: code
+        in: query
+        description: 授权码。
+        schema:
+          type: string
+          maxLength: 2048
+      - name: state
+        in: query
+        description: 开始登录时生成的 state。
+        schema:
+          type: string
+          maxLength: 512
+      - name: error
+        in: query
+        description: 提供方返回的错误码，例如用户拒绝授权。
+        schema:
+          type: string
+          maxLength: 256
+    responses:
+      "302":
+        description: 跳回控制台。
+        headers:
+          Location:
+            description: 控制台地址：成功时为 return_to，失败时为带 error 参数的登录页。
+            schema:
+              type: string
+              format: uri
+          Set-Cookie:
+            $ref: "../common/headers.yaml#/SessionCookie"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+pairing:
+  post:
+    operationId: createPairingCode
+    tags: [auth]
+    summary: 生成移动端配对码
+    description: |
+      在 Web 控制台的登录会话中生成一次性配对码，5 分钟有效，用于移动端扫码登录（技术设计第 12.1 节）。
+      同一用户再次生成时，之前未使用的配对码作废。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - sessionCookie: []
+    responses:
+      "201":
+        description: 配对码。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/PairingCode"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+pairingExchange:
+  post:
+    operationId: exchangePairingCode
+    tags: [auth]
+    summary: 用配对码登录移动端
+    description: |
+      移动端用扫到的配对码换取只读的设备会话，设置会话 cookie 并返回当前用户。配对码只能用一次，
+      无效、过期或已使用时返回 401 `unauthenticated`。设备会话只有 read 范围，任何写操作都返回 403 `insufficient_scope`。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    security:
+      - {}
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/ExchangePairingRequest"
+    responses:
+      "200":
+        description: 已登录。
+        headers:
+          Set-Cookie:
+            $ref: "../common/headers.yaml#/SessionCookie"
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Me"
+      "401":
+        $ref: "../common/responses.yaml#/Problem"
+      "429":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

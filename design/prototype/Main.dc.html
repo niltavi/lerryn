@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>概览</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/lerryn/components/bundle.css">
+<link rel="stylesheet" href="console.css">
+<script src="ds/lerryn/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="wl-app {{theme}}">
+<div class="app">
+
+<nav class="rail" aria-label="主导航">
+  <a class="rail-logo" href="Main.dc.html" aria-label="Lerryn"><img src="/_blob/46d7ba75db40f7da30f9bb6f6115b8fb" alt="" width="32" height="12"></a>
+  <a class="ri on" href="Main.dc.html" aria-label="概览" aria-current="page" data-tip="概览"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></a>
+  <a class="ri" href="Runs.dc.html" aria-label="运行" data-tip="运行"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></a>
+  <a class="ri" href="Settings-Credentials.dc.html" aria-label="凭证，1 个待填写" data-tip="凭证"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg><span class="pip"></span></a>
+  <a class="ri" href="Admin-Users.dc.html" aria-label="管理" data-tip="管理"><svg class="i" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></a>
+  <div class="rail-foot">
+    <a class="ri" href="Settings-Tokens.dc.html" aria-label="个人设置" data-tip="张林 · 个人设置"><span class="avatar">张</span></a>
+  </div>
+</nav>
+
+<section class="list" aria-label="任务列表">
+  <div class="list-head">
+    <h2 class="list-title">任务<span class="n">9</span></h2>
+    <div class="list-tools">
+      <span data-tip="搜索" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="搜索任务"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></x-import></span>
+      <span data-tip="筛选" data-tip-pos="bottom"><x-import component-from-global-scope="Lerryn.Button" variant="ghost" size="sm" is-icon-only="{{yes}}" accessibility-label="筛选任务"><svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></x-import></span>
+    </div>
+  </div>
+
+  <div class="list-group">需要处理</div>
+  <a class="li" href="Run-Failed.dc.html">
+    <span class="g g--bad" role="img" aria-label="已超时" title="已超时"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></svg></span>
+    <span style="min-width: 0;"><span class="li-name">dataset-backup</span><span class="li-sub">上传对象存储超时</span></span>
+    <span class="li-meta bad">02:00</span>
+  </a>
+  <a class="li" href="Run-Failed.dc.html">
+    <span class="g g--warn" role="img" aria-label="运行中断" title="运行中断"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/></svg></span>
+    <span style="min-width: 0;"><span class="li-name">competitor-price-watch</span><span class="li-sub">执行节点失联</span></span>
+    <span class="li-meta">07:30</span>
+  </a>
+
+  <div class="list-group">运行中</div>
+  <a class="li" href="Run-Running.dc.html">
+    <span class="g g--run" role="img" aria-label="运行中" title="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name">lead-sync-bitable</span><span class="li-sub">写入多维表格</span></span>
+    <span class="li-meta">38s</span>
+  </a>
+  <a class="li" href="Run-Running.dc.html">
+    <span class="g g--run" role="img" aria-label="运行中" title="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name">ticket-triage</span></span>
+    <span class="li-meta">46m</span>
+  </a>
+  <a class="li" href="Task.dc.html">
+    <span class="g g--idle" role="img" aria-label="排队中" title="排队中"><x-import component-from-global-scope="Lerryn.Icon" name="clock" size="{{s13}}"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name">invoice-ocr-webhook</span></span>
+    <span class="li-meta">排队</span>
+  </a>
+
+  <div class="list-group">按计划</div>
+  <a class="li" href="Task.dc.html">
+    <span class="g g--ok" role="img" aria-label="执行完成" title="执行完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name">weekday-digest</span></span>
+    <span class="li-meta">明天 08:00</span>
+  </a>
+  <a class="li" href="Task.dc.html">
+    <span class="g g--idle" role="img" aria-label="等待首次执行" title="等待首次执行"><x-import component-from-global-scope="Lerryn.Icon" name="calendar-clock" size="{{s13}}"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name">meeting-notes-archive</span></span>
+    <span class="li-meta">18:00</span>
+  </a>
+  <a class="li" href="Task.dc.html">
+    <span class="g g--ok" role="img" aria-label="执行完成" title="执行完成"><x-import component-from-global-scope="Lerryn.Icon" name="check" size="{{s13}}"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name">weekly-sales-report</span></span>
+    <span class="li-meta">11/9 09:00</span>
+  </a>
+  <a class="li" href="Task.dc.html">
+    <span class="g g--idle" role="img" aria-label="已暂停" title="已暂停"><x-import component-from-global-scope="Lerryn.Icon" name="pause" size="{{s13}}"></x-import></span>
+    <span style="min-width: 0;"><span class="li-name" style="color: var(--ink-muted);">contract-expiry-reminder</span></span>
+    <span class="li-meta">—</span>
+  </a>
+</section>
+
+<main class="board">
+  <div class="board-top">
+    <span class="eyebrow"><span class="live-dot"></span>11月2日 周一 · 10:46</span>
+    <button class="chip" type="button" aria-label="切换项目，当前为增长团队"><svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>增长团队<svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+
+  <div class="hero">
+    <div class="stat stat--bad"><span class="stat-n">3</span><span class="stat-l">需要处理</span></div>
+    <div class="stat stat--run"><span class="stat-n stat-n--md">3</span><span class="stat-l">运行中</span></div>
+    <div class="stat"><span class="stat-n stat-n--md">11:00</span><span class="stat-l">下一次 · 2 个任务</span></div>
+  </div>
+
+  <section class="strip" aria-label="今天的运行">
+    <span class="sec-label">今天</span>
+    <div class="strip-plot">
+      <sc-for list="{{ridges}}" as="r" hint-placeholder-count="48"><a class="ridge {{r.cls}}" href="{{r.href}}" style="height: {{r.h}}px;" aria-label="{{r.label}}"><span class="pop">{{r.tip}}</span></a></sc-for>
+      <span class="strip-now" style="left: 44.9%;"><span>10:46</span></span>
+    </div>
+    <x-import component-from-global-scope="Lerryn.WaveRule" tone="kraft" period="{{p16}}" amplitude="{{a2}}" stroke-width="{{w2}}"></x-import>
+    <div class="spread">
+      <div class="strip-axis" style="flex: 1;"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+    </div>
+    <div class="legend"><span><i></i>运行</span><span><i class="bad"></i>失败</span><span><i class="warn"></i>中断</span><span><i class="run"></i>进行中</span><span><i class="plan"></i>计划</span></div>
+  </section>
+
+  <div class="pair">
+    <section class="stack" aria-label="需要处理">
+      <span class="sec-label">需要处理</span>
+      <div class="att">
+        <a class="att-item" href="Run-Failed.dc.html">
+          <span class="g g--bad g--lg" role="img" aria-label="已超时"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></svg></span>
+          <span style="min-width: 0;"><span class="att-name">dataset-backup</span><span class="att-why">上传对象存储 · 超过 30 分钟</span></span>
+          <span class="att-t">02:00<svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+        </a>
+        <a class="att-item" href="Run-Failed.dc.html">
+          <span class="g g--warn g--lg" role="img" aria-label="运行中断"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/></svg></span>
+          <span style="min-width: 0;"><span class="att-name">competitor-price-watch</span><span class="att-why">runner-03 失联</span></span>
+          <span class="att-t">07:30<svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+        </a>
+        <a class="att-item" href="Credential-Fill.dc.html">
+          <span class="g g--key g--lg" role="img" aria-label="待填写的凭证"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg></span>
+          <span style="min-width: 0;"><span class="att-name mono" style="font-size: 16px; font-weight: 600;">PRICE_API_TOKEN</span><span class="att-why">competitor-price-watch 请你填写</span></span>
+          <span class="att-t">20:00 前<svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="stack" aria-label="运行中">
+      <span class="sec-label">运行中</span>
+      <div class="att">
+        <a class="run-item" href="Run-Running.dc.html">
+          <span class="spread"><span class="row" style="gap: 10px;"><span class="g g--run" role="img" aria-label="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span><span class="h4">lead-sync-bitable</span></span><span class="num" style="font-size: 20px;">38s</span></span>
+          <span class="mini" aria-hidden="true"><span></span><span></span><span class="run"></span></span>
+          <span class="caption muted">写入多维表格</span>
+        </a>
+        <a class="run-item" href="Run-Running.dc.html">
+          <span class="spread"><span class="row" style="gap: 10px;"><span class="g g--run" role="img" aria-label="运行中"><x-import component-from-global-scope="Lerryn.WaveLoader" size="sm" accessibility-label="运行中"></x-import></span><span class="h4">ticket-triage</span></span><span class="num" style="font-size: 20px;">46m</span></span>
+        </a>
+        <a class="run-item" href="Task.dc.html">
+          <span class="spread"><span class="row" style="gap: 10px;"><span class="g g--idle" role="img" aria-label="排队中"><x-import component-from-global-scope="Lerryn.Icon" name="clock" size="{{s13}}"></x-import></span><span class="h4">invoice-ocr-webhook</span></span><span class="num" style="font-size: 20px; color: var(--ink-muted);">8s</span></span>
+        </a>
+      </div>
+    </section>
+  </div>
+</main>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const special = {
+      4: { n: 4, cls: 'ridge--bad', note: '4 次运行 · 1 次已超时\ndataset-backup', href: 'Run-Failed.dc.html' },
+      15: { n: 4, cls: 'ridge--warn', note: '4 次运行 · 1 次中断\ncompetitor-price-watch', href: 'Run-Failed.dc.html' },
+      16: { n: 6, cls: 'ridge--bad', note: '6 次运行 · 1 次失败\nweekday-digest 已重跑完成', href: 'Run-Failed.dc.html' },
+      17: { n: 3, cls: '', note: '3 次运行 · 1 次已取消', href: 'Runs.dc.html' },
+      18: { n: 4, cls: '', note: '4 次运行，全部完成', href: 'Runs.dc.html' },
+      20: { n: 4, cls: 'ridge--run', note: '4 次运行 · 1 次进行中', href: 'Run-Running.dc.html' },
+      21: { n: 4, cls: 'ridge--run', note: '4 次运行 · 1 次进行中 · 1 次排队', href: 'Run-Running.dc.html' }
+    };
+    const pad = (x) => String(x).padStart(2, '0');
+    const ridges = [];
+    for (let i = 0; i < 48; i++) {
+      const h = Math.floor(i / 2);
+      const span = pad(h) + ':' + (i % 2 ? '30' : '00') + ' – ' + (i % 2 ? pad(h + 1) + ':00' : pad(h) + ':30');
+      let s = special[i];
+      if (!s) {
+        if (i >= 22) {
+          const n = i === 36 ? 4 : 3;
+          s = { n: n, cls: 'ridge--plan', note: '计划 ' + n + ' 次', href: 'Main.dc.html' };
+        } else {
+          s = { n: 3, cls: '', note: '3 次运行，全部完成', href: 'Runs.dc.html' };
+        }
+      }
+      ridges.push({ cls: s.cls, h: 14 + s.n * 12, href: s.href, tip: span + '\n' + s.note, label: span + '，' + s.note.replace('\n', '，') });
+    }
+    return { theme: this.props.dark ? 'theme-dark' : '', yes: true, s13: 13, p16: 16, a2: 2, w2: 2, ridges: ridges };
+  }
+}
+</script>
+</body>
+</html>

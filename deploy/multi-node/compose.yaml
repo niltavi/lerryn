@@ -1,0 +1,231 @@
+# Lerryn 标准拓扑的参考部署（技术设计第 4.3、15.2 节）：Caddy 反向代理、2 个 server、
+# PostgreSQL、S3 兼容对象存储（MinIO 社区构建），以及 2 个 remote runner。
+# 部署步骤见 docs/deploy.md 的“多节点部署”一节。
+#
+# 这个文件把所有角色放在一台机器上，用于试用和验收。生产环境中 runner 放在专用主机上
+# （见 runner-host.compose.yaml），数据库和对象存储使用企业已有的高可用服务。
+#
+#   ./init-secrets.sh                        # 生成 secrets/ 下的口令文件
+#   docker compose up -d                     # 数据库、对象存储、两个 server 和反向代理
+#   # runner 用 secrets/runner-registration-token 中的注册令牌换取自己的凭证
+#   docker compose --profile runners up -d   # 启动 runner
+
+name: lerryn
+
+x-lerryn-image: &lerryn-image ${LERRYN_IMAGE:-ghcr.io/niltavi/lerryn}:${LERRYN_VERSION:-0.9.0}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 20m
+    max-file: "5"
+
+x-server: &server
+  image: *lerryn-image
+  command: ["server"]
+  restart: unless-stopped
+  environment:
+    LERRYN_CONFIG: /etc/lerryn/server.yaml
+    LERRYN_SERVER_PUBLIC_URL: ${LERRYN_PUBLIC_URL:-http://localhost}
+    # 数据库口令通过 pgpass 文件提供，不写进 DSN 和环境变量。
+    PGPASSFILE: /run/secrets/pgpass
+  volumes:
+    - type: bind
+      source: ./server.yaml
+      target: /etc/lerryn/server.yaml
+      read_only: true
+    # 主密钥所在目录，所有 server 必须读到同一个密钥。
+    - type: bind
+      source: ./secrets/master
+      target: /var/lib/lerryn/secrets
+  secrets:
+    - pgpass
+    - s3-access-key-id
+    - s3-secret-access-key
+    - runner-registration-token
+  depends_on:
+    postgres:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/lerryn", "healthcheck"]
+    interval: 15s
+    timeout: 6s
+    start_period: 30s
+    retries: 3
+  stop_grace_period: 30s
+  networks: [backend]
+  logging: *logging
+
+x-runner: &runner
+  image: *lerryn-image
+  command: ["runner"]
+  restart: unless-stopped
+  profiles: [runners]
+  group_add:
+    # 宿主机上 docker.sock 所属组的 GID：stat -c %g /var/run/docker.sock
+    - "${DOCKER_GID:?set DOCKER_GID in .env to the group ID of /var/run/docker.sock}"
+  secrets:
+    - runner-registration-token
+  depends_on:
+    caddy:
+      condition: service_started
+  networks: [backend]
+  logging: *logging
+
+services:
+  caddy:
+    image: caddy:2.11.4
+    restart: unless-stopped
+    ports:
+      - "${LERRYN_HTTP_PORT:-80}:80"
+      - "${LERRYN_HTTPS_PORT:-443}:443"
+    environment:
+      # 站点地址。填域名时 Caddy 自动申请证书；默认 :80 只提供 HTTP，适合内网试用。
+      LERRYN_SITE_ADDRESS: ${LERRYN_SITE_ADDRESS:-:80}
+    volumes:
+      - type: bind
+        source: ./Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      server-1:
+        condition: service_healthy
+      server-2:
+        condition: service_healthy
+    networks: [frontend, backend]
+    logging: *logging
+
+  server-1:
+    <<: *server
+    hostname: server-1
+
+  server-2:
+    <<: *server
+    hostname: server-2
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lerryn
+      POSTGRES_DB: lerryn
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+    secrets:
+      - postgres-password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "lerryn", "-d", "lerryn"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    shm_size: 256m
+    networks: [backend]
+    logging: *logging
+
+  minio:
+    # MinIO 官方不再发布社区版镜像，这里使用 pgsty 维护的社区构建。
+    # 换成企业已有的 S3 兼容存储时，删掉 minio 和 minio-init，改 server.yaml 的 storage 一节。
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: ["server", "/data"]
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/s3-access-key-id
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/s3-secret-access-key
+    secrets:
+      - s3-access-key-id
+      - s3-secret-access-key
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+    logging: *logging
+
+  minio-init:
+    # 创建存储桶后退出，可以重复执行。
+    image: pgsty/mc:RELEASE.2026-10-18T00-00-00Z
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mc alias set lerryn http://minio:9000 "$$(cat /run/secrets/s3-access-key-id)" "$$(cat /run/secrets/s3-secret-access-key)" &&
+        mc mb --ignore-existing lerryn/${LERRYN_S3_BUCKET:-lerryn}
+    secrets:
+      - s3-access-key-id
+      - s3-secret-access-key
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  runner-1:
+    <<: *runner
+    hostname: runner-1
+    environment:
+      LERRYN_CONFIG: /etc/lerryn/runner.yaml
+      # 每个 runner 一个数据目录，容器内外路径一致（技术设计第 15.2 节）。
+      LERRYN_RUNNER_DATA_DIR: /var/lib/lerryn-runner-1
+    volumes:
+      - type: bind
+        source: ./runner.yaml
+        target: /etc/lerryn/runner.yaml
+        read_only: true
+      - type: bind
+        source: /var/lib/lerryn-runner-1
+        target: /var/lib/lerryn-runner-1
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+
+  runner-2:
+    <<: *runner
+    hostname: runner-2
+    environment:
+      LERRYN_CONFIG: /etc/lerryn/runner.yaml
+      LERRYN_RUNNER_DATA_DIR: /var/lib/lerryn-runner-2
+    volumes:
+      - type: bind
+        source: ./runner.yaml
+        target: /etc/lerryn/runner.yaml
+        read_only: true
+      - type: bind
+        source: /var/lib/lerryn-runner-2
+        target: /var/lib/lerryn-runner-2
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+
+secrets:
+  postgres-password:
+    file: ./secrets/postgres-password
+  pgpass:
+    file: ./secrets/pgpass
+  s3-access-key-id:
+    file: ./secrets/s3-access-key-id
+  s3-secret-access-key:
+    file: ./secrets/s3-secret-access-key
+  runner-registration-token:
+    file: ./secrets/runner-registration-token
+
+volumes:
+  postgres-data:
+  minio-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  frontend:
+  backend:
+    # 固定子网：server.yaml 的 server.trusted_proxies 只信任这个网段转发的
+    # X-Forwarded-For。和宿主机已有网络冲突时，两处一起改。
+    ipam:
+      config:
+        - subnet: 172.30.10.0/24

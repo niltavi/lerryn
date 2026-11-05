@@ -1,0 +1,463 @@
+# tasks 资源的路径。在根文件 paths 中按路径登记。
+tasks:
+  get:
+    operationId: listTasks
+    tags: [tasks]
+    summary: 列出任务
+    description: |
+      列出调用者能查看的任务，按最近更新从新到旧排列。默认不含已归档的任务。
+      每项带最近一次运行和下一次计划触发时间，供控制台的任务列表使用。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectFilter"
+      - name: state
+        in: query
+        description: 只返回这个启用状态的任务。
+        schema:
+          $ref: "./schemas.yaml#/TaskState"
+      - name: name
+        in: query
+        description: 只返回这个任务名的任务（精确匹配）。CLI 和 Agent 用它按名字查任务 ID；不同项目可能有同名任务，需要时同时给出 project_id。
+        schema:
+          $ref: "./schemas.yaml#/TaskName"
+      - name: q
+        in: query
+        description: 按任务名或用途说明中包含的文字筛选，不区分大小写。
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: archived
+        in: query
+        description: 为 true 时只返回已归档的任务。
+        schema:
+          type: boolean
+          default: false
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页任务。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskSummaryPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+applyTask:
+  put:
+    operationId: applyTask
+    tags: [tasks]
+    summary: 提交任务
+    description: |
+      按项目和任务名提交任务：任务不存在时创建并生成第 1 个版本，已存在时生成新版本。
+      每个版本都不可变，运行记录始终指向自己使用的版本。
+
+      - 任务已存在时必须带 `If-Match`，值为读到的最新版本号；与当前最新版本不一致时返回 412 `version_conflict`，
+        缺少时返回 428 `precondition_required`。任务不存在时不需要。
+      - `dry_run=true` 只校验并返回差异，不生成版本。
+      - 响应带校验警告，以及与激活版本（没有时为上一个版本）的差异。
+      - 提交新版本不改变激活的版本；要让触发器使用新版本，测试后调用 setTaskActivation。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: true
+      tool: task_apply
+      title: 提交任务
+      description: |
+        创建任务或提交新版本：给出完整的清单（manifest）和全部文件（files，UTF-8 文本）。
+        project_id 用 discover 返回的 principal.personal_project_id。运行时只能从 discover 的 runtimes 中选。
+        修改已有任务时 if_match 必填，值为读到的 latest_version.seq；收到 version_conflict 时先用 task_get 和差异确认别人的修改，不要直接覆盖。
+        先用 dry_run 为 true 查看校验结果和 diff，再正式提交。
+        任务里用 `sbx stage start <阶段>`、`sbx stage done <阶段>`、`sbx stage fail <阶段> --message <原因>` 上报进度，用 `sbx result --status ok|partial|failed --summary <摘要> --data-json '<JSON>'` 上报业务结果。Python 里也可以 `import sbx`：`sbx.params()` 返回运行参数，`with sbx.stage("id"):` 上报阶段，`sbx.result("ok", 摘要, data)` 上报结果。
+        需要凭证时在 manifest.credentials 写引用名，不要把明文写进文件或参数。提交后用 run_start 带 test 为 true 测试。
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+      - name: taskName
+        in: path
+        required: true
+        description: 任务名。
+        schema:
+          $ref: "./schemas.yaml#/TaskName"
+      - $ref: "../common/parameters.yaml#/DryRun"
+      - $ref: "../common/parameters.yaml#/IfMatch"
+      - $ref: "../common/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/ApplyTaskRequest"
+    responses:
+      "200":
+        description: 已生成新版本，或预览结果。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/ApplyTaskResult"
+      "412":
+        $ref: "../common/responses.yaml#/Problem"
+      "428":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+task:
+  get:
+    operationId: getTask
+    tags: [tasks]
+    summary: 读取任务
+    description: 返回任务、它的启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: task_get
+      title: 读取任务
+      description: |
+        读取任务的状态、激活版本和最新版本（清单和文件列表）。修改任务前先读，把 latest_version.seq 作为 task_apply 的 if_match。
+        文件内容用 api_call 调用 getTaskFile 读取。
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    responses:
+      "200":
+        description: 任务。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Task"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  delete:
+    operationId: archiveTask
+    tags: [tasks]
+    summary: 归档任务
+    description: |
+      归档任务：停止全部触发器，任务不再出现在默认列表中，不能再运行或修改。已经开始的运行不受影响。
+      版本、运行记录、日志和产物保留，按保留策略清理。归档后同一个任务名可以用来建立新任务。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    responses:
+      "200":
+        description: 已归档的任务。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Task"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+activation:
+  post:
+    operationId: setTaskActivation
+    tags: [tasks]
+    summary: 激活或暂停任务
+    description: |
+      激活任务的某个版本，或暂停任务。激活后触发器只运行激活的版本；暂停后触发器不再产生运行。
+      部署要求激活前测试时（discover 的 `require_test_before_activate`），没有成功测试运行的版本返回 409 `version_not_tested`。
+    x-operation-kind: execute
+    x-mcp:
+      expose: true
+      tool: task_set_active
+      title: 激活或暂停任务
+      description: |
+        active 为 true 时激活一个版本（默认最新版本），触发器从此按计划运行它；false 时暂停。
+        只在测试运行成功、并且检查过结果符合用户要求之后激活。未测试的版本返回 version_not_tested。
+        完成后把任务的 links.console 交给用户。
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/SetTaskActivationRequest"
+    responses:
+      "200":
+        description: 修改后的任务。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Task"
+      "409":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+console:
+  put:
+    operationId: setTaskConsole
+    tags: [tasks]
+    summary: 设置控制台选项
+    description: |
+      设置任务在控制台上的显示选项，不产生新的任务版本。目前只有 `manual_run`：为 false 时控制台不显示“手动执行”按钮，
+      用浏览器会话发起运行返回 409 `manual_run_disabled`。访问令牌发起的运行不受影响，控制台的“重试”按钮也不受影响。
+      只在用户要求，或者任务不适合随手运行（例如会对外发消息、扣费、写入生产数据）时关闭。不影响触发器。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/SetTaskConsoleRequest"
+    responses:
+      "200":
+        description: 修改后的任务。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Task"
+      "409":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+versions:
+  get:
+    operationId: listTaskVersions
+    tags: [tasks]
+    summary: 列出版本
+    description: 列出任务的版本，从新到旧排列，带测试状态和是否激活。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/Limit"
+      - $ref: "../common/parameters.yaml#/Cursor"
+    responses:
+      "200":
+        description: 一页版本。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskVersionPage"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+version:
+  get:
+    operationId: getTaskVersion
+    tags: [tasks]
+    summary: 读取版本
+    description: 返回任务的一个版本：清单和文件列表，不含文件内容。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/VersionSeq"
+    responses:
+      "200":
+        description: 版本。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskVersion"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+versionFile:
+  get:
+    operationId: getTaskFile
+    tags: [tasks]
+    summary: 读取版本中的文件
+    description: 返回版本中一个文件的内容。修改任务时，Agent 用它取回别人提交的文件。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/VersionSeq"
+      - name: path
+        in: query
+        required: true
+        description: 文件的相对路径，与 TaskFile.path 相同。
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+    responses:
+      "200":
+        description: 文件内容。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskFileContent"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+versionDiff:
+  get:
+    operationId: diffTaskVersion
+    tags: [tasks]
+    summary: 比较版本
+    description: |
+      返回一个版本与另一个版本的差异。省略 `base` 时，与激活版本比较；没有激活版本，或比较的就是激活版本时，与上一个版本比较。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/VersionSeq"
+      - name: base
+        in: query
+        description: 比较基准的版本号。
+        schema:
+          type: integer
+          minimum: 1
+    responses:
+      "200":
+        description: 差异。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskDiff"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+versionValidate:
+  post:
+    operationId: validateTaskVersion
+    tags: [tasks]
+    summary: 校验版本
+    description: |
+      检查一个已提交的版本在当前环境下能否运行和激活：运行时、凭证绑定、runner 标签、工具和激活前测试。不修改任何数据。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: task_validate
+      title: 校验版本
+      description: |
+        检查某个版本现在能否运行和激活：凭证是否绑定、有没有满足 runner_labels 的在线 runner、工具是否存在、是否已测试。
+        errors 非空时先按每项的 code 处理，例如 credential_missing 用 credential_request 请用户填写。
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - $ref: "../common/parameters.yaml#/VersionSeq"
+    responses:
+      "200":
+        description: 校验结果。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/ValidationReport"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+taskCredentials:
+  get:
+    operationId: listTaskCredentials
+    tags: [tasks, credentials]
+    summary: 列出任务引用的凭证
+    description: |
+      列出任务清单引用的凭证和它们的绑定状态：已绑定、缺少、已撤销、已过期，以及未完成的填写请求。不返回任何凭证内容。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    responses:
+      "200":
+        description: 任务引用的凭证。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskCredentialList"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+taskExport:
+  get:
+    operationId: exportTask
+    tags: [tasks]
+    summary: 导出任务
+    description: |
+      把任务导出为可移植的任务包（TaskBundle），供 importTask 导入到同一部署或另一个部署的任意项目（技术设计第 15.5 节）。
+      任务包含任务名、所选版本（`history` 为 true 时连同之前的版本）的清单和文件，以及触发器定义。
+
+      - 不含运行记录、日志和产物，不含凭证的值和绑定（清单里只有引用名），不含 webhook 令牌，也不含项目、用户、任务等任何 ID。
+      - 能查看任务的成员都可以导出，包括查看者：任务包里的内容他们本来就能通过 getTaskVersion、getTaskFile 和 listTriggers 读到。
+      - 任务包编码后最多约 4 MiB，与 importTask 的请求体上限一致；`history` 最多带最近的 50 个版本，超出上限时从最早的版本开始省略，
+        省略的数量写在 `omitted_versions` 中。
+      - 每次导出写一条审计记录。
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+      - name: version
+        in: query
+        description: 导出的版本号，省略时为最新版本。
+        schema:
+          type: integer
+          minimum: 1
+      - name: history
+        in: query
+        description: 为 true 时连同所选版本之前的版本一起导出，导入后保留版本历史。
+        schema:
+          type: boolean
+          default: false
+      - name: triggers
+        in: query
+        description: 为 false 时不导出触发器定义。
+        schema:
+          type: boolean
+          default: true
+    responses:
+      "200":
+        description: 任务包。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskBundle"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+taskImports:
+  post:
+    operationId: importTask
+    tags: [tasks]
+    summary: 导入任务
+    description: |
+      把 exportTask 导出的任务包导入到这个项目，建立一个新任务。调用者成为任务和每个版本的创建者。
+
+      - 版本按任务包中的顺序从 1 重新编号，响应的 `versions` 给出新旧版本号的对应。导入的版本都没有测试过，
+        部署要求激活前测试时，先带 test 为 true 运行再激活。任务导入后未激活，触发器在激活前不会触发。
+      - 每个版本按 applyTask 的规则校验，包括文件数量和大小，以及清单、文件和触发器参数中不能出现凭证的值；
+        出错位置的 JSON Pointer 指向任务包内，例如 `#/bundle/versions/0/files/1/content`。
+      - 凭证仍是清单中的引用名，导入后都没有绑定，`credentials` 列出需要绑定的引用名；用 credential_request 请用户填写，
+        或由凭证所有者用 grantCredential 授权。
+      - 触发器按定义建立，webhook 触发器生成新的令牌，只在这次响应中出现。
+      - 项目中已有同名且未归档的任务时返回 412 `version_conflict`，用 `name` 换一个任务名导入。
+      - `dry_run=true` 只校验并返回预览，不保存任何内容。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    parameters:
+      - $ref: "../common/parameters.yaml#/ProjectID"
+      - $ref: "../common/parameters.yaml#/DryRun"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/ImportTaskRequest"
+    responses:
+      "200":
+        description: 已导入的任务，或预览结果。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/ImportTaskResult"
+      "412":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

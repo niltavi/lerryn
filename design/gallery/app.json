@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Lerryn Gallery",
+    "slug": "lerryn-gallery",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F5F1E6",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.lerryn.gallery"
+    },
+    "android": {
+      "package": "ai.lerryn.gallery"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "icon": "../brand/logo/png/lerryn-logo-square.png"
+  }
+}
