@@ -247,6 +247,7 @@ interface FakeOptions {
   /** An error code startRun answers with instead of a run. */
   startError?: string;
   task?: Partial<Schemas["Task"]>;
+  runs?: Schemas["RunSummary"][];
   triggerItems?: Schemas["Trigger"][];
   taskControlSubmit?: (path: string, body: unknown) => Promise<Response>;
   run?: Partial<Schemas["Run"]>;
@@ -388,8 +389,9 @@ function fakeServer(opts: FakeOptions = {}) {
       case "DELETE /api/v1/credential-requests/req2":
         return json({ ...UPDATE_REQUEST, status: "cancelled" });
       case "GET /api/v1/runs":
-        return json({ items: opts.showRunInList && !!failedRun.archived_at === (url.searchParams.get("archived") === "true")
-          ? [{ ...failedRun, task: TASK_REF, current_stage: null, result_status: null, result_summary: null }] : [], next_cursor: null });
+        return json({ items: (opts.showRunInList
+          ? [{ ...failedRun, task: TASK_REF, current_stage: null, result_status: null, result_summary: null }]
+          : opts.runs ?? []).filter((r) => !!r.archived_at === (url.searchParams.get("archived") === "true")), next_cursor: null });
       case "GET /api/v1/tools":
         return opts.toolsResponse?.() ?? json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
       default:
@@ -439,7 +441,7 @@ describe("settings navigation", () => {
     expect(router.state.location.pathname).toBe("/settings/account");
     expect(screen.queryByRole("region", { name: "密钥" })).toBeNull();
     const accountMenu = within(screen.getByRole("region", { name: "账号" }));
-    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["通知", "手机", "账号"]);
+    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "通知", "手机"]);
     expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
     expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBeNull();
 
@@ -486,7 +488,7 @@ describe("settings navigation", () => {
     await userEvent.setup().click(admin);
     const menu = within(await screen.findByRole("region", { name: "管理" }));
     expect(router.state.location.pathname).toBe("/admin/users");
-    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "登录", "执行节点", "审计"]);
+    expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["用户", "登录", "执行节点", "审计"]);
     expect(admin.getAttribute("aria-current")).toBe("page");
     expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBeNull();
   });
@@ -692,6 +694,40 @@ describe("admin passwords", () => {
   });
 });
 
+describe("compact list navigation", () => {
+  it("toggles the compact task list by keyboard and closes it after selecting the current task", async () => {
+    const user = userEvent.setup();
+    renderApp(`/tasks/${TASK.id}`, { tasks: [{
+      id: TASK.id, project_id: PROJECT.id, name: TASK.name, description: TASK.description,
+      state: "inactive", active_version: null, latest_version: 2, last_run: null, next_run_at: null,
+      active_runs: 0, updated_at: iso(0), links: TASK.links,
+    }] });
+    await screen.findByRole("heading", { name: "weekday-digest" });
+    const list = screen.getByRole("region", { name: "任务列表" });
+    const toggle = within(list).getByRole("button", { expanded: false });
+    const body = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(body.className).toBe("list-body");
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(list.getAttribute("data-expanded")).toBe("true");
+    await user.click(within(body).getByRole("link", { name: /weekday-digest/ }));
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(list.getAttribute("data-expanded")).toBe("false");
+    expect(screen.getByRole("heading", { name: "weekday-digest" })).toBeTruthy();
+  });
+
+  it("closes a compact settings list when the selected section changes", async () => {
+    const { router } = renderApp("/settings/tokens");
+    const list = await screen.findByRole("region", { name: "密钥" });
+    const toggle = within(list).getByRole("button", { expanded: false });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => { await router.navigate({ to: "/settings/tools" }); });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
 describe("task page", () => {
   it("confirms deletion, preserves history and returns to the overview", async () => {
     const { server, router } = renderApp(`/tasks/${TASK.id}`, { role: "owner" });
@@ -707,6 +743,49 @@ describe("task page", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
     expect(server.requests.filter((r) => r.method === "DELETE")).toEqual([expect.objectContaining({ path: `/api/v1/tasks/${TASK.id}` })]);
   });
+
+  it.each(["queued", "preparing", "running", "cancelling"] as const)("shows %s for an inactive task with an active test run", async (status) => {
+    const labels = { queued: "排队中", preparing: "准备中", running: "运行中", cancelling: "取消中" };
+    renderApp(`/tasks/${TASK.id}`, {
+      task: { state: "inactive", active_version: null },
+      runs: [{
+        ...NEW_RUN, task: TASK_REF, test: true, status, trigger: { ...NEW_RUN.trigger, kind: "manual" },
+        result_status: null, result_summary: null, current_stage: null,
+      }],
+    });
+    const board = await screen.findByRole("main", { name: TASK.name });
+    expect(await within(board).findByRole("img", { name: labels[status] })).toBeTruthy();
+    expect(within(board).queryByText("未激活")).toBeNull();
+  });
+
+  it("keeps an inactive task visibly running when its active run is older than the recent history", async () => {
+    const summary: Schemas["TaskSummary"] = {
+      ...TASK, state: "inactive", active_version: null, latest_version: 2,
+      active_runs: 1, last_run: null, next_run_at: null,
+    };
+    renderApp(`/tasks/${TASK.id}`, { task: { state: "inactive", active_version: null }, tasks: [summary] });
+    const board = await screen.findByRole("main", { name: TASK.name });
+    expect(await within(board).findByRole("img", { name: "运行中" })).toBeTruthy();
+    const running = screen.getByRole("group", { name: "运行中" });
+    expect(within(running).getByRole("img", { name: "运行中" })).toBeTruthy();
+    expect(within(board).queryByText("未激活")).toBeNull();
+  });
+
+  it("separates scheduled tasks from paused tasks and uses the same calendar status on the board", async () => {
+    const summary: Schemas["TaskSummary"] = {
+      ...TASK, state: "active", latest_version: 2, active_runs: 0, last_run: null,
+      next_run_at: TRIGGERS.triggers[0]!.next_fire_at,
+    };
+    renderApp(`/tasks/${TASK.id}`, { tasks: [summary, { ...summary, id: "paused", name: "paused-task", state: "inactive", next_run_at: null }] });
+    const scheduled = await screen.findByRole("group", { name: "按计划" });
+    expect(within(scheduled).getByRole("img", { name: "按计划" }).querySelector("svg.lucide-calendar-clock")).toBeTruthy();
+    expect(within(scheduled).queryByText("paused-task")).toBeNull();
+    const inactive = screen.getByRole("group", { name: "未启用" });
+    expect(within(inactive).getByRole("img", { name: "已暂停" })).toBeTruthy();
+    const board = await screen.findByRole("main", { name: TASK.name });
+    expect(await within(board).findByRole("img", { name: "按计划" })).toBeTruthy();
+  });
+
   it("disables and enables the previously active version, independently of manual runs", async () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", manualRun: false, task: { active_version: 1 } });
     const user = userEvent.setup();
@@ -722,7 +801,7 @@ describe("task page", () => {
     expect(within(dialog).getByText(/启用 v1/)).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "启用任务" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(screen.getByText("按计划")).toBeTruthy();
     expect(server.requests.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ active: false }, { active: true, version: 1 }]);
   });
 
@@ -738,7 +817,7 @@ describe("task page", () => {
     const post = server.requests.find((r) => r.method === "POST")!;
     expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/skip-next-run`);
     expect(post.body).toEqual({ scheduled_at: TRIGGERS.triggers[0]!.next_fire_at });
-    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(screen.getByText("按计划")).toBeTruthy();
     expect(server.requests.filter((r) => r.path.endsWith("/triggers"))).toHaveLength(2);
   });
 
@@ -776,7 +855,7 @@ describe("task page", () => {
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
     renderApp(`/tasks/${TASK.id}`);
     await screen.findByRole("heading", { name: "weekday-digest" });
-    expect(screen.getByText("已激活")).toBeTruthy();
+    expect(screen.getByText("按计划")).toBeTruthy();
     expect((await screen.findAllByText("每个工作日 08:00")).length).toBeGreaterThan(0);
     expect(screen.getByTitle("0 8 * * 1-5 · Asia/Shanghai")).toBeTruthy();
     expect(await screen.findByText("凭证 1")).toBeTruthy();

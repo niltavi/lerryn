@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, ApiProvider, unwrap } from "../client";
 import type { LogLine } from "../logs/model";
+import { queryKeys } from "./keys";
 import { useMe } from "./account";
 import { fetchFullLog, useRerunRun, useRunLog, useStartRun } from "./runs";
 
@@ -41,7 +42,7 @@ function setup(fetch: (req: Request) => Promise<Response>) {
       <ApiProvider client={client}>{children}</ApiProvider>
     </QueryClientProvider>
   );
-  return { client, wrapper };
+  return { client, wrapper, queryClient };
 }
 
 describe("unwrap", () => {
@@ -69,6 +70,15 @@ describe("useMe", () => {
 });
 
 describe("run actions over HTTP", () => {
+  it("refreshes task lists and the calendar immediately after starting a run", async () => {
+    const { wrapper, queryClient } = setup(async () => json({ id: "r1", task_id: "t1", rerun_of: null }));
+    const keys = [queryKeys.taskList(null), queryKeys.calendar(null, 0), queryKeys.task("t1"), queryKeys.overview(null)];
+    for (const key of keys) queryClient.setQueryData(key, {});
+    const { result } = renderHook(() => useStartRun(), { wrapper });
+    await act(() => result.current.mutateAsync("t1"));
+    for (const key of keys) expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+  });
+
   afterEach(() => vi.unstubAllGlobals());
 
   it.each([

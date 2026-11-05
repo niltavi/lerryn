@@ -1,12 +1,11 @@
 // Reads for the overview board, the task list and projects. Shared by the web
-// console and the phone; refetch intervals switch off while the event stream
-// keeps them fresh (usePollInterval).
+// console and the phone. Metadata also polls because the stream only carries runs.
 import type { Schemas, LerrynClient } from "@lerryn/api";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { unwrap, useApi } from "../client";
 import { shouldRetry } from "../errors";
-import { usePollInterval } from "../live/live";
+import { RESOURCE_POLL_MS } from "../live/live";
 import { startOfLocalDay } from "../view/model";
 import { queryKeys } from "./keys";
 
@@ -15,8 +14,8 @@ export type UpcomingFire = Schemas["UpcomingFire"];
 export type Project = Schemas["Project"];
 export type ProjectMember = Schemas["Member"];
 
-/** Refetch interval of the overview while the event stream is not available. */
-export const OVERVIEW_POLL_MS = 10_000;
+/** Refetch interval for mutable overview metadata, including external changes. */
+export const OVERVIEW_POLL_MS = RESOURCE_POLL_MS;
 const DAY_MS = 86_400_000;
 const TASK_PAGE = 100;
 const PROJECT_PAGE = 200;
@@ -35,7 +34,7 @@ export function useOverview(projectId: string | null) {
     queryFn: () => unwrap(api.GET("/api/v1/overview", { params: { query: projectQuery(projectId) } })),
     retry: shouldRetry,
     placeholderData: keepPreviousData,
-    refetchInterval: usePollInterval(OVERVIEW_POLL_MS),
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -60,7 +59,7 @@ export function useCalendar(range: { projectId: string | null; from: number; to:
       ),
     retry: shouldRetry,
     placeholderData: keepPreviousData,
-    refetchInterval: usePollInterval(OVERVIEW_POLL_MS * 3),
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -105,7 +104,7 @@ export function useTaskList(projectId: string | null) {
     queryKey: queryKeys.taskList(projectId),
     queryFn: ({ signal }) => readTaskList(api, projectId, signal),
     retry: (count, err) => !(err instanceof IncompleteListError) && shouldRetry(count, err),
-    refetchInterval: usePollInterval(OVERVIEW_POLL_MS * 3),
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -118,7 +117,7 @@ export function useProjects() {
       params: { query: { limit: PROJECT_PAGE, cursor } }, signal,
     })), signal, PROJECT_PAGE),
     retry: (count, err) => !(err instanceof IncompleteListError) && shouldRetry(count, err),
-    staleTime: 60_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -135,6 +134,6 @@ export function useProjectMembers(projectId: string | undefined) {
         }),
       ),
     retry: shouldRetry,
-    staleTime: 60_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }

@@ -34,7 +34,7 @@ export function KeySettingsLayout() {
   );
 }
 
-/** Personal account: notifications, paired phones and profile. */
+/** Personal account: profile, notifications and paired phones. */
 export function AccountSettingsLayout() {
   const { t } = useI18n();
   const channels = useNotificationChannels();
@@ -42,9 +42,9 @@ export function AccountSettingsLayout() {
   return (
     <>
       <ListColumn title={t("settings.account")} label={t("settings.account")}>
+        <SectionLink to="/settings/account" icon={UserRound} label={t("settings.account")} />
         <SectionLink to="/settings/notifications" icon={Bell} label={t("settings.notifications")} meta={channels.data?.items.length || undefined} />
         <SectionLink to="/settings/pairing" icon={Smartphone} label={t("settings.pairing")} meta={devices.data?.items.length || undefined} />
-        <SectionLink to="/settings/account" icon={UserRound} label={t("settings.account")} />
       </ListColumn>
       <Outlet />
     </>

@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 
 import { isUnauthenticated, unwrap, useApi, useApiSession } from "../client";
+import { RESOURCE_POLL_MS } from "../live/live";
 import { queryKeys } from "./keys";
 
 export type Me = Schemas["Me"];
@@ -126,6 +127,7 @@ export function useAccessTokens() {
   const api = useApi();
   return useInfiniteQuery({
     queryKey: queryKeys.tokens,
+    refetchInterval: RESOURCE_POLL_MS,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       unwrap(

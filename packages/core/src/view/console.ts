@@ -19,25 +19,29 @@ export interface TaskGroups {
   attention: TaskSummary[];
   /** Something is queued or running. */
   running: TaskSummary[];
-  /** Everything else, soonest next run first; inactive tasks last. */
+  /** Enabled tasks with a scheduled fire, soonest first. */
   scheduled: TaskSummary[];
+  enabled: TaskSummary[];
+  inactive: TaskSummary[];
 }
 
-/** Splits the task list into the three groups of the list column (prototype Main.dc.html). */
+/** Splits the task list into the status groups of the list column (prototype Main.dc.html). */
 export function groupTasks(tasks: readonly TaskSummary[]): TaskGroups {
-  const groups: TaskGroups = { attention: [], running: [], scheduled: [] };
+  const groups: TaskGroups = { attention: [], running: [], scheduled: [], enabled: [], inactive: [] };
   for (const task of tasks) {
-    if (task.active_runs > 0) groups.running.push(task);
+    if (task.active_runs > 0 || (task.last_run && isRunActive(task.last_run.status))) groups.running.push(task);
+    else if (task.state === "inactive") groups.inactive.push(task);
     else if (task.last_run && ATTENTION.has(task.last_run.status)) groups.attention.push(task);
-    else groups.scheduled.push(task);
+    else if (task.next_run_at) groups.scheduled.push(task);
+    else groups.enabled.push(task);
   }
   const byFinish = (a: TaskSummary, b: TaskSummary) =>
     Date.parse(b.last_run?.finished_at ?? b.updated_at) - Date.parse(a.last_run?.finished_at ?? a.updated_at);
   groups.attention.sort(byFinish);
   groups.running.sort((a, b) => a.name.localeCompare(b.name));
-  const active = sortTasksBySchedule(groups.scheduled.filter((t) => t.state === "active"));
-  const inactive = groups.scheduled.filter((t) => t.state !== "active").sort((a, b) => a.name.localeCompare(b.name));
-  groups.scheduled = [...active, ...inactive];
+  groups.scheduled = sortTasksBySchedule(groups.scheduled);
+  groups.enabled.sort((a, b) => a.name.localeCompare(b.name));
+  groups.inactive.sort((a, b) => a.name.localeCompare(b.name));
   return groups;
 }
 

@@ -81,23 +81,26 @@
   /* ── 骨架：图标轨 + 列表 + 看板；窄屏时图标轨移到底部 ── */
   .shell { display: flex; align-items: stretch; min-height: 100vh; min-height: 100dvh; }
   .rail { position: sticky; top: 0; flex: none; width: 64px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 0; border-right: 1px solid var(--line); background: var(--paper); z-index: 20; }
-  .rail-logo { width: 44px; height: 44px; margin-bottom: 14px; border-radius: var(--radius-2xl); background: var(--plate); display: grid; place-items: center; }
+  .rail-logo { width: 44px; height: 44px; margin-bottom: 14px; display: grid; place-items: center; }
   .ri { position: relative; width: 44px; height: 44px; border-radius: var(--radius-2xl); display: grid; place-items: center; color: var(--ink-muted); text-decoration: none; border: 0; background: transparent; cursor: pointer; padding: 0; }
   .ri:hover { background: var(--liner-2); color: var(--ink); }
   .ri[aria-current="page"], .ri.is-on { background: var(--kraft-soft); color: var(--kraft-strong); }
   .ri .pip { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--danger); box-shadow: 0 0 0 2px var(--paper); }
   .rail-foot { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .shell-page { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: stretch; }
+  .shell-page { flex: 1; min-width: 0; display: flex; align-items: stretch; }
   /* 打开地址不是部署地址时的只读提示：一行细条贴在顶部，不抢列表和看板的位置。 */
   .shell-origin { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 48px; padding: 8px 12px 8px 20px; border-bottom: 1px solid var(--line); background: var(--warning-soft); font-size: 14px; line-height: 20px; }
   .shell-origin > .wl-icon { flex: none; width: 16px; height: 16px; color: var(--warning-ink); }
   .shell-origin-text { flex: 1 1 auto; min-width: 0; }
   .shell-origin > .chip { background: var(--paper); }
 
-  .list { flex: 1 1 300px; max-width: 340px; min-width: 0; display: flex; flex-direction: column; padding-bottom: 24px; border-right: 1px solid var(--line); }
+  .list { flex: 0 0 clamp(240px, 26vw, 340px); min-width: 0; display: flex; flex-direction: column; padding-bottom: 24px; border-right: 1px solid var(--line); }
   .list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 76px; padding: 20px 12px 8px 20px; }
-  .list-title { margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 20px; line-height: 28px; font-weight: 700; }
+  .list-title { margin: 0; min-width: 0; flex: 1; font-size: 20px; line-height: 28px; font-weight: 700; }
+  .list-heading { display: flex; align-items: baseline; gap: var(--space-2); }
+  .list-toggle { display: none; }
+  .list-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .list-title .n { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink-muted); }
   .list-tools { display: flex; align-items: center; gap: 2px; }
   .list-group { display: flex; align-items: center; gap: 6px; padding: 16px 20px 6px; font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ink-muted); }
@@ -129,16 +132,30 @@
   .sec-label .num { font-size: 13px; font-weight: 600; }
   .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 32px; align-items: start; }
 
-  /* 窄屏：图标轨移到底部，列表和看板上下排 */
+  /* Keep the board in view when there is no room for two usable columns. */
+  @media (max-width: 960px) {
+    .shell-page { flex-direction: column; justify-content: flex-start; }
+    .list { flex: none; width: 100%; border-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+    .list-head { min-height: 64px; padding: var(--space-2) var(--space-4); }
+    .list-heading { display: none; }
+    .list-toggle { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px; padding: 0; border: 0; border-radius: var(--radius-lg); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .list-toggle > .wl-icon { width: 18px; height: 18px; margin-left: auto; color: var(--ink-muted); }
+    .list-toggle[aria-expanded="true"] > .wl-icon { transform: rotate(180deg); }
+    .list[data-expanded="false"] .list-body, .list[data-expanded="false"] .list-tools { display: none; }
+    .list-body { flex: none; max-height: min(50dvh, 448px); overflow-y: auto; overscroll-behavior-y: contain; padding-bottom: var(--space-2); }
+    .board { flex: 1 0 auto; width: 100%; gap: var(--space-6); }
+  }
+
+  /* Phone navigation leaves room for the device's home indicator. */
   @media (max-width: 720px) {
     .shell { flex-direction: column; }
-    .rail { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; height: 64px; flex-direction: row; justify-content: space-around; padding: 0 8px; border-right: 0; border-top: 1px solid var(--line); }
+    .rail { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; height: calc(64px + env(safe-area-inset-bottom, 0px)); flex-direction: row; justify-content: space-around; padding: 0 8px env(safe-area-inset-bottom, 0px); border-right: 0; border-top: 1px solid var(--line); }
     .rail-logo { display: none; }
     .rail-foot { margin-top: 0; flex-direction: row; }
-    .shell-main { padding-bottom: 72px; }
+    .shell-main { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
     .shell-origin { padding-left: 16px; }
-    .list { max-width: none; flex-basis: 100%; border-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-    .board { flex-basis: 100%; gap: 24px; padding: 16px 16px 40px; }
+    .board { padding: var(--space-4) var(--space-4) var(--space-8); overflow-wrap: anywhere; }
+    .board .h1 { font-size: var(--text-title-1); line-height: var(--text-title-1--line-height); }
   }
 
   /* ── 大数字 ── */
@@ -375,7 +392,7 @@
   /* ── 居中单栏（登录、注册） ── */
   .auth { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-6); padding: 48px 16px; }
   .auth-col { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: var(--space-5); }
-  .auth-logo { width: 64px; height: 64px; border-radius: 20px; background: var(--plate); display: grid; place-items: center; }
+  .auth-logo { width: 64px; height: 64px; display: grid; place-items: center; }
   .or { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-muted); }
   .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .pw-wrap { position: relative; }

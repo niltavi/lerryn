@@ -6,6 +6,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteD
 
 import { unwrap, useApi, useApiSession } from "../client";
 import { shouldRetry } from "../errors";
+import { RESOURCE_POLL_MS } from "../live/live";
 import { queryKeys } from "./keys";
 
 export type Credential = Schemas["Credential"];
@@ -64,6 +65,7 @@ export function useCredentials() {
       next_cursor: data.pages.at(-1)?.next_cursor ?? null,
     }),
     retry: shouldRetry,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -84,7 +86,7 @@ export function usePendingCredentialRequests() {
       next_cursor: data.pages.at(-1)?.next_cursor ?? null,
     }),
     retry: shouldRetry,
-    refetchInterval: 30_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -167,6 +169,7 @@ export function useCredentialRequest(requestId: string | null) {
       unwrap(api.GET("/api/v1/credential-requests/{requestId}", { params: { path: { requestId: requestId ?? "" } } })),
     enabled: !!requestId,
     retry: shouldRetry,
+    refetchInterval: (query) => query.state.data?.status === "pending" ? RESOURCE_POLL_MS : false,
   });
 }
 

@@ -1,67 +1,38 @@
+<div align="center">
+
+<img src="design/brand/logo/svg/lerryn-icon-circle.svg" width="112" height="112" alt="Lerryn" />
+
 # Lerryn
 
-[English documentation](docs/en/README.md) · [简体中文](docs/README.zh-CN.md)
+*Agents do the work. People keep an eye on it.*
 
-A self-hosted automation sandbox in the Niltavi product family. External agents operate Lerryn through MCP or HTTP APIs. Run Python, Node, and Shell tasks with schedules, webhooks, personal credentials, logs, and artifacts. The web console lets people observe and manage the work; the mobile app provides read access.
+[Getting started](docs/en/getting-started.md) · [简体中文](docs/README.zh-CN.md)
 
-## Get started
+</div>
 
-Start with [getting started](docs/en/getting-started.md). The [deployment guide](docs/en/deploy.md) covers single-node Docker Compose, PostgreSQL and S3 deployments, account setup, backups, and upgrades. Use [the CLI and agent guide](docs/en/cli.md) to connect an agent over MCP or run tasks from the command line.
+---
 
-`lerryn all-in-one` provides the API, MCP endpoint, web console, and an embedded runner in one process. `lerryn server` and `lerryn runner` support separate deployment. Single-node deployments use SQLite and local object storage; multi-node deployments use PostgreSQL and S3-compatible storage. Docker is required for sandbox execution.
+Writing a script is the easy part. Running it on time, with the right credentials, somewhere safe, and with a record of what happened, is the part that usually falls back to a person.
 
-## Development
+Lerryn takes that part. Your agent connects over MCP or the HTTP API and hands over Python, Node, or Shell tasks. Each one runs in its own container, on a schedule or from a webhook, and leaves its logs and artifacts behind. You watch from the web console or your phone, and step in only when something needs you.
 
-Requirements: Go 1.27, Node.js 24, pnpm 10.18.0, and golangci-lint 2.x. Install frontend dependencies and build the console and server:
-
-```sh
-pnpm install --frozen-lockfile
-make build
-```
-
-The executable is `bin/lerryn`. Run the required checks before merging:
-
-```sh
-make check
-```
-
-`make help` lists all commands. Developers start their own local servers; see [the design guide](design/README.md) for the component gallery and theme generation.
-
-## Project layout
-
-| Directory | Purpose |
-| --- | --- |
-| `server/` | Go server, runner, and CLI; `server/cmd/lerryn` is the entry point |
-| `api/` | OpenAPI source, bundled contract, and generation configuration |
-| `apps/web/`, `apps/mobile/` | Web console and mobile app |
-| `packages/` | API client, shared domain models, and web components |
-| `design/` | Niltavi theme mappings, native components, gallery, and logo assets |
-| `deploy/` | Configuration examples and single-node / multi-node Compose files |
-| `runtimes/sdk/` | Python, Node, and Shell task helpers |
-| `skills/` | Agent skills for automation, credentials, troubleshooting, and operations |
-| `tests/` | Acceptance scenarios, agent evaluations, and capacity checks |
-| `docs/` | Product scope, architecture, implementation plan, and operational guides |
-| `website/` | English / Chinese introduction website for `lerryn.niltavi.com` |
-
-## Introduction website
-
-Build and validate the standalone website with `pnpm website:build` and `pnpm website:check`. The output is `website/dist/`; hosting and domain setup are described in [website/README.md](website/README.md).
-
-## Documentation
-
-- [Product requirements](docs/agent-automation-sandbox-prd.md), [technical design](docs/agent-automation-sandbox-tech-design.md), and [implementation plan](docs/agent-automation-sandbox-implementation-plan.md)
-- [English documentation index](docs/en/README.md) / [中文文档目录](docs/README.zh-CN.md)
-- [Getting started](docs/en/getting-started.md)
-- [Deployment and configuration](docs/en/deploy.md)
-- [CLI and agent access](docs/en/cli.md)
-- [Day-to-day operations](docs/en/operations.md)
-- [Acceptance results and known gaps](docs/acceptance-matrix.md)
-- [Design system](docs/design-system.md)
-- [Repository migration](docs/repository-migration.md) and [name migration](docs/rename-to-lerryn.md)
-- [Contributor and agent rules](AGENTS.md)
-
-User guides are available in English and Chinese. Product requirements, technical design, implementation planning, historical validation records, and the product interface currently use Chinese. Lerryn continues from the previous sandbox codebase, with a fresh Git history. Active development takes place in `niltavi/lerryn` on [GitHub](https://github.com/niltavi/lerryn) and [Gitea](https://git.yarinz.com/niltavi/lerryn).
+It runs on your own machines, from a single Mac mini to a small cluster. Your credentials and your data stay with you.
 
 ## License
 
-The repository is licensed under [AGPL-3.0](LICENSE). `runtimes/sdk/` and `skills/` are licensed under Apache-2.0; see their own license files. Third-party notices are in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
+[AGPL-3.0](LICENSE). The task SDK in `runtimes/sdk/` and the agent skills in `skills/` are Apache-2.0.
+
+<br />
+
+<div align="center">
+
+<a href="https://niltavi.com/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/niltavi-logo-dark.svg" />
+  <img src="docs/assets/niltavi-logo-light.svg" width="96" height="35" alt="niltavi" />
+</picture>
+</a>
+
+<sub>Lerryn is part of the Niltavi product family.</sub>
+
+</div>

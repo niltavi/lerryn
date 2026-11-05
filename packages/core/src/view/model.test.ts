@@ -413,7 +413,8 @@ describe("task list", () => {
 
   it("picks the row glyph", () => {
     expect(taskGlyph(t("a", null, { state: "inactive" }))).toEqual({ tone: "idle", icon: "pause" });
-    expect(taskGlyph(t("a", null))).toEqual({ tone: "idle", icon: "calendar" });
+    expect(taskGlyph(t("a", null))).toEqual({ tone: "idle", icon: "pending" });
+    expect(taskGlyph(t("a", "2026-11-04T00:00:00Z"))).toEqual({ tone: "idle", icon: "calendar" });
     expect(
       taskGlyph(
         t("a", null, {
@@ -430,6 +431,6 @@ describe("task list", () => {
           },
         }),
       ),
-    ).toEqual({ tone: "bad", icon: "x" });
+    ).toEqual({ tone: "idle", icon: "pending" });
   });
 });

@@ -98,7 +98,7 @@ test.describe("as the admin", () => {
     await page.goto("/");
     await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "管理" }).click();
     await expect(page).toHaveURL(/\/admin\/users$/);
-    const users = page.getByRole("main", { name: "账号" });
+    const users = page.getByRole("main", { name: "用户" });
     await expect(users).toContainText(state.alice.username);
     await expect(users).toContainText(state.admin.username);
 
@@ -164,6 +164,32 @@ test("main pages fit a 375 px phone without horizontal scroll", async ({ page, s
     await page.goto(path);
     await settle(page, main);
     await expectNoHorizontalScroll(page);
+  }
+});
+
+test("task details stay above the fold across the compact layout breakpoint", async ({ page, state }) => {
+  for (const width of [320, 788, 960, 961, 1280]) {
+    await page.setViewportSize({ width, height: 812 });
+    await page.goto(`/tasks/${state.tasks.dailyReport}`);
+    const heading = page.getByRole("heading", { name: "daily-report", level: 1 });
+    const list = page.getByRole("region", { name: "任务列表" });
+    await expect(heading).toBeInViewport();
+    await expectNoHorizontalScroll(page);
+    const boardBox = await page.getByRole("main", { name: "daily-report" }).boundingBox();
+    expect(boardBox!.y).toBeLessThan(100);
+    const toggle = list.getByRole("button", { name: /^任务/ });
+    if (width <= 960) {
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await list.getByRole("link", { name: /daily-report/ }).click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(heading).toBeInViewport();
+    } else {
+      await expect(toggle).toBeHidden();
+      const listBox = await list.boundingBox();
+      expect(boardBox!.x).toBeGreaterThanOrEqual(listBox!.x + listBox!.width);
+    }
   }
 });
 

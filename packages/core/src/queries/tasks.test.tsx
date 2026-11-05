@@ -26,12 +26,12 @@ describe("task run discovery", () => {
     const { result } = renderHook(() => ({ ...useTaskRuns("task") }), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     items = [{ id: "new", status: "running" }];
-    await act(() => vi.advanceTimersByTimeAsync(9_100));
+    await act(() => vi.advanceTimersByTimeAsync(5_100));
     expect(fetch).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(result.current.data?.items.map((run) => run.id)).toEqual(["new"]));
   });
 
-  it("polls again after the event stream goes down", async () => {
+  it("discovers runs both with an open stream and after it goes down", async () => {
     let mode: LiveMode = "stream";
     const fetch = vi.fn(async () => new Response(JSON.stringify({ items: [], next_cursor: null }), { headers: { "Content-Type": "application/json" } }));
     const api = createLerrynClient({ baseUrl: "http://lerryn.test", fetch });
@@ -41,11 +41,11 @@ describe("task run discovery", () => {
     );
     const { result, rerender } = renderHook(() => ({ ...useTaskRuns("task") }), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    await act(() => vi.advanceTimersByTimeAsync(9_100));
-    expect(fetch).toHaveBeenCalledOnce();
+    await act(() => vi.advanceTimersByTimeAsync(5_100));
+    expect(fetch).toHaveBeenCalledTimes(2);
     mode = "polling";
     rerender();
-    await act(() => vi.advanceTimersByTimeAsync(9_100));
-    expect(fetch).toHaveBeenCalledTimes(2);
+    await act(() => vi.advanceTimersByTimeAsync(5_100));
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 });

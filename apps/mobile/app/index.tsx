@@ -12,7 +12,7 @@ import {
   runGlyph,
   sortTasksBySchedule,
   startOfLocalDay,
-  taskGlyph,
+  taskStatus,
   type AttentionView,
 } from '../src/lib/view';
 import { shortWhen } from '../src/lib/when';
@@ -256,20 +256,15 @@ function TaskSection({ tasks, now }: { tasks: ReturnType<typeof useTaskList>; no
       <SectionLabel>{m('overview.tasks')}</SectionLabel>
       <View>
         {items.map((task, i) => {
-          const glyph = taskGlyph(task);
-          const label =
-            task.state === 'inactive'
-              ? m('task.paused')
-              : task.last_run
-                ? t(`run.status.${task.last_run.status}`)
-                : t('states.awaitingFirstRun');
+          const status = taskStatus(task);
+          const label = t(status.label);
           return (
             <ListRow
               key={task.id}
               first={i === 0}
-              glyph={<Glyph glyph={glyph} label={label} />}
+              glyph={<Glyph glyph={status.glyph} label={label} />}
               title={task.name}
-              titleMuted={task.state === 'inactive'}
+              titleMuted={status.label === 'task.paused' || status.label === 'task.neverActivated'}
               trailing={task.next_run_at ? shortWhen(task.next_run_at, locale, now) : '—'}
               onPress={() => openTarget({ kind: 'task', taskId: task.id })}
             />
