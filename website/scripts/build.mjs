@@ -33,7 +33,8 @@ const niltavi = (await readFile(resolve(root, 'website/art/niltavi-wordmark.svg'
 
 for (const c of Object.values(languages)) {
   const base = c.path ? '../' : './';
-  const docs = `${repository}/blob/main/docs/`;
+  // Each page links the documentation in its own language.
+  const docs = `${repository}/blob/main/docs/${c.docs}`;
   const url = `${origin}/${c.path}`;
   const page = `<!doctype html>
 <html lang="${c.lang}">
@@ -58,6 +59,7 @@ for (const c of Object.values(languages)) {
   <meta property="og:image:height" content="1024">
   <meta property="og:image:alt" content="Lerryn">
   <meta name="twitter:card" content="summary">
+  <link rel="alternate" type="text/plain" href="${base}llms.txt" title="Installation guide for agents">
   <link rel="icon" href="${base}assets/lerryn-mark.svg" type="image/svg+xml">
   <link rel="preload" href="${base}assets/fonts/cormorant-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${base}assets/site.css">
@@ -95,12 +97,12 @@ for (const c of Object.values(languages)) {
         <div class="slide-art">${art[s.id](escape(s.art))}</div>
       </section>`).join('\n      ')}
       <section class="slide connect" id="connect" aria-labelledby="connect-title">
-        <div class="slide-copy"><h2 id="connect-title">${heading(c.connect.heading)}</h2><p>${escape(c.connect.text)}</p><a class="text-link" href="${docs}cli.md">${c.lang === 'en' ? 'CLI &amp; agent guide' : 'CLI 与 Agent 接入文档'} ${arrow}</a></div>
-        <div class="slide-art code-example" data-copy="${escape(c.copy)}" data-copied="${escape(c.copied)}" data-copy-error="${escape(c.copyError)}">
-          <div class="tabs" role="tablist" aria-label="${escape(c.tabsLabel)}" hidden>${c.snippets.map((s, i) => `<button type="button" role="tab" id="tab-${s.id}" aria-controls="panel-${s.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? '0' : '-1'}">${s.label}</button>`).join('')}</div>
-          ${c.snippets.map((s) => `<section class="code-panel" id="panel-${s.id}" aria-labelledby="tab-${s.id}" tabindex="0"><pre><code>${escape(s.code)}</code></pre><button class="copy" type="button" hidden>${escape(c.copy)}</button></section>`).join('')}
-          <span class="copy-message" role="status" aria-live="polite"></span>
-        </div>
+        <div class="slide-copy"><h2 id="connect-title">${heading(c.connect.heading)}</h2><p>${escape(c.connect.text)}</p><a class="text-link" href="${docs}getting-started.md">${escape(c.connect.guide)} ${arrow}</a></div>
+        <figure class="slide-art prompt" data-copied="${escape(c.copied)}" data-copy-error="${escape(c.copyError)}">
+          <figcaption class="prompt-label">${escape(c.connect.label)}</figcaption>
+          <blockquote class="prompt-text">${escape(c.connect.prompt)}</blockquote>
+          <div class="prompt-actions"><span class="copy-message" role="status" aria-live="polite"></span><button class="button primary copy" type="button" hidden>${escape(c.copy)}</button></div>
+        </figure>
       </section>
       <section class="slide end" aria-labelledby="end-title">
         <div class="slide-copy"><span class="dash" aria-hidden="true"></span><h2 id="end-title">${heading(c.end.heading)}</h2><p>${escape(c.end.text)}</p>
@@ -117,6 +119,7 @@ for (const c of Object.values(languages)) {
   await mkdir(target, { recursive: true });
   await writeFile(resolve(target, 'index.html'), page);
 }
+await cp(resolve(root, 'website/llms.txt'), resolve(dist, 'llms.txt'));
 await writeFile(resolve(dist, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`);
 await writeFile(resolve(dist, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${Object.values(languages).map((c) => `<url><loc>${origin}/${c.path}</loc></url>`).join('')}</urlset>\n`);
 await writeFile(resolve(dist, '_headers'), `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: DENY\n  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'\n`);

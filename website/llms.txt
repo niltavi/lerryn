@@ -1,0 +1,25 @@
+# Lerryn
+
+> Lerryn is a self-hosted automation sandbox. Agents create Python, Node, and Shell tasks over MCP, the HTTP API, or the `lerryn` CLI; Lerryn runs them in Docker containers on the user's own machines, on schedules or webhooks, with stored credentials, logs, results, and files.
+
+If a user asked you to install Lerryn from this site, follow the steps below. Confirm each step that changes their machine before running it.
+
+## Install
+
+1. Ask the user where Lerryn should run: this machine or another host, Linux or a Mac mini with OrbStack, and whether anyone besides them will reach it over the network. Docker is required.
+2. Clone `https://github.com/niltavi/lerryn` on that host and follow the single-node deployment in the deployment guide: section 2 for Linux, section 2.1 for macOS with OrbStack. It uses one container with SQLite and local storage.
+3. Create the administrator account before the instance is reachable by anyone else. Ask the user for the username and let them enter the password themselves; keep it out of chat and files you write.
+4. Back up the master key as the guide describes, and tell the user where it is.
+
+Before exposing the instance beyond the local network, complete the "Public deployment" section of the deployment guide.
+
+## Connect
+
+After the instance reports healthy, connect yourself to it as described in "Connect an agent" in the getting-started guide: remote MCP at `<public-url>/mcp` with an access token, or the stdio proxy through an authenticated `lerryn` CLI. Install the bundled Skills with `lerryn skills install`. Then run the guide's first test task to confirm that submission, execution, and result retrieval work.
+
+## Documentation
+
+- [Getting started](https://github.com/niltavi/lerryn/blob/main/docs/en/getting-started.md): connect an agent and verify a first task
+- [Deployment and operations](https://github.com/niltavi/lerryn/blob/main/docs/en/deploy.md): single-node and multi-node installs, configuration, backups, upgrades, public deployment
+- [CLI and MCP](https://github.com/niltavi/lerryn/blob/main/docs/en/cli.md): authentication, tasks, runs, generic API commands, Skills, and the MCP stdio proxy
+- [Day-to-day operations](https://github.com/niltavi/lerryn/blob/main/docs/en/operations.md)
