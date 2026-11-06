@@ -43,7 +43,7 @@
 
 以 0.9.0 为例，候选版本把 tag 换成 `v0.9.0-rc.N`。
 
-1. 在 main 上准备发布提交：`info.version`、Compose 默认版本、SDK 版本改为新版本，运行 `make generate`；写好 `docs/release-notes/0.9.0.md`；`make notices`。
+1. 在 main 上准备发布提交：`info.version`、Compose 默认版本、SDK 版本改为新版本，运行 `make generate`；写好 `docs/zh-CN/release-notes/0.9.0.md`；`make notices`。
 2. 本地跑 `make check`、`make generate-check`、`make test-pg`、`make test-integration`，全部通过。
 3. 在目标 Linux 主机上按[目标环境验证手册](target-env-runbook.md)跑一遍；正式版之前完成[人工审查清单](review-checklist.md)。
 4. 打 tag（带注释，必要时签名），推送 tag：
@@ -75,7 +75,7 @@
 7. 在 GitHub 上建 release，正文用发布说明，附上 `dist/v0.9.0/` 下的全部文件：
 
    ```bash
-   gh release create v0.9.0 --title "Lerryn 0.9.0" --notes-file docs/release-notes/0.9.0.md dist/v0.9.0/*
+   gh release create v0.9.0 --title "Lerryn 0.9.0" --notes-file docs/zh-CN/release-notes/0.9.0.md dist/v0.9.0/*
    ```
 
    候选版本加 `--prerelease`。

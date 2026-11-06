@@ -999,7 +999,7 @@ describe("tools", () => {
     await user.click(within(interfaces).getByRole("button", { name: "复制 MCP 地址" }));
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/mcp`);
     const guide = screen.getByRole("link", { name: "下载接入文档" });
-    expect(guide.getAttribute("href")).toContain("tools.md");
+    expect(guide.getAttribute("href")).toContain("/docs/zh-CN/tools.md");
     expect(guide.getAttribute("download")).toBe("lerryn-tools.md");
     expect(screen.getByRole("link", { name: "管理访问令牌" }).getAttribute("href")).toBe("/settings/tokens");
   });

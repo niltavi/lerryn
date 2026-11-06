@@ -1,6 +1,6 @@
 # Tools integration
 
-[简体中文](../tools.md) · [Documentation index](README.md)
+[简体中文](../zh-CN/tools.md) · [Documentation index](README.md)
 
 Lerryn provides MCP, HTTP API, and CLI access for external agents to create and update tasks, configure triggers, execute tasks, and read logs and results. Settings → Tools lists built-in capabilities and connection addresses for the current instance, and offers this guide for download. Project tools appear separately below them for tasks to reference at runtime.
 

@@ -1,6 +1,6 @@
 # Lerryn 快速入门
 
-[English](en/getting-started.md) · [文档目录](README.zh-CN.md)
+[English](../en/getting-started.md) · [文档目录](README.md)
 
 Lerryn 由外部 Agent 通过 API、MCP 或 CLI 创建和维护任务。控制台用于查看任务、日志、结果与产物，也提供账号和凭证管理。本文先连接一个可用实例，再用一个不访问网络、不需要凭证的 Python 任务验证提交、执行和结果读取。
 
@@ -10,7 +10,7 @@ Lerryn 由外部 Agent 通过 API、MCP 或 CLI 创建和维护任务。控制�
 
 首次部署要先创建管理员，再开放公网访问，随后关闭开放注册；具体命令见[公网部署](deploy.md#11-公网部署)。不要把仍未完成首次注册的实例直接暴露到公网。
 
-客户端使用 `lerryn` 二进制，与服务端保持版本一致。源码构建见[仓库首页](../README.md#development)，构建结果是 `bin/lerryn`；发行包的安装与可用性以对应版本的发布记录为准。下面的命令假设 `lerryn` 已在 `PATH` 中。
+客户端使用 `lerryn` 二进制，与服务端保持版本一致。源码构建见[常用命令](README.md#常用命令)，构建结果是 `bin/lerryn`；发行包的安装与可用性以对应版本的发布记录为准。下面的命令假设 `lerryn` 已在 `PATH` 中。
 
 ```bash
 lerryn login https://lerryn.example.com --username alice

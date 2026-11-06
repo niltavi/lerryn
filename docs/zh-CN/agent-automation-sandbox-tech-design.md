@@ -8,7 +8,7 @@
 
 0.2 版按几项已经确定的决策做了收敛：首版面向企业自部署，但企业专属的功能尽量少做；内置一套门槛很低的账号体系，与 OIDC 并存；沙箱只用加固的 Docker 容器，不做工具网关和更强的隔离方案；移动端只用来查看任务进度。推迟到 P1 的功能集中列在第 19 节。
 
-0.3 版按 M0 的四项技术验证修订，验证记录在 `docs/spikes/` 下（[S1 双数据库](spikes/s1-dual-dialect-storage.md)、[S2 OpenAPI 生成链路](spikes/s2-openapi-codegen.md)、[S3 MCP 无状态模式](spikes/s3-mcp-stateless.md)、[S4 容器执行](spikes/s4-container-execution.md)），同时补上验证合并后已经实现的事实，以 `main` 上的代码为准。0.4 版按 M1 最小闭环的实现修订。各版本的变化见第 23 节。
+0.3 版按 M0 的四项技术验证修订，验证记录在 `docs/zh-CN/spikes/` 下（[S1 双数据库](spikes/s1-dual-dialect-storage.md)、[S2 OpenAPI 生成链路](spikes/s2-openapi-codegen.md)、[S3 MCP 无状态模式](spikes/s3-mcp-stateless.md)、[S4 容器执行](spikes/s4-container-execution.md)），同时补上验证合并后已经实现的事实，以 `main` 上的代码为准。0.4 版按 M1 最小闭环的实现修订。各版本的变化见第 23 节。
 
 文档按这个顺序展开：前提和选型（第 1 至 3 节），架构、数据和执行（第 4 至 8 节），对外接口、MCP 和 Skill（第 9 至 11 节），账号、权限、前端和运维（第 12 至 16 节），最后是验收对应、里程碑、首版从简清单、已知限制、待确认事项、参考和修订记录。
 
@@ -1115,7 +1115,7 @@ Agent ──POST /mcp──► Streamable HTTP（无状态）
 
 ### 10.6 CLI
 
-`lerryn` CLI 覆盖全部公开接口。Agent 可以在 shell 中使用，维护者也用它。用法、配置文件、输出格式和退出码见 [docs/cli.md](cli.md)：
+`lerryn` CLI 覆盖全部公开接口。Agent 可以在 shell 中使用，维护者也用它。用法、配置文件、输出格式和退出码见 [docs/zh-CN/cli.md](cli.md)：
 
 ```bash
 lerryn login https://lerryn.example.com          # 内置账号输入用户名和密码；也可以用 --token-stdin 保存访问令牌
@@ -1447,7 +1447,7 @@ apps/web             @lerryn/web，Web 控制台
 apps/mobile          移动端（未开始）
 ```
 
-设计令牌没有单独的 `packages/tokens`：`design/scripts/sync-tokens.mjs` 从 `design/tokens.json` 的映射和 `design/niltavi-ui/tokens.json` 的主题快照同时生成 `design/ui-native` 的 Uniwind 主题和 `packages/ui-web/styles/tokens.css`（Tailwind v4 主题和 HeroUI v3 变量映射），两端读的是同一份数值；同一脚本也生成仓库原型和独立凭证填写页的主题。组件采用扁平边框，不再绘制旧版厚度唇边。Logo 路径同样由 `design/scripts/build-logo.mjs` 写到两个组件库。设计语言的约定见 `docs/design-system.md`。
+设计令牌没有单独的 `packages/tokens`：`design/scripts/sync-tokens.mjs` 从 `design/tokens.json` 的映射和 `design/niltavi-ui/tokens.json` 的主题快照同时生成 `design/ui-native` 的 Uniwind 主题和 `packages/ui-web/styles/tokens.css`（Tailwind v4 主题和 HeroUI v3 变量映射），两端读的是同一份数值；同一脚本也生成仓库原型和独立凭证填写页的主题。组件采用扁平边框，不再绘制旧版厚度唇边。Logo 路径同样由 `design/scripts/build-logo.mjs` 写到两个组件库。设计语言的约定见 `docs/zh-CN/design-system.md`。
 
 Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由）和 TanStack Query、HeroUI v3、Tailwind v4。字体 DM Sans、IBM Plex Mono 随构建产物一起提供（`@fontsource`），不连外网。
 
@@ -1584,7 +1584,7 @@ services:
 
 标准拓扑包含 2 个 server、若干 runner 和 PostgreSQL，对象存储使用企业已有的 S3 兼容服务。
 
-两种拓扑的 Compose 文件在 `deploy/single-node/` 和 `deploy/multi-node/`，安装步骤见 [docs/deploy.md](deploy.md)。标准拓扑的参考部署用 Caddy 做反向代理，对象存储用 MinIO 的社区构建（官方已不再发布社区版镜像）。
+两种拓扑的 Compose 文件在 `deploy/single-node/` 和 `deploy/multi-node/`，安装步骤见 [docs/zh-CN/deploy.md](deploy.md)。标准拓扑的参考部署用 Caddy 做反向代理，对象存储用 MinIO 的社区构建（官方已不再发布社区版镜像）。
 
 runner 需要访问 Docker 或 Podman 的 API，这基本等于拥有所在主机的 root 权限。建议：
 
@@ -1673,7 +1673,7 @@ log:
 
 导出格式是一个压缩包，包含任务、版本、触发器、授权关系和凭证引用，不含凭证明文。它有三个用途：跨实例迁移、SQLite 迁到 PostgreSQL、A15 的恢复验证。导入时保留运行关联；对象存储中已经不存在的产物标为缺失。
 
-M6 的实现（`server/internal/ops`，操作步骤见 [docs/deploy.md](deploy.md)）：
+M6 的实现（`server/internal/ops`，操作步骤见 [docs/zh-CN/deploy.md](deploy.md)）：
 
 - `lerryn backup` 在快照前登记独立的 `blob-backup:` 租约（30 秒有效，每 10 秒续期），用 `VACUUM INTO` 在一个读事务里复制 SQLite，再按快照引用复制本地对象，打成一个 tar.gz，server 运行时可以执行。对象回收在每个 SQLite 写事务内检查这些租约，有备份时暂缓删除对象，普通写入与保留策略的记录清理继续执行。对象在复制时校验 SHA-256；续期失败、保护中断、对象缺失或校验不符时移除残缺归档，临时文件与存储目录里的无关文件不进入备份。`lerryn restore` 在创建暂存区前检查数据库及其 WAL、SHM 路径与存储目录是否重叠；暂存父目录创建后再检查一次，覆盖此前不存在的大小写别名，重叠时清理本次暂存内容和新建的空目录。完整解压并检查后才替换现有数据，原数据改名保留。PostgreSQL 不走这两个命令，用 `pg_dump`。
 - 导出按表导出全部数据，而不是只挑任务相关的几类对象。SQLite 迁到 PostgreSQL 需要完整的实例，账号、令牌、运行和日志都要带走；按表导出也不需要为以后新增的表逐一修改导出代码。表和外键从数据库读取，按外键顺序写入；值转成两种数据库都接受的形式（布尔、UTC 文本时间、文本 UUID）。对象按引用它的列收集，与保留策略回收对象时检查的引用一致：各表的 `blob_hash`、未过期产物的 `blob_key`、运行的 `log_blob` 和 `input_key`，以及 `log_blob` 出现之前归档的日志在 `log_archive` 中记录的对象。最初只收集 `blob_hash`，产物、归档日志和 webhook 请求体没有导出，导入的实例上这些内容读不到。不导出 goose 的版本表和租约表。凭证按密文导出，导入的实例需要同一个主密钥。
@@ -1692,7 +1692,7 @@ M6 的实现（`server/internal/ops`，操作步骤见 [docs/deploy.md](deploy.m
 - 权限：导出需要查看任务，查看者也可以。任务包里的内容查看者本来就能经 `getTaskVersion`、`getTaskFile` 和 `listTriggers` 读到，导出没有扩大可见范围；不让查看者导出只会让他们逐个文件去读。导入需要目标项目的修改任务权限（维护者或所有者），与 `applyTask` 相同。令牌范围按 `x-operation-kind`：导出 `read`，导入 `write`。
 - 上限：导入的请求体与其他接口一样最大 4 MiB。导出时按编码后的大小累加，从所选版本往前取，超过约 4 MiB 或 50 个版本时省略更早的版本，省略的数量写在 `omitted_versions` 中，导出的结果总能导入。单个版本的文件最多 1 MiB，正常情况下一定放得下；JSON 转义让一个版本超过上限时，导出返回 `validation_failed`。
 - 审计：导出写 `exportTask`（读取操作本来不记录，导出把任务的全部代码带离部署，所以单独记录），详情为导出的版本号、省略数和是否带触发器；导入写 `importTask`，详情为源任务名、版本、建立的触发器和需要绑定的凭证引用名。拒绝含凭证值的导入按第 11.7 节记 `denied`。
-- 两个操作都不作为独立的 MCP 工具（`x-mcp: {expose: false}`），经 `api_call` 调用：它们不在第 11.3 节的主流程里，而且任务包可能远大于单次工具结果的 32 KiB 上限。导入的响应只带任务的 ID、名字、最新版本号和控制台链接，不带完整的 `Task`，否则 `api_describe importTask` 会超过这个上限。CLI 为它们提供 `lerryn tasks export` 和 `lerryn tasks import`（[docs/cli.md](cli.md)）。
+- 两个操作都不作为独立的 MCP 工具（`x-mcp: {expose: false}`），经 `api_call` 调用：它们不在第 11.3 节的主流程里，而且任务包可能远大于单次工具结果的 32 KiB 上限。导入的响应只带任务的 ID、名字、最新版本号和控制台链接，不带完整的 `Task`，否则 `api_describe importTask` 会超过这个上限。CLI 为它们提供 `lerryn tasks export` 和 `lerryn tasks import`（[docs/zh-CN/cli.md](cli.md)）。
 - 不需要迁移：导入写的是已有的任务、版本、文件和触发器表。
 
 ### 15.6 可观测
@@ -1748,7 +1748,7 @@ skills/               Agent Skills（Apache-2.0）
 apps/                 web、mobile
 packages/             tokens、ui-web、ui-native、api、core
 deploy/               Compose 文件，后续加 Helm
-docs/                 PRD、技术设计、实施规划
+docs/                 语言入口；en/ 英文，zh-CN/ 中文（含 PRD、技术设计、实施规划），assets/ 共用资源
 tests/
   acceptance/         A01 至 A18、B01 至 B03
   chaos/              多节点故障注入
@@ -1908,7 +1908,7 @@ Go module 放在仓库根目录，与现有的 pnpm workspace 并存，覆盖 `s
 | 0.2 | 按已经确定的决策收敛范围：首版面向企业自部署，企业专属功能尽量少做，MCP OAuth、外部密钥服务、工具网关、审计界面、滚动升级等移到 P1（第 19 节）；增加门槛很低的内置账号，与 OIDC 并存，管理员可关闭开放注册和本地密码登录；沙箱只用加固的 Docker 容器；移动端只读查看任务进度；确定名称 Lerryn 和 AGPL-3.0 许可证；里程碑和目录与实施规划同步 |
 | 0.3 | 按 M0 技术验证 S1 至 S4 修订，补上合并后已经实现的事实。存储：选主改为 upsert，SQLite 写事务用 `BEGIN IMMEDIATE` 并在进程内串行，类型对照和建模约定，方言专属代码范围，PostgreSQL 最低版本 15，启动时自动迁移和迁移锁，`/readyz` 检查迁移版本。契约：生成链路以打包结果为输入并嵌入服务端，新增错误码 `unauthenticated`、`internal_error`、`out_of_memory` 和状态码对应，请求 ID、请求校验、可空字段的约定，`discover` 的响应结构。MCP：`x-mcp` 结构和工具标注以 `api/README.md` 为准，工具注册表运行时构建，`/mcp` 挂在 API 处理链上，新增 `mcp` 配置段，删除旧协议的会话粘滞预案，`/mcp` 前置令牌校验。执行：默认加固补全，只用 `Mounts` 挂载，`full` 网络的任务间隔离及其前提，OOM 的判定规则，停止确认的细节，凭证改为经 stdin 交给 `sbx` 入口写入。部署：Compose 示例改为同路径绑定挂载并说明原因，镜像预建 `/var/lib/lerryn`，CI 新增两个执行器集成测试作业。账号：按 M0 账号骨架的实现补全第 12.1、12.2 节（用户名规则、会话 cookie、`Origin` 校验、令牌只能在会话中创建、按契约声明鉴权、登录限速、权限框架），`access_tokens` 增加 `prefix`，新增错误码 `username_taken`、`rate_limited`、`origin_not_allowed` |
 | 0.4 | 按 M1 的实现修订：runner 续租间隔改为 2 秒；第 7.6 节改为先上报终态再删除容器，并说明 runner ID 的保存位置；新增错误类别 `run_interrupted`，runner 重启清理和租约过期都用它；第 9.3 节的请求校验改为已实现的事实；第 7.7 节说明日志行阶段标注的近似性；第 5.4 节补充 `OOMKilled` 在 cgroup v2 上不可靠，主进程以 137 退出时推断为 `out_of_memory`；`storage.path` 默认值改为 `/var/lib/lerryn/storage`，避免与对象前缀 `blobs/` 叠成两层 |
-| 0.4（M2 补充） | MCP 注册表为全部操作建立索引，新增 `api_describe` 和 `api_call`（第 10.3 节）；CLI 改为由操作索引驱动，不基于生成的 Go 客户端，补充登录、配置文件、输出格式、退出码和 stdio 代理的设计（第 10.6 节，详见 `docs/cli.md`） |
+| 0.4（M2 补充） | MCP 注册表为全部操作建立索引，新增 `api_describe` 和 `api_call`（第 10.3 节）；CLI 改为由操作索引驱动，不基于生成的 Go 客户端，补充登录、配置文件、输出格式、退出码和 stdio 代理的设计（第 10.6 节，详见 `docs/zh-CN/cli.md`） |
 | 0.4（控制台补充） | 按 Web 控制台的第一版修订第 13 节：仓库结构改为设计令牌和 `ui-native` 留在 `design/`、`ui-web` 的主题由同一个生成脚本输出；写明控制台的栈、嵌入方式、挂载与缓存规则、CSP，以及接口未就绪页面的处理 |
 | 0.5（M2 实现） | 第 5.2 节写明"成功的测试运行"的判定和归档的效果；第 5.5 节运行事件由 runner 和服务端共用一个序号，新增 `runs.runner_event_seq`；第 7.4 节产物的收集、上限、类型判断和下载头；第 9.3 节幂等中间件、`If-Match` 的细节和 SSE 的实现方式。契约修正：`RunEvent.data` 和 `RunResult.data` 原来只有说明没有类型，OpenAPI 3.0 语义的校验器（kin-openapi 的响应校验）把它们当成不可为 null，现在列出全部 JSON 类型和 null。校验接口按 runner 标签检查有没有能领取的在线 runner；工具清单尚无登记接口，引用任何工具都报错；日历的计划触发在调度器提供展开 cron 的接口前只列每个触发器的下一次 |
 | 0.5 | 写出 M2 至 M6 和控制台的完整契约与数据模型：第 9.2 节记录契约与端点草案的差异；第 5.3 节清单的凭证改为按引用名声明、由授权绑定，新增 Agent 面板 `panels`，触发器按 `name` 整体替换并带 `revision`；第 5.5 节按迁移 20261104010000 至 20261104014000 更新表（任务归档和激活列、运行的来源、重试和重跑列、触发器、幂等、配对码、凭证、产物、通知）；第 7.4 节新增 `/sbx/in`；第 8.2 节新增 `catch_up: latest`；第 12.4 节更新凭证也走填写请求；第 14 节通知渠道属于用户本人。新增错误码 `permission_denied`、`precondition_required`、`version_not_tested`、`task_archived`、`password_login_disabled`、`last_owner`。SQLite 迁移中用 ALTER 加的列不带外键，因为 SQLite 不能删除参与外键的列，回滚会失败 |

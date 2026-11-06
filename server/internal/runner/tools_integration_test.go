@@ -239,7 +239,7 @@ print("exit", r.returncode)
 
 // skipInsideContainer skips a test that needs the task containers to reach
 // a server the test itself listens on: when the test runs in a container
-// (the runner-in-a-container check in docs/target-env-runbook.md), the
+// (the runner-in-a-container check in docs/zh-CN/target-env-runbook.md), the
 // task containers only reach the Docker host.
 func skipInsideContainer(t *testing.T, why string) {
 	t.Helper()

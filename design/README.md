@@ -1,6 +1,6 @@
 # design/
 
-Lerryn 设计语言的全部内容：token、Logo、React Native 组件库 `@lerryn/ui-native`、示例 App。现状、用法和约束见 [docs/design-system.md](../docs/design-system.md)。
+Lerryn 设计语言的全部内容：token、Logo、React Native 组件库 `@lerryn/ui-native`、示例 App。现状、用法和约束见 [docs/zh-CN/design-system.md](../docs/zh-CN/design-system.md)。
 
 | 目录 | 内容 |
 | --- | --- |

@@ -1,6 +1,6 @@
 # Lerryn 部署与运维
 
-[English](en/deploy.md) · [文档目录](README.zh-CN.md)
+[English](../en/deploy.md) · [文档目录](README.md)
 
 这份文档写给部署和维护 Lerryn 的人：安装、配置、指标、备份恢复、迁移、升级回退、容量规划和公网部署。设计依据见技术设计第 4.3、6.1、15 节。
 
@@ -402,7 +402,7 @@ lerryn --config new.yaml import --input lerryn-export.tar.gz
 
 升级：
 
-1. 阅读新版本的发布说明（`docs/release-notes/`），确认能否直接回退。
+1. 阅读新版本的发布说明（`docs/zh-CN/release-notes/`），确认能否直接回退。
 2. 备份数据库（第 6 节）。
 3. 停止全部 server：单机为 `docker compose stop lerryn`，标准拓扑为 `docker compose stop server-1 server-2`。
 4. 修改 `.env` 中的 `LERRYN_VERSION`，拉取新镜像：`docker compose pull`。

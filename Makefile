@@ -115,7 +115,7 @@ notices: ## 按 Go 模块和控制台的 npm 依赖重新生成 THIRD_PARTY_NOTI
 notices-check: ## 检查 THIRD_PARTY_NOTICES 与依赖一致，许可证都在允许清单内
 	node scripts/notices.mjs --check
 
-# 发布构建，见 docs/release.md。默认只构建不推送；RELEASE_PUSH=1 才推送镜像。
+# 发布构建，见 docs/zh-CN/release.md。默认只构建不推送；RELEASE_PUSH=1 才推送镜像。
 release-image: ## 用 docker buildx 构建 linux/amd64、linux/arm64 镜像（RELEASE_PUSH=1 时推送）
 	VERSION=$(VERSION) COMMIT=$(COMMIT) IMAGE=$(IMAGE) scripts/release.sh image
 

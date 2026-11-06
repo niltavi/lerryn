@@ -40,7 +40,7 @@ export interface RunStatusBadgeProps {
 
 /**
  * A run status as icon plus text, in the tone the design system assigns
- * (docs/design-system.md section 7). Use it wherever the status is the main
+ * (docs/zh-CN/design-system.md section 7). Use it wherever the status is the main
  * information.
  */
 export function RunStatusBadge({ status, size = "md", className }: RunStatusBadgeProps) {

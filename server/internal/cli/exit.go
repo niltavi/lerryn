@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-// Exit codes. docs/cli.md documents them; scripts and agents rely on them,
+// Exit codes. docs/zh-CN/cli.md documents them; scripts and agents rely on them,
 // so they only ever gain new values.
 const (
 	ExitOK = 0

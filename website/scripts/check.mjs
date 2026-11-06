@@ -3,12 +3,17 @@ import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { languages, origin } from '../content.mjs';
+import { languages, origin, repository } from '../content.mjs';
 
 const dist = resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
 for (const c of Object.values(languages)) {
   const file = resolve(dist, c.path, 'index.html');
   const html = await readFile(file, 'utf8');
+  for (const guide of ['deploy.md', 'getting-started.md']) {
+    const href = `${repository}/blob/main/docs/${c.lang}/${guide}`;
+    assert(html.includes(`href="${href}"`), `${c.lang}: wrong documentation language for ${guide}`);
+    await stat(fileURLToPath(new URL(`../../docs/${c.lang}/${guide}`, import.meta.url)));
+  }
   assert(html.startsWith('<!doctype html>'), `${c.lang}: missing doctype`);
   assert(html.includes(`<html lang="${c.lang}">`), `${c.lang}: wrong language`);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1, `${c.lang}: expected one h1`);

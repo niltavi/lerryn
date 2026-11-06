@@ -328,7 +328,7 @@ func (d *doc) walkFields(prefix string, s *yaml.Node, rows *[]fieldRow, depth in
 	return nil
 }
 
-// friendlyCLI maps tools to the lerryn CLI's own commands (docs/cli.md).
+// friendlyCLI maps tools to the lerryn CLI's own commands (docs/zh-CN/cli.md).
 var friendlyCLI = map[string]string{
 	"discover":   "`lerryn discover`",
 	"task_apply": "`lerryn tasks apply <目录>`",

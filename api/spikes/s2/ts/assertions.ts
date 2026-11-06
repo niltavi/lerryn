@@ -1,6 +1,6 @@
 // Type-level checks for the TypeScript types generated from the S2 spike
 // spec. They only need to compile: `tsc --noEmit` failing means the
-// generator no longer produces what docs/spikes/s2-openapi-codegen.md
+// generator no longer produces what docs/zh-CN/spikes/s2-openapi-codegen.md
 // records. Nothing here runs.
 import createClient from "openapi-fetch";
 

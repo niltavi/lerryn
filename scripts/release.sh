@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds Lerryn release artifacts on a maintainer's machine as an alternative
-# to the Gitea Actions image workflow (docs/release.md).
+# to the Gitea Actions image workflow (docs/zh-CN/release.md).
 #
 #   scripts/release.sh image      multi-arch image with docker buildx
 #   scripts/release.sh binaries   lerryn binaries for darwin/linux, amd64/arm64, with SHA256SUMS

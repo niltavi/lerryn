@@ -1,6 +1,6 @@
 // Simplified Chinese copy. This file is the source of truth for message keys;
 // every other locale must provide the same shape (checked by the Messages type).
-// Copy rules (docs/design-system.md section 4): calm, concise, a space between
+// Copy rules (docs/zh-CN/design-system.md section 4): calm, concise, a space between
 // Chinese and Latin text or digits, 24-hour time, no exclamation marks.
 export const zhCN = {
   app: {

@@ -6,7 +6,7 @@ license: Apache-2.0
 
 # Lerryn 运维
 
-面向部署和维护 Lerryn 的人。完整说明在仓库的 `docs/deploy.md`，本 Skill 是操作顺序和要点；命令细节见 [references/runbook.md](references/runbook.md)。
+面向部署和维护 Lerryn 的人。完整说明在仓库的 `docs/zh-CN/deploy.md`，本 Skill 是操作顺序和要点；命令细节见 [references/runbook.md](references/runbook.md)。
 
 ## 先确认
 

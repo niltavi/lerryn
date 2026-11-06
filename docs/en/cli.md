@@ -1,8 +1,8 @@
 # lerryn CLI
 
-[简体中文](../cli.md) · [Documentation](README.md)
+[简体中文](../zh-CN/cli.md) · [Documentation](README.md)
 
-The `lerryn` binary is both the server and the command-line client. Client commands are available to agents running in a shell and to maintainers. For design background, see section 10.6 of the [technical design (Chinese)](../agent-automation-sandbox-tech-design.md).
+The `lerryn` binary is both the server and the command-line client. Client commands are available to agents running in a shell and to maintainers. For design background, see section 10.6 of the [technical design (Chinese)](../zh-CN/agent-automation-sandbox-tech-design.md).
 
 ## How it works
 
