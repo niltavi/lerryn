@@ -1,6 +1,6 @@
 # Lerryn documentation
 
-[简体中文](../README.zh-CN.md) · [Language selection](../README.md) · [Repository](../../README.md)
+[简体中文](../zh-CN/README.md) · [Language selection](../README.md) · [Repository](../../README.md)
 
 Lerryn is a self-hosted automation sandbox in the Niltavi product family. External agents create and maintain Python, Node, and Shell tasks through HTTP APIs, MCP, or the CLI. Lerryn handles schedules, webhooks, isolated execution, personal credentials, logs, results, and artifacts. People use the web console to observe runs and manage access; the mobile app provides read access.
 
@@ -39,7 +39,7 @@ make check
 | `runtimes/sdk/` | Python, Node, and Shell task helpers |
 | `skills/` | Agent Skills for automation, credentials, troubleshooting, and operations |
 | `tests/` | Acceptance tests, agent evaluations, and capacity tests |
-| `docs/` | User guides and product, architecture, and validation records |
+| `docs/` | Language index, English documents in `en/`, Chinese documents in `zh-CN/`, and shared assets in `assets/` |
 | `website/` | Standalone English and Chinese website for `lerryn.niltavi.com` |
 
 Build and check the introduction website with `pnpm website:build` and `pnpm website:check`. Its output is `website/dist/`; see [website/README.md](../../website/README.md) for hosting.
@@ -50,13 +50,13 @@ These documents have not yet been translated. Their recorded dates and validatio
 
 | Topic | Documents |
 | --- | --- |
-| Product and architecture | [Product requirements](../agent-automation-sandbox-prd.md), [technical design](../agent-automation-sandbox-tech-design.md), [implementation plan](../agent-automation-sandbox-implementation-plan.md) |
-| Design | [Design system](../design-system.md), [component development](../../design/README.md) |
-| Validation | [Acceptance matrix](../acceptance-matrix.md), [capacity results](../capacity.md), [review checklist](../review-checklist.md), [target-environment runbook](../target-env-runbook.md) |
-| CI and image publishing | [Gitea Actions setup](../ci.md) |
-| Releases | [Release process](../release.md), [0.9.0 release notes](../release-notes/0.9.0.md), [unreleased changes](../release-notes/unreleased.md) |
-| Migration | [Name migration](../rename-to-lerryn.md), [repository migration](../repository-migration.md) |
-| Technical spikes | [S1: dual-dialect storage](../spikes/s1-dual-dialect-storage.md), [S2: OpenAPI code generation](../spikes/s2-openapi-codegen.md), [S3: stateless MCP](../spikes/s3-mcp-stateless.md), [S4: container execution](../spikes/s4-container-execution.md) |
+| Product and architecture | [Product requirements](../zh-CN/agent-automation-sandbox-prd.md), [technical design](../zh-CN/agent-automation-sandbox-tech-design.md), [implementation plan](../zh-CN/agent-automation-sandbox-implementation-plan.md) |
+| Design | [Design system](../zh-CN/design-system.md), [component development](../../design/README.md) |
+| Validation | [Acceptance matrix](../zh-CN/acceptance-matrix.md), [capacity results](../zh-CN/capacity.md), [review checklist](../zh-CN/review-checklist.md), [target-environment runbook](../zh-CN/target-env-runbook.md) |
+| CI and image publishing | [Gitea Actions setup](../zh-CN/ci.md) |
+| Releases | [Release process](../zh-CN/release.md), [0.9.0 release notes](../zh-CN/release-notes/0.9.0.md), [unreleased changes](../zh-CN/release-notes/unreleased.md) |
+| Migration | [Name migration](../zh-CN/rename-to-lerryn.md), [repository migration](../zh-CN/repository-migration.md) |
+| Technical spikes | [S1: dual-dialect storage](../zh-CN/spikes/s1-dual-dialect-storage.md), [S2: OpenAPI code generation](../zh-CN/spikes/s2-openapi-codegen.md), [S3: stateless MCP](../zh-CN/spikes/s3-mcp-stateless.md), [S4: container execution](../zh-CN/spikes/s4-container-execution.md) |
 | API and SDKs | [API conventions](../../api/README.md), [Python](../../runtimes/sdk/python/README.md), [Node](../../runtimes/sdk/node/README.md), [Shell](../../runtimes/sdk/sh/README.md) |
 
 ## License

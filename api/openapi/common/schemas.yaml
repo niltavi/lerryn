@@ -1,7 +1,7 @@
 # 各资源共用的 schema。在根文件 components.schemas 中逐个登记。
 
 # 扩展字段逐个声明，不写 additionalProperties: true。oapi-codegen 为后者生成的
-# AdditionalProperties 在部分响应类型上会被静默丢弃（见 docs/spikes/s2-openapi-codegen.md）。
+# AdditionalProperties 在部分响应类型上会被静默丢弃（见 docs/zh-CN/spikes/s2-openapi-codegen.md）。
 Problem:
   type: object
   description: |

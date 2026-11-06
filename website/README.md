@@ -11,7 +11,7 @@ The build writes `website/dist/`. Open its `index.html` directly for a local rev
 
 ## Sources
 
-- `content.mjs`: both languages, the agent prompt, documentation language per page, and canonical domain. The English page links `docs/en/`; the Chinese page links the Chinese documents in `docs/`.
+- `content.mjs`: both languages, the agent prompt, documentation language per page, and canonical domain. The English page links `docs/en/`; the Chinese page links `docs/zh-CN/`.
 - `llms.txt`: installation steps for agents. The site's prompt sends an agent to lerryn.niltavi.com, and this file tells it how to deploy and connect Lerryn using the English guides on GitHub.
 - `scripts/build.mjs`: semantic HTML, metadata, sitemap, and security headers.
 - `assets/site.css`: responsive layout on the Niltavi UI palette (`design/niltavi-ui/tokens.json`), Cormorant Garamond headings, and DM Sans text.

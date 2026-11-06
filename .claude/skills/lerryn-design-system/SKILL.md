@@ -5,7 +5,7 @@ description: Lerryn 设计语言与 React Native 组件库 @lerryn/ui-native 的
 
 # Lerryn 设计语言
 
-完整说明在 `docs/design-system.md`：现状、与 PRD 的差距、组件清单、约束、待办。动手前先读它的第 1 节和第 4 节。本文是速查版。
+完整说明在 `docs/zh-CN/design-system.md`：现状、与 PRD 的差距、组件清单、约束、待办。动手前先读它的第 1 节和第 4 节。本文是速查版。
 
 ## 先分清改动类型
 
@@ -25,7 +25,7 @@ description: Lerryn 设计语言与 React Native 组件库 @lerryn/ui-native 的
 
 产品相关的两条限制：
 
-- 运行状态以 PRD 的 10 种为准（排队中、准备中、运行中、取消中、执行完成、执行失败、已超时、已取消、运行中断、已跳过）。现有 `StatusChip` 只有 6 种，需要按 `docs/design-system.md` 第 7 节的映射重做后再用于控制台。
+- 运行状态以 PRD 的 10 种为准（排队中、准备中、运行中、取消中、执行完成、执行失败、已超时、已取消、运行中断、已跳过）。现有 `StatusChip` 只有 6 种，需要按 `docs/zh-CN/design-system.md` 第 7 节的映射重做后再用于控制台。
 - PRD 首版不内置聊天 Agent、不做任务制作页面。`PromptComposer`、`AgentMessage` 只是样例，不要据此做对话页面。
 
 ## 改设计语言
@@ -35,20 +35,20 @@ description: Lerryn 设计语言与 React Native 组件库 @lerryn/ui-native 的
 | 颜色、厚度、字号、间距、圆角 | 改 `design/tokens.json` 的映射或数值（每个 token 写清 `usage`），运行 `pnpm design:tokens` 和 `pnpm design:test`；原型与独立填写页自动生成，上游主题快照只在升级时整体替换 |
 | 控制台原型 | 改 `design/prototype/` 下的画板，发布到 Claude Design 画布，两边保持一致，做法见该目录的 README |
 | HeroUI 组件的外观 | 改 `design/ui-native/styles/theme.css` 里对应的组件类，不在页面上用 className 硬盖 |
-| Lerryn 自己的组件 | 改或新建 `design/ui-native/src/components/`，从 `src/index.ts` 导出，加进 `design/gallery/App.tsx`，在 `docs/design-system.md` 第 3.3 节登记 |
+| Lerryn 自己的组件 | 改或新建 `design/ui-native/src/components/`，从 `src/index.ts` 导出，加进 `design/gallery/App.tsx`，在 `docs/zh-CN/design-system.md` 第 3.3 节登记 |
 | Logo | 只改母版 `design/brand/logo/svg/lerryn-mark.svg`，运行 `pnpm design:logo` |
 
 不要手改的生成文件：`design/ui-native/styles/tokens.css`、`design/ui-native/src/theme/tokens.ts`、`design/ui-native/src/components/logoMark.ts`、`design/brand/logo/` 下除母版以外的 SVG 和 PNG。
 
 新增或修改 token 时，文字颜色在它说明的底色上，浅色、暗色两套主题都要达到 4.5:1；控件边界、焦点环、图标至少 3:1。
 
-远端 Claude Design 页面尚为旧版牛皮纸主题；获得编辑权限后需同步。外观或参数有变化时，Claude Design 页面（链接在 `docs/design-system.md` 开头）也要同步：`project/tokens.json` 使用旧版 `value` 格式，同步时需先解析当前 `design/tokens.json` 的 `source` 引用，`project/components/bundle.js`、`bundle.css` 是组件的手写 Web 复刻，不会自动更新。没有权限同步时，在结果里说明哪些地方没同步。
+远端 Claude Design 页面尚为旧版牛皮纸主题；获得编辑权限后需同步。外观或参数有变化时，Claude Design 页面（链接在 `docs/zh-CN/design-system.md` 开头）也要同步：`project/tokens.json` 使用旧版 `value` 格式，同步时需先解析当前 `design/tokens.json` 的 `source` 引用，`project/components/bundle.js`、`bundle.css` 是组件的手写 Web 复刻，不会自动更新。没有权限同步时，在结果里说明哪些地方没同步。
 
 ## 完成前检查
 
 1. `pnpm design:typecheck` 与 `pnpm design:test` 通过。
 2. 在 Gallery 里看浅色、暗色两套主题。开发服务器由开发者自己启动（`pnpm design:gallery:ios`），不要自己反复起服务器或换端口；没有在运行时，请开发者启动，或说明没有做界面核对。
-3. 改了现状、组件或约束，更新 `docs/design-system.md` 对应的节。
+3. 改了现状、组件或约束，更新 `docs/zh-CN/design-system.md` 对应的节。
 
 ## 常见坑
 

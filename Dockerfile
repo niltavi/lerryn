@@ -13,7 +13,7 @@ COPY design/ design/
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 # The Tools page bundles both integration guides as downloadable assets.
-COPY docs/tools.md docs/
+COPY docs/zh-CN/tools.md docs/zh-CN/
 COPY docs/en/tools.md docs/en/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store \

@@ -1,6 +1,6 @@
 # Tools 接入
 
-[English](en/tools.md) · [文档目录](README.zh-CN.md)
+[English](../en/tools.md) · [文档目录](README.md)
 
 Lerryn 向外部 Agent 提供 MCP、HTTP API 和 CLI，用于创建与更新任务、设置触发器、执行任务，以及读取日志和结果。Settings → Tools 列出内置能力和当前实例的接入地址，提供本文下载；项目工具单独列在页面下方，供任务在运行时引用。
 

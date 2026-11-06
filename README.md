@@ -6,7 +6,7 @@
 
 *Agents do the work. People keep an eye on it.*
 
-[Getting started](docs/en/getting-started.md) · [简体中文](docs/README.zh-CN.md)
+[Getting started](docs/en/getting-started.md) · [简体中文](docs/zh-CN/README.md)
 
 </div>
 

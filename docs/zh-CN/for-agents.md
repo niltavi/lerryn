@@ -1,6 +1,6 @@
 # For agents
 
-[English](en/for-agents.md) · [仓库首页](../README.md)
+[English](../en/for-agents.md) · [仓库首页](../../README.md)
 
 如果用户把这个链接交给你，从这里开始操作 Lerryn。根据用户的目标选择下面的指南，完成接入、执行和结果检查，再把结果与控制台链接交还给用户。
 
@@ -17,20 +17,20 @@ Lerryn 是自部署的自动化沙箱。你通过 MCP、HTTP API 或 CLI 维护 
 
 | 用户的目标 | 阅读入口 |
 | --- | --- |
-| 安装、首次注册、公网访问、单机或多节点部署 | [部署与运维](deploy.md)、[运维 Skill](../skills/lerryn-operate/SKILL.md) |
+| 安装、首次注册、公网访问、单机或多节点部署 | [部署与运维](deploy.md)、[运维 Skill](../../skills/lerryn-operate/SKILL.md) |
 | 登录、访问令牌、MCP、HTTP API、CLI 和能力发现 | [Tools 接入](tools.md)、[CLI 与 Agent 接入](cli.md) |
-| 创建、修改、预览、测试和激活任务 | [自动化任务 Skill](../skills/lerryn-automation/SKILL.md) |
-| 编写任务清单、参数、依赖和执行限制 | [清单说明](../skills/lerryn-automation/references/manifest.md)、[完整字段](../skills/lerryn-automation/references/manifest-fields.md)、[任务示例](../skills/lerryn-automation/references/examples.md) |
-| 设置定时与 Webhook、确认时区和下次触发时间 | [触发器说明](../skills/lerryn-automation/references/triggers.md) |
-| 查看运行、阶段、日志、业务结果和产物；取消或关联重跑 | [运行排查 Skill](../skills/lerryn-troubleshoot/SKILL.md)、[CLI 与 Agent 接入](cli.md) |
-| 保存、更新、授权或撤销 API Key、Token、Cookie 等凭证 | [凭证 Skill](../skills/lerryn-credentials/SKILL.md) |
-| 上报阶段和结果、保存文件、跨运行保留状态 | [sbx 使用说明](../skills/lerryn-automation/references/sbx.md)、[Python SDK](../runtimes/sdk/python/README.md)、[Node SDK](../runtimes/sdk/node/README.md)、[Shell SDK](../runtimes/sdk/sh/README.md) |
+| 创建、修改、预览、测试和激活任务 | [自动化任务 Skill](../../skills/lerryn-automation/SKILL.md) |
+| 编写任务清单、参数、依赖和执行限制 | [清单说明](../../skills/lerryn-automation/references/manifest.md)、[完整字段](../../skills/lerryn-automation/references/manifest-fields.md)、[任务示例](../../skills/lerryn-automation/references/examples.md) |
+| 设置定时与 Webhook、确认时区和下次触发时间 | [触发器说明](../../skills/lerryn-automation/references/triggers.md) |
+| 查看运行、阶段、日志、业务结果和产物；取消或关联重跑 | [运行排查 Skill](../../skills/lerryn-troubleshoot/SKILL.md)、[CLI 与 Agent 接入](cli.md) |
+| 保存、更新、授权或撤销 API Key、Token、Cookie 等凭证 | [凭证 Skill](../../skills/lerryn-credentials/SKILL.md) |
+| 上报阶段和结果、保存文件、跨运行保留状态 | [sbx 使用说明](../../skills/lerryn-automation/references/sbx.md)、[Python SDK](../../runtimes/sdk/python/README.md)、[Node SDK](../../runtimes/sdk/node/README.md)、[Shell SDK](../../runtimes/sdk/sh/README.md) |
 | 接入外部 MCP、HTTP API 或脚本工具 | [Tools 接入](tools.md) |
-| 管理账号、项目、成员、权限和其他系统资源 | [Tools 接入](tools.md)中的 `api_describe` / `api_call`、[CLI 通用 API 命令](cli.md)、[完整接口契约](../api/bundled/openapi.yaml) |
-| 排查未触发、失败、超时、中断或结果不符合预期 | [运行排查 Skill](../skills/lerryn-troubleshoot/SKILL.md)、[错误码](../skills/lerryn-troubleshoot/references/error-codes.md) |
-| 备份、恢复、升级、回退、迁移、扩容和健康检查 | [运维 Skill](../skills/lerryn-operate/SKILL.md)、[运维操作手册](../skills/lerryn-operate/references/runbook.md)、[日常运维](operations.md) |
+| 管理账号、项目、成员、权限和其他系统资源 | [Tools 接入](tools.md)中的 `api_describe` / `api_call`、[CLI 通用 API 命令](cli.md)、[完整接口契约](../../api/bundled/openapi.yaml) |
+| 排查未触发、失败、超时、中断或结果不符合预期 | [运行排查 Skill](../../skills/lerryn-troubleshoot/SKILL.md)、[错误码](../../skills/lerryn-troubleshoot/references/error-codes.md) |
+| 备份、恢复、升级、回退、迁移、扩容和健康检查 | [运维 Skill](../../skills/lerryn-operate/SKILL.md)、[运维操作手册](../../skills/lerryn-operate/references/runbook.md)、[日常运维](operations.md) |
 | 导出或导入任务及整个部署的数据 | [CLI 与 Agent 接入](cli.md)、[部署与运维](deploy.md) |
-| 修改 Lerryn 源码、验证或发布 | [仓库协作规则](../AGENTS.md)、[实施规划](agent-automation-sandbox-implementation-plan.md)、[发布流程](release.md) |
+| 修改 Lerryn 源码、验证或发布 | [仓库协作规则](../../AGENTS.md)、[实施规划](agent-automation-sandbox-implementation-plan.md)、[发布流程](release.md) |
 
 ## 执行与交付
 

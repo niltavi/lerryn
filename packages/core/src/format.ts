@@ -1,7 +1,7 @@
 import { translate, type Locale } from "./i18n/i18n";
 
 // Formatting helpers shared by web and mobile. All times are shown in the
-// viewer's local time zone with a 24-hour clock (docs/design-system.md 4).
+// viewer's local time zone with a 24-hour clock (docs/zh-CN/design-system.md 4).
 
 const pad = (n: number, width = 2) => String(n).padStart(width, "0");
 

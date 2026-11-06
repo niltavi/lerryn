@@ -2,7 +2,7 @@
 
 // Package capacity measures the control plane of the two reference
 // topologies (implementation plan S5 and M6; targets in
-// docs/capacity.md): how fast runs are claimed, how API calls answer
+// docs/zh-CN/capacity.md): how fast runs are claimed, how API calls answer
 // while logs pour in, how many log lines per second the database takes,
 // how soon a new line is visible to a reader and how fast it reaches many
 // SSE subscribers.
@@ -107,7 +107,7 @@ var profiles = []profile{
 		LogRuns: 50, LinesPerSecond: 500, SSESubscribers: 100, APIClients: 8},
 }
 
-// Targets (docs/capacity.md). Latencies are p95.
+// Targets (docs/zh-CN/capacity.md). Latencies are p95.
 type targets struct {
 	ClaimRunsPerSecond float64 `json:"claim_runs_per_second"`
 	ClaimLatency       float64 `json:"claim_latency_ms"`

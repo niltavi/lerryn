@@ -3,7 +3,7 @@ import { CopyButton, StateCard } from "@lerryn/ui-web";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Copy, FileCode, Globe, Plug } from "lucide-react";
 
-import guideZh from "../../../../../docs/tools.md?url";
+import guideZh from "../../../../../docs/zh-CN/tools.md?url";
 import guideEn from "../../../../../docs/en/tools.md?url";
 import { origin } from "../../lib/hooks";
 import { Board, LoadError, usePageTitle } from "../../shell/layout";

@@ -1,6 +1,6 @@
 # Day-to-day operations
 
-[简体中文](../operations.md) · [Documentation](README.md)
+[简体中文](../zh-CN/operations.md) · [Documentation](README.md)
 
 This guide covers health checks, run diagnosis, backup practice, and runner maintenance for an existing instance. For installation, full configuration, restore, and migration commands, see [deployment and operations](deploy.md). Run `docker compose` commands in the actual deployment directory, using its service names. Authenticate before using `lerryn api`; some operations require administrator access.
 
@@ -53,7 +53,7 @@ Enable metrics as described in [deployment, section 5](deploy.md#5-metrics). Wat
 
 Queue, run, and runner gauges are deployment-wide: aggregate multiple servers with `max()`. Requests, lease expirations, and cleanup counters are per-server: aggregate with `sum()`.
 
-Runs, logs, and artifacts are retained indefinitely by default. Set `retention` days and total-size limits for available capacity; log and artifact retention days cannot exceed run retention days. Objects are collected only when no record references them. Each task's latest run is always retained. For planning and the limits of existing measurements, see [deployment, section 9](deploy.md#9-capacity-planning) and [capacity results (Chinese)](../capacity.md).
+Runs, logs, and artifacts are retained indefinitely by default. Set `retention` days and total-size limits for available capacity; log and artifact retention days cannot exceed run retention days. Objects are collected only when no record references them. Each task's latest run is always retained. For planning and the limits of existing measurements, see [deployment, section 9](deploy.md#9-capacity-planning) and [capacity results (Chinese)](../zh-CN/capacity.md).
 
 ## Schedule backups and rehearse recovery
 
@@ -88,4 +88,4 @@ The runner data directory holds its stable ID, enrolled credential, and caches. 
 
 Before upgrading an instance, read release notes and back up, then follow [upgrade and rollback](deploy.md#8-upgrade-and-rollback). The first rollout of protocol 2 and `/sbx/state` requires disabling claims and draining, upgrading all servers and migrations, then upgrading runners and resuming claims. Embedded all-in-one runners follow the same restriction. Rollback needs matching database and object-storage recovery along with the old image.
 
-Cross-run state and protocol 2 are [unreleased changes (Chinese)](../release-notes/unreleased.md). The 0.9.0 review and target-environment validation do not cover them. Follow the release notes for the version actually deployed.
+Cross-run state and protocol 2 are [unreleased changes (Chinese)](../zh-CN/release-notes/unreleased.md). The 0.9.0 review and target-environment validation do not cover them. Follow the release notes for the version actually deployed.

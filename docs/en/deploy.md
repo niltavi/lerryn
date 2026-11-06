@@ -1,8 +1,8 @@
 # Deployment and operations
 
-[简体中文](../deploy.md) · [Documentation](README.md)
+[简体中文](../zh-CN/deploy.md) · [Documentation](README.md)
 
-This guide covers installation, configuration, metrics, backup and restore, migration, upgrades and rollback, capacity planning, and public deployment. Design background is in sections 4.3, 6.1, and 15 of the [technical design (Chinese)](../agent-automation-sandbox-tech-design.md).
+This guide covers installation, configuration, metrics, backup and restore, migration, upgrades and rollback, capacity planning, and public deployment. Design background is in sections 4.3, 6.1, and 15 of the [technical design (Chinese)](../zh-CN/agent-automation-sandbox-tech-design.md).
 
 Deployment files are in `deploy/`:
 
@@ -400,7 +400,7 @@ First-release server upgrades require brief downtime. Zero-downtime rolling upgr
 
 Upgrade:
 
-1. Read the new release notes (`docs/release-notes/`) and check rollback compatibility.
+1. Read the new release notes (`docs/zh-CN/release-notes/`) and check rollback compatibility.
 2. Back up the database (section 6).
 3. Stop every server: `docker compose stop lerryn` for single node, or `docker compose stop server-1 server-2` for the standard topology.
 4. Change `LERRYN_VERSION` in `.env` and pull: `docker compose pull`.
@@ -420,7 +420,7 @@ Rollback:
 
 ## 9 Capacity planning
 
-PRD section 8 targets 100 tasks and 5 concurrent lightweight runs for single node, and provisionally 1,000 tasks and 50 concurrent runs for multi-node. Control-plane measurements on a development machine are recorded in [capacity results (Chinese)](../capacity.md). Those measurements exclude container overhead; retest on the target Linux host before a production release. Planning considerations:
+PRD section 8 targets 100 tasks and 5 concurrent lightweight runs for single node, and provisionally 1,000 tasks and 50 concurrent runs for multi-node. Control-plane measurements on a development machine are recorded in [capacity results (Chinese)](../zh-CN/capacity.md). Those measurements exclude container overhead; retest on the target Linux host before a production release. Planning considerations:
 
 - **SQLite has one writer.** Log writes, heartbeats, events, and claims share the process-local write queue. Use single node for fewer than 10 concurrent runs with modest log volume. Migrate to PostgreSQL if queue age (`lerryn_run_queue_oldest_seconds`) or request latency rises persistently.
 - **Runner slots.** `runner.slots` limits concurrent runs on a runner. Each container separately limits CPU and memory. Estimate slots from host resources divided by per-task limits, reserving capacity for dockerd and dependency installation. Add runners when `lerryn_runner_slots_in_use` stays near `lerryn_runner_slots`.

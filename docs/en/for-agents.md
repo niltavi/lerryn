@@ -1,6 +1,6 @@
 # For agents
 
-[简体中文](../for-agents.md) · [Repository](../../README.md)
+[简体中文](../zh-CN/for-agents.md) · [Repository](../../README.md)
 
 If the user gave you this link, start here to operate Lerryn. Choose the guides for their goal, connect to the instance, carry out the work, and return the results with console links.
 
@@ -32,7 +32,7 @@ The four bundled Skills and their references are written in Chinese. User guides
 | Diagnose missed triggers, failed, timed-out, or interrupted runs, or unexpected results | [Troubleshooting Skill](../../skills/lerryn-troubleshoot/SKILL.md), [error codes](../../skills/lerryn-troubleshoot/references/error-codes.md) |
 | Back up, restore, upgrade, roll back, migrate, scale, or check instance health | [Operations Skill](../../skills/lerryn-operate/SKILL.md), [runbook](../../skills/lerryn-operate/references/runbook.md), [day-to-day operations](operations.md) |
 | Export or import tasks or an entire deployment | [CLI and agent access](cli.md), [deployment and operations](deploy.md) |
-| Change Lerryn source code, validate changes, or publish releases | [Repository instructions](../../AGENTS.md), [implementation plan](../agent-automation-sandbox-implementation-plan.md), [release process](../release.md) |
+| Change Lerryn source code, validate changes, or publish releases | [Repository instructions](../../AGENTS.md), [implementation plan](../zh-CN/agent-automation-sandbox-implementation-plan.md), [release process](../zh-CN/release.md) |
 
 ## Execute and report
 

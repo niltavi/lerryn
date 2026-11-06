@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
 # Generates the strict server for the public API from the bundled spec.
-# Choices are explained in docs/spikes/s2-openapi-codegen.md.
+# Choices are explained in docs/zh-CN/spikes/s2-openapi-codegen.md.
 package: httpapi
 output: api.gen.go
 generate:
