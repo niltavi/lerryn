@@ -2,7 +2,15 @@
 
 [English](en/README.md) · [语言选择](README.md) · [仓库首页](../README.md)
 
-Niltavi 产品线中的自动化沙箱，由外部 Agent 通过 API 和 MCP 操作，面向企业自部署。支持 Python、Node 和 Shell 任务、定时与 Webhook 触发、个人凭证、运行日志与产物；Web 控制台用于观察和管理，移动端提供只读查看。协作规则见 [AGENTS.md](../AGENTS.md)。
+你把一件需要定期做的事交给 Codex 或 Claude，然后继续忙自己的事。等到回来查看时，却未必清楚任务有没有运行、执行得怎样，产出的文件又在哪里。
+
+Lerryn 希望让这件事简单一些：说清楚你需要什么，让 AI 安排执行，再回来看看结果。哪里需要改进，就继续告诉它。代码、定时和配置交给 Agent 处理，省去拖拽节点、填写参数和翻找日志的麻烦。
+
+Agent 通过 MCP 或 HTTP API 接入。Python、Node 和 Shell 任务在各自的容器中运行，按计划执行，也能由 Webhook 触发。每次运行都会留下记录，结果和文件收在一起。对话结束后，任务仍会继续执行；你可以在 Web 控制台查看和管理，也可以用手机查看进展。
+
+Lerryn 运行在你自己的机器上，可以是一台 Mac mini，也可以是一个小型集群。密钥和数据留在你手中。
+
+仓库协作规则见 [AGENTS.md](../AGENTS.md)。
 
 ## 用户文档
 
@@ -81,3 +89,15 @@ make check
 ## 许可证
 
 仓库整体采用 AGPL-3.0，见 [LICENSE](../LICENSE)。`runtimes/sdk/` 和 `skills/` 采用 Apache-2.0，见各自目录下的 `LICENSE`。第三方许可证声明见 [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES)。
+
+<br />
+
+<div>
+<a href="for-agents.md">For agents</a>
+<a href="https://niltavi.com/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/niltavi-logo-dark.svg" />
+  <img align="right" src="assets/niltavi-logo-light.svg" width="72" height="26" alt="niltavi" />
+</picture>
+</a>
+</div>

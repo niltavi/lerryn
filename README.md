@@ -22,13 +22,12 @@ It all runs on your own machines, from a single Mac mini to a small cluster. You
 
 <br />
 
-<div align="right">
-
+<div>
+<a href="docs/en/for-agents.md">For agents</a>
 <a href="https://niltavi.com/">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/niltavi-logo-dark.svg" />
-  <img src="docs/assets/niltavi-logo-light.svg" width="72" height="26" alt="niltavi" />
+  <img align="right" src="docs/assets/niltavi-logo-light.svg" width="72" height="26" alt="niltavi" />
 </picture>
 </a>
-
 </div>
