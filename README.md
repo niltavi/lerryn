@@ -18,10 +18,6 @@ Lerryn takes that part. Your agent connects over MCP or the HTTP API and hands o
 
 It runs on your own machines, from a single Mac mini to a small cluster. Your credentials and your data stay with you.
 
-## License
-
-[AGPL-3.0](LICENSE). The task SDK in `runtimes/sdk/` and the agent skills in `skills/` are Apache-2.0.
-
 <br />
 
 <div align="center">
@@ -32,7 +28,5 @@ It runs on your own machines, from a single Mac mini to a small cluster. Your cr
   <img src="docs/assets/niltavi-logo-light.svg" width="96" height="35" alt="niltavi" />
 </picture>
 </a>
-
-<sub>Lerryn is part of the Niltavi product family.</sub>
 
 </div>
