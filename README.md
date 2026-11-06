@@ -12,20 +12,22 @@
 
 ---
 
-Writing a script is the easy part. Running it on time, with the right credentials, somewhere safe, and with a record of what happened, is the part that usually falls back to a person.
+You ask Codex or Claude to take care of a recurring task, then move on with your day. Later, it isn't always clear whether it ran, how it went, or where to find what it produced.
 
-Lerryn takes that part. Your agent connects over MCP or the HTTP API and hands over Python, Node, or Shell tasks. Each one runs in its own container, on a schedule or from a webhook, and leaves its logs and artifacts behind. You watch from the web console or your phone, and step in only when something needs you.
+Lerryn is built around a simple rhythm: describe what you need, let your AI arrange the work, and come back to the results. Refine the task as you go. The agent handles the code, schedules, and configuration, without asking you to draw workflows or sift through settings and logs.
 
-It runs on your own machines, from a single Mac mini to a small cluster. Your credentials and your data stay with you.
+Your agent connects through MCP or the HTTP API. Python, Node, and Shell tasks run in their own containers, on a schedule or from a webhook. Each run leaves a record, with its results and files kept together. The work continues after the conversation ends; you can check on it from the web console or your phone.
+
+It all runs on your own machines, from a single Mac mini to a small cluster. Your keys and your data stay with you.
 
 <br />
 
-<div align="center">
+<div align="right">
 
 <a href="https://niltavi.com/">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/niltavi-logo-dark.svg" />
-  <img src="docs/assets/niltavi-logo-light.svg" width="96" height="35" alt="niltavi" />
+  <img src="docs/assets/niltavi-logo-light.svg" width="72" height="26" alt="niltavi" />
 </picture>
 </a>
 
