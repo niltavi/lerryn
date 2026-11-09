@@ -68,7 +68,20 @@ func (c *Credentials) Fill(ctx context.Context, p *auth.Principal, id uuid.UUID,
 	var cred store.Credential
 	err = c.db.WriteTx(ctx, func(ctx context.Context, tx bun.Tx) error {
 		now := c.now()
-		// Claiming the request first makes a second submission, racing on
+		if req.CredentialID != uuid.Nil {
+			// Updates and deletion take locks in the same order.
+			var err error
+			cred, err = lockOwnCredential(ctx, tx, p, req.CredentialID)
+			switch {
+			case errors.Is(err, ErrNotFound):
+				return ErrRequestClosed
+			case err != nil:
+				return err
+			case credentialStatus(cred, now) == store.CredentialRevoked:
+				return ErrRequestClosed
+			}
+		}
+		// Claiming the request makes a second submission, racing on
 		// another server, find nothing to fulfil.
 		res, err := tx.NewUpdate().Model((*store.CredentialRequest)(nil)).
 			Set("status = ?", store.CredentialRequestFulfilled).
@@ -89,7 +102,7 @@ func (c *Credentials) Fill(ctx context.Context, p *auth.Principal, id uuid.UUID,
 			action = "credential.create"
 			cred, err = c.createCredential(ctx, tx, p, req, clean)
 		} else {
-			cred, err = c.addVersion(ctx, tx, p, req, clean)
+			cred, err = c.addVersion(ctx, tx, p, cred, req, clean)
 		}
 		if err != nil {
 			return err
@@ -196,14 +209,7 @@ func (c *Credentials) createCredential(ctx context.Context, tx bun.Tx, p *auth.P
 
 // addVersion stores values as the next version of the credential the
 // request updates.
-func (c *Credentials) addVersion(ctx context.Context, tx bun.Tx, p *auth.Principal, req store.CredentialRequest, values map[string]string) (store.Credential, error) {
-	cred, err := c.ownCredential(ctx, tx, p, req.CredentialID)
-	if err != nil {
-		return store.Credential{}, err
-	}
-	if !cred.RevokedAt.IsZero() {
-		return store.Credential{}, ErrRequestClosed
-	}
+func (c *Credentials) addVersion(ctx context.Context, tx bun.Tx, p *auth.Principal, cred store.Credential, req store.CredentialRequest, values map[string]string) (store.Credential, error) {
 	now := c.now()
 	res, err := tx.NewUpdate().Model((*store.Credential)(nil)).
 		Set("current_version = ?", cred.CurrentVersion+1).

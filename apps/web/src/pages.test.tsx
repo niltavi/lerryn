@@ -284,6 +284,14 @@ function fakeServer(opts: FakeOptions = {}) {
       credentials[index] = { ...credentials[index]!, status: "revoked", revoked_at: iso(0) };
       return json(credentials[index]);
     }
+    const purge = pathname.match(/^\/api\/v1\/credentials\/([^/]+)\/purge$/);
+    if (req.method === "POST" && purge) {
+      const index = credentials.findIndex((c) => c.id === purge[1]);
+      if (index < 0) return problem(404, "not_found");
+      if (credentials[index]!.status !== "revoked") return problem(422, "validation_failed");
+      credentials.splice(index, 1);
+      return new Response(null, { status: 204 });
+    }
     const key = `${req.method} ${pathname}`;
     switch (key) {
       case "GET /api/v1/discover":
@@ -1227,6 +1235,37 @@ describe("credentials page", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: "撤销 CRED_200" })).toBeNull());
     expect(screen.getByText("CRED_200")).toBeTruthy();
     expect(server.requests.some((r) => r.method === "DELETE" && r.path === "/api/v1/credentials/credential-200")).toBe(true);
+  });
+
+  it("deletes only the selected revoked credential when names match", async () => {
+    const revoked = { ...CREDENTIAL, status: "revoked", revoked_at: iso(-60) } as const;
+    const { server } = renderApp("/settings/credentials", {
+      credentials: [
+        CREDENTIAL,
+        { ...revoked, id: "revoked-first" },
+        { ...revoked, id: "revoked-second", revoked_at: iso(-30) },
+        { ...CREDENTIAL, id: "expired", name: "EXPIRED_KEY", status: "expired", expires_at: iso(-60) },
+      ],
+      pendingCredentialRequests: [TASK_REQUEST],
+    });
+    const buttons = await screen.findAllByRole("button", { name: "删除凭证 LLM_API_KEY" });
+    expect(buttons).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "删除凭证 EXPIRED_KEY" })).toBeNull();
+    const purge = buttons[1]!;
+    const purgePath = "/api/v1/credentials/revoked-second/purge";
+    fireEvent.click(purge);
+    const confirmation = within(await screen.findByRole("dialog", { name: "删除凭证 LLM_API_KEY" }));
+    expect(confirmation.getByText(/删除后无法恢复/)).toBeTruthy();
+    fireEvent.click(confirmation.getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(server.requests.some((r) => r.path === purgePath)).toBe(false);
+
+    fireEvent.click(purge);
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "删除凭证" }));
+    await waitFor(() => expect(screen.queryAllByRole("button", { name: "删除凭证 LLM_API_KEY" })).toHaveLength(1));
+    expect(server.requests.filter((r) => r.path === purgePath)).toMatchObject([{ method: "POST" }]);
+    expect(screen.getAllByText("LLM_API_KEY")).toHaveLength(2);
+    expect(screen.getByText("PRICE_API_TOKEN")).toBeTruthy();
   });
 
   it("keeps earlier credentials visible and retries a failed later page", async () => {
