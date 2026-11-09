@@ -1,0 +1,114 @@
+configuration:
+  get:
+    operationId: getAIConfiguration
+    tags: [credentials]
+    summary: 读取个人 AI 配置
+    description: 读取当前用户的 API 基础地址和可用模型，未配置时模型列表为空。
+    security:
+      - sessionCookie: []
+    x-operation-kind: read
+    x-mcp:
+      expose: false
+    responses:
+      "200":
+        description: 个人 AI 配置。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AIConfiguration"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  put:
+    operationId: setAIConfiguration
+    tags: [credentials]
+    summary: 保存个人 AI 配置
+    description: 加密保存 AI 配置。首次配置或变更基础地址时需要提交 API Key。
+    security:
+      - sessionCookie: []
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/SetAIConfigurationBody"
+    responses:
+      "200":
+        description: 已保存的配置，不含 API Key。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AIConfiguration"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+  delete:
+    operationId: removeAIConfiguration
+    tags: [credentials]
+    summary: 移除个人 AI 配置
+    description: 删除当前用户的 AI 配置与存储的 API Key。
+    security:
+      - sessionCookie: []
+    x-operation-kind: mutate
+    x-mcp:
+      expose: false
+    responses:
+      "204":
+        description: 配置已移除。
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+models:
+  get:
+    operationId: listAIModels
+    tags: [tools]
+    summary: 列出可用 AI 模型
+    description: 列出当前用户为内置 AI 工具启用的模型。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: ai_models
+      title: 列出可用 AI 模型
+      description: 返回当前用户为 ai_chat 启用的模型 ID。如果列表为空，请用户在 Web 控制台的凭证页配置 AI 能力。
+    responses:
+      "200":
+        description: 已启用的模型。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AIModelList"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+chat:
+  post:
+    operationId: createAIChat
+    tags: [tools]
+    summary: 调用 AI 模型
+    description: 使用当前用户的 OpenAI 兼容服务和已启用的模型进行一次文本生成，返回模型文本。服务商可能计费。
+    x-operation-kind: execute
+    x-mcp:
+      expose: true
+      tool: ai_chat
+      title: 调用 AI 模型
+      description: |
+        用当前用户配置的服务生成文本。先用 ai_models 确认模型 ID，再提交 model 和 messages。
+        消息会发给用户配置的模型服务，调用可能产生费用。
+      hints:
+        open_world: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/AIChatBody"
+    responses:
+      "200":
+        description: 生成的文本。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/AIChatResult"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

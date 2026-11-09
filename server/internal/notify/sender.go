@@ -39,6 +39,11 @@ func NewSender(g *Guard, timeout time.Duration) *Sender {
 	if timeout <= 0 {
 		timeout = Timeout
 	}
+	return &Sender{client: g.HTTPClient(timeout)}
+}
+
+// HTTPClient enforces the address policy at dial time, without redirects or proxies.
+func (g *Guard) HTTPClient(timeout time.Duration) *http.Client {
 	dialer := &net.Dialer{Timeout: timeout, Control: g.control}
 	transport := &http.Transport{
 		Proxy:                 nil,
@@ -50,13 +55,13 @@ func NewSender(g *Guard, timeout time.Duration) *Sender {
 		ResponseHeaderTimeout: timeout,
 		TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
 	}
-	return &Sender{client: &http.Client{
+	return &http.Client{
 		Transport: transport,
 		Timeout:   timeout,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-	}}
+	}
 }
 
 // StatusError is a response that does not count as delivered.

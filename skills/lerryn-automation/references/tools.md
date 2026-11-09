@@ -17,6 +17,8 @@
 | `run_cancel` | `cancelRun` `POST /api/v1/runs/{runId}/cancel` | execute | `execute` | `lerryn runs cancel <运行>`，`lerryn api cancelRun` |
 | `run_rerun` | `rerunRun` `POST /api/v1/runs/{runId}/rerun` | execute | `execute` | `lerryn api rerunRun` |
 | `run_logs` | `readRunLogs` `GET /api/v1/runs/{runId}/logs` | read | `read` | `lerryn runs logs <运行>`，`lerryn api readRunLogs` |
+| `ai_models` | `listAIModels` `GET /api/v1/ai/models` | read | `read` | `lerryn api listAIModels` |
+| `ai_chat` | `createAIChat` `POST /api/v1/ai/chat` | execute | `execute` | `lerryn api createAIChat` |
 | `credential_request` | `createCredentialRequest` `POST /api/v1/credential-requests` | mutate | `write` | `lerryn api createCredentialRequest` |
 | `api_describe` | 任意操作的说明和 schema | read | `read` | `lerryn api <operationId> --describe` |
 | `api_call` | 按 operationId 调用任意公开操作，参数放在 `arguments` 里：`{"operation_id": "getCredentialRequest", "arguments": {"request_id": "<id>"}}` | 视操作而定 | 视操作而定 | `lerryn api <operationId>` |
@@ -84,6 +86,15 @@ errors 非空时先按每项的 code 处理，例如 credential_missing 用 cred
 
 读取运行日志。只想看结尾时传 tail（例如 100）；要逐页读完时省略 tail，用返回的 next_cursor 继续。
 complete 为 true 表示运行已结束且已读到最后一行。返回 expired 表示日志已按保留策略清理，不必重试。
+
+### ai_models（列出可用 AI 模型）
+
+返回当前用户为 ai_chat 启用的模型 ID。如果列表为空，请用户在 Web 控制台的凭证页配置 AI 能力。
+
+### ai_chat（调用 AI 模型）
+
+用当前用户配置的服务生成文本。先用 ai_models 确认模型 ID，再提交 model 和 messages。
+消息会发给用户配置的模型服务，调用可能产生费用。
 
 ### credential_request（请用户填写凭证）
 

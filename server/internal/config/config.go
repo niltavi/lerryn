@@ -63,6 +63,7 @@ type Config struct {
 	Mirrors   Mirrors   `yaml:"mirrors" envPrefix:"MIRRORS_"`
 	MCP       MCP       `yaml:"mcp" envPrefix:"MCP_"`
 	Metrics   Metrics   `yaml:"metrics" envPrefix:"METRICS_"`
+	AI        AI        `yaml:"ai" envPrefix:"AI_"`
 	Notify    Notify    `yaml:"notify" envPrefix:"NOTIFY_"`
 	Scheduler Scheduler `yaml:"scheduler" envPrefix:"SCHEDULER_"`
 	Retention Retention `yaml:"retention" envPrefix:"RETENTION_"`
@@ -225,6 +226,12 @@ type Metrics struct {
 	// TokenFile holds the bearer token a scraper must present. It is
 	// required on the public listener and optional on a separate one.
 	TokenFile string `yaml:"token_file" env:"TOKEN_FILE"`
+}
+
+// AI configures outgoing requests to model providers.
+type AI struct {
+	// AllowedNetworks permits selected internal model gateways.
+	AllowedNetworks []string `yaml:"allowed_networks" env:"ALLOWED_NETWORKS" envSeparator:","`
 }
 
 // Notify configures outgoing notifications (tech design 14).
@@ -428,6 +435,11 @@ func (c Config) Validate() error {
 	}
 	if c.Metrics.Enabled && c.Metrics.Listen != "" && c.Metrics.Listen == c.Server.Listen {
 		errs = append(errs, fmt.Errorf("metrics.listen must differ from server.listen (%q); leave it empty to serve /metrics on server.listen", c.Server.Listen))
+	}
+	for _, n := range c.AI.AllowedNetworks {
+		if _, err := netip.ParsePrefix(strings.TrimSpace(n)); err != nil {
+			errs = append(errs, fmt.Errorf("ai.allowed_networks: %q is not a CIDR network such as 10.0.0.0/8", n))
+		}
 	}
 	for _, n := range c.Notify.AllowedNetworks {
 		if _, err := netip.ParsePrefix(strings.TrimSpace(n)); err != nil {
