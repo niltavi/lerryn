@@ -26,6 +26,7 @@ type Tasks interface {
 	Archive(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.TaskDetail, error)
 	SetActivation(ctx context.Context, p *auth.Principal, id uuid.UUID, active bool, seq *int) (service.TaskDetail, error)
 	SetConsole(ctx context.Context, p *auth.Principal, id uuid.UUID, in service.ConsoleOptions) (service.TaskDetail, error)
+	SetTags(ctx context.Context, p *auth.Principal, id uuid.UUID, tags []string) ([]string, error)
 	Versions(ctx context.Context, p *auth.Principal, id uuid.UUID, limit *int, cursor string) (service.VersionPage, error)
 	Version(ctx context.Context, p *auth.Principal, id uuid.UUID, seq int) (service.VersionDetail, error)
 	File(ctx context.Context, p *auth.Principal, id uuid.UUID, seq int, path string) (service.FileContent, error)
@@ -42,6 +43,7 @@ type Tasks interface {
 
 // Runs is the run service the API calls. *service.Runs implements it.
 type Runs interface {
+	SetArchived(ctx context.Context, p *auth.Principal, id uuid.UUID, archived bool) (service.RunDetail, error)
 	Start(ctx context.Context, p *auth.Principal, taskID uuid.UUID, in service.StartRunInput) (service.RunDetail, error)
 	Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.RunDetail, error)
 	Wait(ctx context.Context, p *auth.Principal, id uuid.UUID, wait time.Duration) (service.RunDetail, error)
@@ -235,6 +237,7 @@ func (h *handler) toTask(d service.TaskDetail) (Task, error) {
 		ProjectID:     d.Task.ProjectID,
 		Name:          d.Task.Name,
 		Description:   d.Task.Description,
+		Tags:          append(TaskTags{}, d.Tags...),
 		State:         taskState(d.Task),
 		ActiveVersion: activeVersion(d.Task),
 		LatestVersion: latest,
@@ -288,6 +291,7 @@ func (h *handler) toRun(d service.RunDetail) (Run, error) {
 		LogLines:        r.LogLines,
 		DroppedLogLines: r.DroppedLines,
 		LogsExpiredAt:   optionalTime(r.LogsExpiredAt),
+		ArchivedAt:      optionalTime(r.ArchivedAt),
 		Links:           Links{Console: h.consoleLink("/runs/" + r.ID.String())},
 	}
 	if !out.Trigger.Kind.Valid() {

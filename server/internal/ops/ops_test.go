@@ -24,7 +24,7 @@ const tricky = "it's a \"test\" ? $1 ?0 \\n\\x00-free\nline two 中文 🚀"
 
 // seed fills db with one of everything and returns the file content it
 // stored in bs.
-func seed(t *testing.T, db *store.DB, bs blob.Store) []byte {
+func seed(t *testing.T, db *store.DB, bs blob.Store, excludeRunColumns ...string) []byte {
 	t.Helper()
 	ctx := context.Background()
 	at := time.Date(2026, 11, 3, 1, 2, 3, 456789000, time.UTC)
@@ -56,7 +56,7 @@ func seed(t *testing.T, db *store.DB, bs blob.Store) []byte {
 	done := store.Run{ID: store.NewID(), ProjectID: project.ID, TaskID: task.ID, VersionID: version.ID, VersionSeq: 1,
 		Status: store.RunCompleted, IsTest: true, TriggerKind: "manual", CreatedBy: admin.ID, Params: `{"q":"?"}`,
 		RunnerID: runner.ID, QueuedAt: at, StartedAt: at.Add(time.Second), FinishedAt: at.Add(2 * time.Second),
-		ExitCode: &exit, Result: `{"ok":true}`, LogLines: 2, EventSeq: 1}
+		ExitCode: &exit, Result: `{"ok":true}`, LogLines: 2, EventSeq: 1, ArchivedAt: at}
 	queued := store.Run{ID: store.NewID(), ProjectID: project.ID, TaskID: task.ID, VersionID: version.ID, VersionSeq: 1,
 		Status: store.RunQueued, TriggerKind: "manual", Params: "{}", QueuedAt: at.Add(time.Minute)}
 	event := store.RunEvent{ID: store.NewID(), RunID: done.ID, Seq: 1, TS: at, Kind: store.EventResult, Payload: `{"ok":true}`}
@@ -64,7 +64,11 @@ func seed(t *testing.T, db *store.DB, bs blob.Store) []byte {
 		Data: `{"seq":1,"text":"a"}` + "\n" + `{"seq":2,"text":"` + strings.ReplaceAll(tricky, "\n", `\n`) + `"}` + "\n", Bytes: 10, CreatedAt: at}
 
 	for _, m := range []any{&admin, &other, &project, &binding, &token, &session, &audit, &task, &version, &file, &runner, &done, &queued, &event, &chunk} {
-		if _, err := db.NewInsert().Model(m).Exec(ctx); err != nil {
+		q := db.NewInsert().Model(m)
+		if _, ok := m.(*store.Run); ok && len(excludeRunColumns) > 0 {
+			q = q.ExcludeColumn(excludeRunColumns...)
+		}
+		if _, err := q.Exec(ctx); err != nil {
 			t.Fatalf("seed %T: %v", m, err)
 		}
 	}
@@ -92,12 +96,16 @@ type snapshot struct {
 	Chunks   []store.LogChunk
 }
 
-func readSnapshot(t *testing.T, db bun.IDB) snapshot {
+func readSnapshot(t *testing.T, db bun.IDB, excludeRunColumns ...string) snapshot {
 	t.Helper()
 	var s snapshot
 	ctx := context.Background()
 	for _, dst := range []any{&s.Users, &s.Tokens, &s.Sessions, &s.Projects, &s.Bindings, &s.Audit, &s.Tasks, &s.Versions, &s.Files, &s.Runners, &s.Runs, &s.Events, &s.Chunks} {
-		if err := db.NewSelect().Model(dst).Order("id").Scan(ctx); err != nil {
+		q := db.NewSelect().Model(dst).Order("id")
+		if _, ok := dst.(*[]store.Run); ok && len(excludeRunColumns) > 0 {
+			q = q.ExcludeColumn(excludeRunColumns...)
+		}
+		if err := q.Scan(ctx); err != nil {
 			t.Fatalf("read %T: %v", dst, err)
 		}
 	}

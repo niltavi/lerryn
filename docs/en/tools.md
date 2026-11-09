@@ -1,6 +1,6 @@
 # Tools integration
 
-[简体中文](../tools.md) · [Documentation index](README.md)
+[简体中文](../zh-CN/tools.md) · [Documentation index](README.md)
 
 Lerryn provides MCP, HTTP API, and CLI access for external agents to create and update tasks, configure triggers, execute tasks, and read logs and results. Settings → Tools lists built-in capabilities and connection addresses for the current instance, and offers this guide for download. Project tools appear separately below them for tasks to reference at runtime.
 
@@ -14,7 +14,7 @@ Sign in to the console and create a token under Settings → Access tokens. The 
 | --- | --- |
 | `read` | Discover capabilities and read tasks, runs, logs, and operation descriptions |
 | `write` | Submit tasks, configure triggers, request credentials, and register project tools |
-| `execute` | Start, cancel, rerun, activate, or pause |
+| `execute` | Start, cancel, rerun, activate, or pause tasks, and call AI models |
 
 An agent maintaining tasks usually needs all three scopes; a client querying results may only need `read`. Tokens inherit their owner's project permissions. Scopes do not elevate a project role. Replace expired or revoked tokens in your client. Keep tokens out of URLs, task files, and task parameters.
 
@@ -52,7 +52,10 @@ Protect the token file as a credential. The MCP client launches the final comman
 | Tool | HTTP operation | Scope | Purpose |
 | --- | --- | --- | --- |
 | `discover` | `discover` | `read` | Versions, runtimes, capabilities, identity |
-| `task_get` | `getTask` | `read` | Task and latest version |
+| `environment_get` | `getEnvironment` | `read` | Check the current deployment environment |
+| `task_get` | `getTask` | `read` | Task, tags, and latest version |
+| `task_list` | `listTasks` | `read` | List visible tasks by project, name, or tag |
+| `task_set_tags` | `setTaskTags` | `write` | Replace all tags without creating a version; pass an empty array to clear them |
 | `task_apply` | `applyTask` | `write` | Create a task or submit a complete version, with `dry_run` |
 | `task_validate` | `validateTaskVersion` | `read` | Check credentials, tools, runners, and test status |
 | `trigger_set` | `setTriggers` | `write` | Replace all cron or Webhook triggers, with previews |
@@ -63,8 +66,12 @@ Protect the token file as a credential. The MCP client launches the final comman
 | `run_cancel` | `cancelRun` | `execute` | Request cancellation, then read status to confirm |
 | `run_rerun` | `rerunRun` | `execute` | Create a new run linked to the original |
 | `credential_request` | `createCredentialRequest` | `write` | Create a credential form link for the user |
+| `ai_models` | `listAIModels` | `read` | List the models enabled for the current account |
+| `ai_chat` | `createAIChat` | `execute` | Generate text with the model service configured for the current account |
 | `api_describe` | Descriptions and schemas | `read` | Search by `operation_id` or `query` |
 | `api_call` | A public operation | By operation | Call by `operation_id`, passing parameters in `arguments` |
+
+Call `environment_get` without arguments before an operation that depends on the deployment environment. A production instance returns `{"environment":"production"}`. The value comes from the [deployment configuration](deploy.md#4-configuration-reference). An unconfigured instance returns `unspecified`. The `test` parameter on `run_start` still controls whether an individual run is a test.
 
 The dedicated tools cover common workflows. Describe other operations before calling them. For example, pass this to `api_describe` to inspect the project tool list operation:
 
@@ -80,7 +87,24 @@ Then pass this to `api_call`:
 
 Follow the returned `input_schema`, token scopes, and authentication requirements. Some operations require a console session and cannot use access tokens. File downloads and similar operations may need direct HTTP or the CLI.
 
+To find tagged tasks, call `task_list` with `{"tag":"Reporting","limit":10}`. To edit tags, read the current tags with `task_get`, then pass the complete desired set to `task_set_tags`, for example `{"task_id":"<TASK_ID>","tags":["Reporting","CRM"]}`.
+
 To build a task, call `discover`, preview `task_apply` with `dry_run`, and submit. Request credentials with `credential_request` when needed. Test with `run_start` and `test: true`, and inspect logs and business results. Preview triggers before setting them, then activate the tested version. Before an update, read `latest_version.seq` and pass it as `if_match`; merge changes on a version conflict. Cron triggers require an IANA timezone. Tests execute real code: confirm tasks with side effects with the user first.
+
+## Configure AI capabilities
+
+Open Settings → Credentials → AI capabilities in the web console. Enter the provider’s HTTPS API base URL, API key, and one model ID per line. Include the provider’s version path, as in `https://api.openai.com/v1`. Lerryn appends `/chat/completions`.
+
+An agent with a token from the same account can call `ai_models` and pass one of the returned IDs to `ai_chat`. This tool generates text in a single response. Messages are sent to the configured provider, and calls may incur charges. Lerryn blocks requests and responses that contain a stored credential value from the current account.
+
+```json
+{
+  "model": "your-model-id",
+  "messages": [{"role": "user", "content": "Summarize the following in one sentence."}]
+}
+```
+
+The API key is encrypted in the account’s credential store. Leave the key blank when changing only the model list, and re-enter it if you change the base URL. For an internal HTTPS model gateway, the deployment operator must configure `ai.allowed_networks`.
 
 ## HTTP API and CLI
 
@@ -96,6 +120,7 @@ The complete contract is in `api/bundled/openapi.yaml` in the repository. Use MC
 
 ```bash
 lerryn discover
+lerryn api getEnvironment
 lerryn api listTools --describe
 lerryn api listTools --project-id <PROJECT_ID>
 lerryn tasks apply ./hello-lerryn --dry-run

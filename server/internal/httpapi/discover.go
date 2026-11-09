@@ -56,6 +56,14 @@ func (h *handler) Discover(ctx context.Context, _ DiscoverRequestObject) (Discov
 	}, nil
 }
 
+func (h *handler) GetEnvironment(_ context.Context, _ GetEnvironmentRequestObject) (GetEnvironmentResponseObject, error) {
+	environment := h.environment
+	if environment == "" {
+		environment = EnvironmentInfoEnvironmentUnspecified
+	}
+	return GetEnvironment200JSONResponse{Environment: environment}, nil
+}
+
 func runtimes() []RuntimeInfo {
 	catalogue := service.Runtimes()
 	out := make([]RuntimeInfo, len(catalogue))

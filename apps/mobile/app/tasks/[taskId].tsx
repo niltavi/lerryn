@@ -1,4 +1,4 @@
-import { formatClock, formatDate, formatDuration, useTask } from '@lerryn/core';
+import { formatClock, formatDate, formatDuration, isRunActive, taskStatus, useTask, useTaskList } from '@lerryn/core';
 import { useLerrynTheme } from '@lerryn/ui-native';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
@@ -31,7 +31,7 @@ import { useNow } from '../../src/ui/useNow';
 /** Task detail (prototype M-Task): schedule, recent runs as ridges, the last reported result. */
 export default function TaskScreen() {
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
-  const { t, m } = useStrings();
+  const { t } = useStrings();
   const { colors } = useLerrynTheme();
   const task = useTask(taskId);
   const runs = useTaskRuns(taskId);
@@ -67,7 +67,6 @@ export default function TaskScreen() {
           triggers={triggers.data?.triggers ?? []}
           credentials={credentials.data?.items}
           now={now}
-          labels={{ enabled: m('task.enabled'), paused: m('task.paused') }}
         />
       )}
     </Screen>
@@ -80,19 +79,21 @@ function TaskBody({
   triggers,
   credentials,
   now,
-  labels,
 }: {
   task: NonNullable<ReturnType<typeof useTask>['data']>;
   runs: ReturnType<typeof useTaskRuns>;
   triggers: NonNullable<ReturnType<typeof useTaskTriggers>['data']>['triggers'];
   credentials: NonNullable<ReturnType<typeof useTaskCredentials>['data']>['items'] | undefined;
   now: number;
-  labels: { enabled: string; paused: string };
 }) {
   const { t, m, locale } = useStrings();
-  const active = task.state === 'active';
   const cron = nextCron(triggers);
   const items = runs.data?.items ?? [];
+  const summary = useTaskList(null).data?.items.find((item) => item.id === task.id);
+  const status = taskStatus({
+    ...task, active_runs: summary?.active_runs,
+    last_run: items.find((run) => isRunActive(run.status)), next_run_at: cron?.next_fire_at,
+  });
   const lastWithResult = items.find((r) => !r.test && r.result_status !== null);
   const creds = credentials ? credentialSummary(credentials, now) : null;
   const version = task.active_version ?? task.latest_version.seq;
@@ -103,9 +104,9 @@ function TaskBody({
     <>
       <View className="gap-1.5">
         <View className="flex-row items-center gap-2">
-          <View className={active ? 'h-2 w-2 rounded-full bg-success' : 'h-2 w-2 rounded-full bg-line-strong'} />
+          <Glyph glyph={status.glyph} label={t(status.label)} />
           <Txt variant="caption" weight="semibold" className="text-ink-muted">
-            {active ? labels.enabled : labels.paused}
+            {t(status.label)}
           </Txt>
         </View>
         <Txt variant="title-2" weight="bold" accessibilityRole="header">
@@ -115,6 +116,15 @@ function TaskBody({
           <Txt variant="body-sm" className="text-ink-muted">
             {task.description}
           </Txt>
+        ) : null}
+        {task.tags?.length ? (
+          <View className="flex-row flex-wrap gap-2" accessibilityLabel={t('task.tags')}>
+            {task.tags.map((tag) => (
+              <Txt key={tag} variant="caption" numberOfLines={1} className="max-w-full rounded-full bg-liner-2 px-2 py-1">
+                {tag}
+              </Txt>
+            ))}
+          </View>
         ) : null}
       </View>
 

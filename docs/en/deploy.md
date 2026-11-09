@@ -1,8 +1,8 @@
 # Deployment and operations
 
-[简体中文](../deploy.md) · [Documentation](README.md)
+[简体中文](../zh-CN/deploy.md) · [Documentation](README.md)
 
-This guide covers installation, configuration, metrics, backup and restore, migration, upgrades and rollback, capacity planning, and public deployment. Design background is in sections 4.3, 6.1, and 15 of the [technical design (Chinese)](../agent-automation-sandbox-tech-design.md).
+This guide covers installation, configuration, metrics, backup and restore, migration, upgrades and rollback, capacity planning, and public deployment. Design background is in sections 4.3, 6.1, and 15 of the [technical design (Chinese)](../zh-CN/agent-automation-sandbox-tech-design.md).
 
 Deployment files are in `deploy/`:
 
@@ -178,6 +178,7 @@ The Chinese reference is checked against `server/internal/config` by tests. Keep
 | --- | --- | --- | --- |
 | `server.listen` | `LERRYN_SERVER_LISTEN` | `:33333` | Listen address for the API, MCP, and console. |
 | `server.public_url` | `LERRYN_SERVER_PUBLIC_URL` | `http://localhost:33333` | Public address used to generate console links; must be an absolute URL. |
+| `server.environment` | `LERRYN_SERVER_ENVIRONMENT` | Empty | Deployment environment. Use `production`, `test`, `staging`, or `development`. When empty, `environment_get` returns `unspecified`. Use the same value on all server replicas in a deployment. |
 | `server.trusted_proxies` | `LERRYN_SERVER_TRUSTED_PROXIES` | Empty | Reverse-proxy CIDRs. Requests from these addresses use X-Forwarded-For for login rate limits, audit, and sessions. Empty uses the direct peer address. The multi-node reference uses Caddy’s 172.30.10.0/24 network. |
 | `server.extra_origins` | `LERRYN_SERVER_EXTRA_ORIGINS` | Empty | Additional console origins, as scheme://host[:port], such as a tunnel domain alongside LAN access. Sessions from these origins can write; agent links still use server.public_url. |
 | `server.runner_registration_token_file` | `LERRYN_SERVER_RUNNER_REGISTRATION_TOKEN_FILE` | Empty | File containing a runner registration token, accepted alongside administrator-generated tokens. Empty accepts only administrator-generated tokens. |
@@ -219,6 +220,7 @@ The Chinese reference is checked against `server/internal/config` by tests. Keep
 | `metrics.enabled` | `LERRYN_METRICS_ENABLED` | `false` | Enable Prometheus metrics. |
 | `metrics.listen` | `LERRYN_METRICS_LISTEN` | Empty | Separate metrics listen address, such as :9090. Empty mounts /metrics on server.listen. |
 | `metrics.token_file` | `LERRYN_METRICS_TOKEN_FILE` | Empty | Bearer token file for scraping. Required when metrics share server.listen. |
+| `ai.allowed_networks` | `LERRYN_AI_ALLOWED_NETWORKS` | Empty | Internal CIDRs that AI calls may reach. The default permits public HTTPS destinations only. |
 | `notify.allowed_networks` | `LERRYN_NOTIFY_ALLOWED_NETWORKS` | Empty | Allowed internal notification CIDRs, such as 10.20.0.0/16. Default permits public addresses only, rejecting loopback, private, and link-local destinations. |
 | `scheduler.max_queued_runs` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS` | `1000` | Deployment-wide queued-run limit. Cron and webhook triggers exceeding it are skipped with queue_full; API starts return 429 queue_full. 0 is unlimited. |
 | `scheduler.max_queued_runs_per_project` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS_PER_PROJECT` | `200` | Per-project queued-run limit to prevent queue monopolization. 0 is unlimited. |
@@ -400,7 +402,7 @@ First-release server upgrades require brief downtime. Zero-downtime rolling upgr
 
 Upgrade:
 
-1. Read the new release notes (`docs/release-notes/`) and check rollback compatibility.
+1. Read the new release notes (`docs/zh-CN/release-notes/`) and check rollback compatibility.
 2. Back up the database (section 6).
 3. Stop every server: `docker compose stop lerryn` for single node, or `docker compose stop server-1 server-2` for the standard topology.
 4. Change `LERRYN_VERSION` in `.env` and pull: `docker compose pull`.
@@ -420,7 +422,7 @@ Rollback:
 
 ## 9 Capacity planning
 
-PRD section 8 targets 100 tasks and 5 concurrent lightweight runs for single node, and provisionally 1,000 tasks and 50 concurrent runs for multi-node. Control-plane measurements on a development machine are recorded in [capacity results (Chinese)](../capacity.md). Those measurements exclude container overhead; retest on the target Linux host before a production release. Planning considerations:
+PRD section 8 targets 100 tasks and 5 concurrent lightweight runs for single node, and provisionally 1,000 tasks and 50 concurrent runs for multi-node. Control-plane measurements on a development machine are recorded in [capacity results (Chinese)](../zh-CN/capacity.md). Those measurements exclude container overhead; retest on the target Linux host before a production release. Planning considerations:
 
 - **SQLite has one writer.** Log writes, heartbeats, events, and claims share the process-local write queue. Use single node for fewer than 10 concurrent runs with modest log volume. Migrate to PostgreSQL if queue age (`lerryn_run_queue_oldest_seconds`) or request latency rises persistently.
 - **Runner slots.** `runner.slots` limits concurrent runs on a runner. Each container separately limits CPU and memory. Estimate slots from host resources divided by per-task limits, reserving capacity for dockerd and dependency installation. Add runners when `lerryn_runner_slots_in_use` stays near `lerryn_runner_slots`.

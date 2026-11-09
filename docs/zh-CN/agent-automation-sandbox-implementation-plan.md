@@ -12,8 +12,8 @@ PRD 说明要做什么，技术设计说明怎么做。这份文档回答剩下�
 
 | 项 | 状态 |
 | --- | --- |
-| PRD | 0.3 草案，在 `docs/` |
-| 技术设计 | 0.4 草案，在 `docs/`，已按 M0 的技术验证和 M1 至 M6 的实现修订，修订记录在第 23 节 |
+| PRD | 0.3 草案，在 `docs/zh-CN/` |
+| 技术设计 | 0.4 草案，在 `docs/zh-CN/`，已按 M0 的技术验证和 M1 至 M6 的实现修订，修订记录在第 23 节 |
 | 设计语言与组件库 | 进行中：`design/tokens.json`、`design/ui-native`（`@lerryn/ui-native`，HeroUI Native + Uniwind）、`design/gallery`；现状见 [design-system.md](design-system.md) |
 | 仓库 | github.com/niltavi/lerryn，许可证 AGPL-3.0（`runtimes/sdk/`、`skills/` 为 Apache-2.0）。Go module 与 pnpm workspace（`design/ui-native`、`design/gallery`、`packages/api`，以及预留的 `apps/*`）并存 |
 | 服务端 | M1 至 M6 完成。`lerryn all-in-one` 在一个进程里提供 API、`/mcp`、Web 控制台和内嵌 runner；`lerryn server` 和 `lerryn runner` 分开部署时，多个 server 共用 PostgreSQL 和对象存储。任务、版本、触发器、运行、凭证、工具登记、账号与审计、通知、备份恢复和指标都已实现 |

@@ -1,6 +1,6 @@
 # Lerryn 日常运维
 
-[English](en/operations.md) · [文档目录](README.zh-CN.md)
+[English](../en/operations.md) · [文档目录](README.md)
 
 本文用于已经部署的实例，覆盖健康检查、运行排查、备份安排与节点维护。首次安装、完整配置、恢复和迁移命令见[部署与运维](deploy.md)。下面的 `docker compose` 命令在实际部署目录中运行，服务名以对应 Compose 文件为准；`lerryn api` 命令需要事先登录，有些操作要求管理员身份。
 

@@ -51,3 +51,28 @@ discover:
                 console: http://localhost:33333/
       default:
         $ref: "../common/responses.yaml#/Problem"
+
+environment:
+  get:
+    operationId: getEnvironment
+    tags: [discover]
+    summary: 查询部署环境
+    description: |
+      返回当前 Lerryn 部署配置的环境。未配置时返回 `unspecified`。
+      环境标识适用于整个部署，任务运行的 `test` 标记单独设置。
+    x-operation-kind: read
+    x-mcp:
+      expose: true
+      tool: environment_get
+      description: |
+        查询当前连接的 Lerryn 部署是生产、测试、预发布还是开发环境。
+        对环境敏感的操作先调用此工具。`unspecified` 表示环境未知。
+    responses:
+      "200":
+        description: 当前部署的环境。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/EnvironmentInfo"
+      default:
+        $ref: "../common/responses.yaml#/Problem"

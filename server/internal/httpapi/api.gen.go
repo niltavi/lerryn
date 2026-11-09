@@ -19,6 +19,27 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AIChatMessageRole.
+const (
+	AIChatMessageRoleAssistant AIChatMessageRole = "assistant"
+	AIChatMessageRoleSystem    AIChatMessageRole = "system"
+	AIChatMessageRoleUser      AIChatMessageRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the AIChatMessageRole enum.
+func (e AIChatMessageRole) Valid() bool {
+	switch e {
+	case AIChatMessageRoleAssistant:
+		return true
+	case AIChatMessageRoleSystem:
+		return true
+	case AIChatMessageRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ArtifactPreview.
 const (
 	ArtifactPreviewJSON ArtifactPreview = "json"
@@ -310,8 +331,36 @@ func (e DeviceInfoPlatform) Valid() bool {
 	}
 }
 
+// Defines values for EnvironmentInfoEnvironment.
+const (
+	EnvironmentInfoEnvironmentDevelopment EnvironmentInfoEnvironment = "development"
+	EnvironmentInfoEnvironmentProduction  EnvironmentInfoEnvironment = "production"
+	EnvironmentInfoEnvironmentStaging     EnvironmentInfoEnvironment = "staging"
+	EnvironmentInfoEnvironmentTest        EnvironmentInfoEnvironment = "test"
+	EnvironmentInfoEnvironmentUnspecified EnvironmentInfoEnvironment = "unspecified"
+)
+
+// Valid indicates whether the value is a known member of the EnvironmentInfoEnvironment enum.
+func (e EnvironmentInfoEnvironment) Valid() bool {
+	switch e {
+	case EnvironmentInfoEnvironmentDevelopment:
+		return true
+	case EnvironmentInfoEnvironmentProduction:
+		return true
+	case EnvironmentInfoEnvironmentStaging:
+		return true
+	case EnvironmentInfoEnvironmentTest:
+		return true
+	case EnvironmentInfoEnvironmentUnspecified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorCode.
 const (
+	ErrorCodeAIProviderError         ErrorCode = "ai_provider_error"
 	ErrorCodeCredentialMissing       ErrorCode = "credential_missing"
 	ErrorCodeCredentialUnavailable   ErrorCode = "credential_unavailable"
 	ErrorCodeDependencyInstallFailed ErrorCode = "dependency_install_failed"
@@ -347,6 +396,8 @@ const (
 // Valid indicates whether the value is a known member of the ErrorCode enum.
 func (e ErrorCode) Valid() bool {
 	switch e {
+	case ErrorCodeAIProviderError:
+		return true
 	case ErrorCodeCredentialMissing:
 		return true
 	case ErrorCodeCredentialUnavailable:
@@ -1180,6 +1231,49 @@ func (e AdminListUsersParamsStatus) Valid() bool {
 	}
 }
 
+// AIChatBody defines model for AIChatBody.
+type AIChatBody struct {
+	// Messages 按对话顺序排列的文本消息。
+	Messages []AIChatMessage `json:"messages"`
+
+	// Model 服务商使用的模型 ID。
+	Model AIModelID `json:"model"`
+}
+
+// AIChatMessage defines model for AIChatMessage.
+type AIChatMessage struct {
+	Content string            `json:"content"`
+	Role    AIChatMessageRole `json:"role"`
+}
+
+// AIChatMessageRole defines model for AIChatMessage.Role.
+type AIChatMessageRole string
+
+// AIChatResult defines model for AIChatResult.
+type AIChatResult struct {
+	// Content 模型生成的文本。
+	Content string `json:"content"`
+
+	// Model 服务商使用的模型 ID。
+	Model AIModelID `json:"model"`
+}
+
+// AIConfiguration defines model for AIConfiguration.
+type AIConfiguration struct {
+	// BaseURL 已配置的 HTTPS API 基础地址，未配置时省略。
+	BaseURL *string     `json:"base_url,omitempty"`
+	Models  []AIModelID `json:"models"`
+}
+
+// AIModelID 服务商使用的模型 ID。
+type AIModelID = string
+
+// AIModelList defines model for AIModelList.
+type AIModelList struct {
+	// Models 当前用户启用的模型，未配置时为空。
+	Models []AIModelID `json:"models"`
+}
+
 // AccessToken 一个访问令牌的元信息。令牌本身只在创建时返回一次。
 type AccessToken struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -1734,7 +1828,7 @@ type CredentialRequest struct {
 	Client    *string   `json:"client"`
 	CreatedAt time.Time `json:"created_at"`
 
-	// CredentialID 填写后得到的凭证；更新请求为被更新的凭证。未填写时为 null。
+	// CredentialID 填写后得到的凭证；更新请求为被更新的凭证。尚未创建凭证或凭证已删除时为 null。
 	CredentialID *openapi_types.UUID   `json:"credential_id"`
 	ExpiresAt    time.Time             `json:"expires_at"`
 	Fields       []CredentialFieldSpec `json:"fields"`
@@ -1844,6 +1938,19 @@ type Discovery struct {
 	// Skills 与服务端版本匹配的 Skill。
 	Skills SkillCatalog `json:"skills"`
 }
+
+// EnvironmentInfo defines model for EnvironmentInfo.
+type EnvironmentInfo struct {
+	// Environment 部署环境。未配置时为 `unspecified`。
+	//
+	// Examples: production
+	Environment EnvironmentInfoEnvironment `json:"environment"`
+}
+
+// EnvironmentInfoEnvironment 部署环境。未配置时为 `unspecified`。
+//
+// Examples: production
+type EnvironmentInfoEnvironment string
 
 // ErrorCode 稳定的错误类别。HTTP 错误的 `Problem.code` 和运行失败的错误类别共用这一组值。
 type ErrorCode string
@@ -2651,6 +2758,9 @@ type RetryPolicyOn string
 
 // Run 一次运行。
 type Run struct {
+	// ArchivedAt 手动归档的时间，未归档时为 null。归档后完整日志保存在数据库中，不再自动清理。
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
 	// Attempt 第几次尝试。自动重试时递增，手动发起和重跑从 1 开始。
 	Attempt         int  `json:"attempt"`
 	CancelRequested bool `json:"cancel_requested"`
@@ -2847,7 +2957,9 @@ type RunStatus string
 
 // RunSummary 运行列表中的一项。
 type RunSummary struct {
-	Attempt int `json:"attempt"`
+	// ArchivedAt 手动归档时间，未归档时为 null。
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+	Attempt    int        `json:"attempt"`
 
 	// CurrentStage 运行中时正在进行的阶段的显示名，其他为 null。
 	CurrentStage *string            `json:"current_stage"`
@@ -3032,11 +3144,29 @@ type ServerInfo struct {
 	Version string `json:"version"`
 }
 
+// SetAIConfigurationBody defines model for SetAIConfigurationBody.
+type SetAIConfigurationBody struct {
+	// APIKey 服务商的 API Key。地址不变时可省略以保留现有 Key。
+	APIKey *string `json:"api_key,omitempty"`
+
+	// BaseURL 服务商的 HTTPS API 基础地址，包含服务商要求的版本路径，例如 https://api.openai.com/v1。
+	BaseURL string `json:"base_url"`
+
+	// Models 允许内置 AI 工具调用的模型。
+	Models []AIModelID `json:"models"`
+}
+
 // SetMemberRequest defines model for SetMemberRequest.
 type SetMemberRequest struct {
 	// Role 项目角色（技术设计第 12.2 节）。viewer 查看任务、运行、日志和产物；maintainer 另外可以运行控制、
 	// 修改任务和触发器；owner 另外可以管理成员和项目设置。
 	Role ProjectRole `json:"role"`
+}
+
+// SetRunArchiveRequest 设置运行记录的手动归档状态。
+type SetRunArchiveRequest struct {
+	// Archived true 归档并长期保留，false 恢复到默认列表和原保留策略。
+	Archived bool `json:"archived"`
 }
 
 // SetTaskActivationRequest 激活或暂停任务。
@@ -3221,7 +3351,10 @@ type Task struct {
 
 	// State 任务的启用状态（技术设计第 5.2 节）。active 为已激活，触发器按计划运行激活的版本；
 	// inactive 为未激活或已暂停，触发器不产生运行，仍可以手动发起运行。
-	State     TaskState `json:"state"`
+	State TaskState `json:"state"`
+
+	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+	Tags      TaskTags  `json:"tags"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -3419,7 +3552,10 @@ type TaskSummary struct {
 
 	// State 任务的启用状态（技术设计第 5.2 节）。active 为已激活，触发器按计划运行激活的版本；
 	// inactive 为未激活或已暂停，触发器不产生运行，仍可以手动发起运行。
-	State     TaskState `json:"state"`
+	State TaskState `json:"state"`
+
+	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+	Tags      TaskTags  `json:"tags"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -3430,6 +3566,20 @@ type TaskSummaryPage struct {
 	// NextCursor 下一页的游标，原样传给下一次请求的 `cursor` 参数。为 null 表示没有更多数据。游标不透明，不要解析或拼接。
 	NextCursor *string `json:"next_cursor"`
 }
+
+// TaskTag 用于分类的标签名。区分大小写，首尾不能有空白，不允许控制字符或换行。
+//
+// Examples: 日报, CRM
+type TaskTag = string
+
+// TaskTagSet defines model for TaskTagSet.
+type TaskTagSet struct {
+	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+	Tags TaskTags `json:"tags"`
+}
+
+// TaskTags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+type TaskTags = []TaskTag
 
 // TaskVersion 任务的一个不可变版本。
 type TaskVersion struct {
@@ -4025,6 +4175,12 @@ type ListRunsParams struct {
 	// ProjectID 只返回这个项目中的数据。省略时返回调用者能查看的全部项目。
 	ProjectID *ProjectFilter `form:"project_id,omitempty" json:"project_id,omitempty"`
 
+	// Archived true 只返回手动归档的运行，false 或省略时只返回未归档的运行。
+	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
+
+	// ExcludeArchivedTasks true 隐藏已删除任务的运行，false 或省略时保留这些记录。
+	ExcludeArchivedTasks *bool `form:"exclude_archived_tasks,omitempty" json:"exclude_archived_tasks,omitempty"`
+
 	// TaskID 只返回这个任务的运行。
 	TaskID *openapi_types.UUID `form:"task_id,omitempty" json:"task_id,omitempty"`
 
@@ -4127,6 +4283,9 @@ type ListTasksParams struct {
 
 	// Q 按任务名或用途说明中包含的文字筛选，不区分大小写。
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Tag 只返回带有这个标签的任务，精确匹配并区分大小写。
+	Tag *TaskTag `form:"tag,omitempty" json:"tag,omitempty"`
 
 	// Archived 为 true 时只返回已归档的任务。
 	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
@@ -4231,6 +4390,9 @@ type AdminUpdateUserJSONRequestBody = AdminUpdateUserRequest
 // AdminResetPasswordJSONRequestBody defines body for AdminResetPassword for application/json ContentType.
 type AdminResetPasswordJSONRequestBody = AdminResetPasswordRequest
 
+// CreateAIChatJSONRequestBody defines body for CreateAIChat for application/json ContentType.
+type CreateAIChatJSONRequestBody = AIChatBody
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -4251,6 +4413,9 @@ type GrantCredentialJSONRequestBody = GrantCredentialRequest
 
 // UpdateMeJSONRequestBody defines body for UpdateMe for application/json ContentType.
 type UpdateMeJSONRequestBody = UpdateMeRequest
+
+// SetAIConfigurationJSONRequestBody defines body for SetAIConfiguration for application/json ContentType.
+type SetAIConfigurationJSONRequestBody = SetAIConfigurationBody
 
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody = ChangePasswordRequest
@@ -4282,6 +4447,9 @@ type ApplyTaskJSONRequestBody = ApplyTaskRequest
 // RegisterToolJSONRequestBody defines body for RegisterTool for application/json ContentType.
 type RegisterToolJSONRequestBody = RegisterToolRequest
 
+// SetRunArchiveJSONRequestBody defines body for SetRunArchive for application/json ContentType.
+type SetRunArchiveJSONRequestBody = SetRunArchiveRequest
+
 // RerunRunJSONRequestBody defines body for RerunRun for application/json ContentType.
 type RerunRunJSONRequestBody = RerunRequest
 
@@ -4296,6 +4464,9 @@ type StartRunJSONRequestBody = StartRunRequest
 
 // SkipNextTaskRunJSONRequestBody defines body for SkipNextTaskRun for application/json ContentType.
 type SkipNextTaskRunJSONRequestBody = SkipNextRunRequest
+
+// SetTaskTagsJSONRequestBody defines body for SetTaskTags for application/json ContentType.
+type SetTaskTagsJSONRequestBody = TaskTagSet
 
 // SetTriggersJSONRequestBody defines body for SetTriggers for application/json ContentType.
 type SetTriggersJSONRequestBody = SetTriggersRequest
@@ -4335,6 +4506,12 @@ type ServerInterface interface {
 	// AdminResetPassword 重置密码
 	// (POST /api/v1/admin/users/{userId}/password)
 	AdminResetPassword(w http.ResponseWriter, r *http.Request, userID UserID)
+	// CreateAIChat 调用 AI 模型
+	// (POST /api/v1/ai/chat)
+	CreateAIChat(w http.ResponseWriter, r *http.Request)
+	// ListAIModels 列出可用 AI 模型
+	// (GET /api/v1/ai/models)
+	ListAIModels(w http.ResponseWriter, r *http.Request)
 	// DownloadArtifact 下载产物
 	// (GET /api/v1/artifacts/{artifactId}/download)
 	DownloadArtifact(w http.ResponseWriter, r *http.Request, artifactID ArtifactID, params DownloadArtifactParams)
@@ -4389,9 +4566,15 @@ type ServerInterface interface {
 	// GrantCredential 授权凭证给任务
 	// (PUT /api/v1/credentials/{credentialId}/grants/{taskId})
 	GrantCredential(w http.ResponseWriter, r *http.Request, credentialID CredentialID, taskID TaskID)
+	// DeleteCredential 删除已撤销的凭证
+	// (POST /api/v1/credentials/{credentialId}/purge)
+	DeleteCredential(w http.ResponseWriter, r *http.Request, credentialID CredentialID)
 	// Discover 发现平台能力
 	// (GET /api/v1/discover)
 	Discover(w http.ResponseWriter, r *http.Request)
+	// GetEnvironment 查询部署环境
+	// (GET /api/v1/environment)
+	GetEnvironment(w http.ResponseWriter, r *http.Request)
 	// StreamEvents 实时事件
 	// (GET /api/v1/events/stream)
 	StreamEvents(w http.ResponseWriter, r *http.Request, params StreamEventsParams)
@@ -4401,6 +4584,15 @@ type ServerInterface interface {
 	// UpdateMe 修改个人信息
 	// (PATCH /api/v1/me)
 	UpdateMe(w http.ResponseWriter, r *http.Request)
+	// RemoveAIConfiguration 移除个人 AI 配置
+	// (DELETE /api/v1/me/ai)
+	RemoveAIConfiguration(w http.ResponseWriter, r *http.Request)
+	// GetAIConfiguration 读取个人 AI 配置
+	// (GET /api/v1/me/ai)
+	GetAIConfiguration(w http.ResponseWriter, r *http.Request)
+	// SetAIConfiguration 保存个人 AI 配置
+	// (PUT /api/v1/me/ai)
+	SetAIConfiguration(w http.ResponseWriter, r *http.Request)
 	// ListDevices 列出移动设备
 	// (GET /api/v1/me/devices)
 	ListDevices(w http.ResponseWriter, r *http.Request)
@@ -4479,6 +4671,9 @@ type ServerInterface interface {
 	// GetRun 读取运行
 	// (GET /api/v1/runs/{runId})
 	GetRun(w http.ResponseWriter, r *http.Request, runID RunID, params GetRunParams)
+	// SetRunArchive 归档或恢复运行记录
+	// (PUT /api/v1/runs/{runId}/archive)
+	SetRunArchive(w http.ResponseWriter, r *http.Request, runID RunID)
 	// ListArtifacts 列出产物
 	// (GET /api/v1/runs/{runId}/artifacts)
 	ListArtifacts(w http.ResponseWriter, r *http.Request, runID RunID, params ListArtifactsParams)
@@ -4533,6 +4728,9 @@ type ServerInterface interface {
 	// SkipNextTaskRun 跳过下一次定时执行
 	// (POST /api/v1/tasks/{taskId}/skip-next-run)
 	SkipNextTaskRun(w http.ResponseWriter, r *http.Request, taskID TaskID)
+	// SetTaskTags 设置任务标签
+	// (PUT /api/v1/tasks/{taskId}/tags)
+	SetTaskTags(w http.ResponseWriter, r *http.Request, taskID TaskID)
 	// ListTriggers 读取触发器
 	// (GET /api/v1/tasks/{taskId}/triggers)
 	ListTriggers(w http.ResponseWriter, r *http.Request, taskID TaskID)
@@ -4986,6 +5184,34 @@ func (siw *ServerInterfaceWrapper) AdminResetPassword(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminResetPassword(w, r, userID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAIChat operation middleware
+func (siw *ServerInterfaceWrapper) CreateAIChat(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAIChat(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAIModels operation middleware
+func (siw *ServerInterfaceWrapper) ListAIModels(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAIModels(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5558,11 +5784,51 @@ func (siw *ServerInterfaceWrapper) GrantCredential(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteCredential operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "credentialId" -------------
+	var credentialID CredentialID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "credentialId", r.PathValue("credentialId"), &credentialID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "credentialId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCredential(w, r, credentialID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Discover operation middleware
 func (siw *ServerInterfaceWrapper) Discover(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Discover(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEnvironment operation middleware
+func (siw *ServerInterfaceWrapper) GetEnvironment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEnvironment(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5637,6 +5903,48 @@ func (siw *ServerInterfaceWrapper) UpdateMe(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAIConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAIConfiguration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAIConfiguration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAIConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) GetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAIConfiguration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAIConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) SetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAIConfiguration(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6483,6 +6791,32 @@ func (siw *ServerInterfaceWrapper) ListRuns(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// ------------- Optional query parameter "archived" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "archived", r.URL.Query(), &params.Archived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "archived"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "archived", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "exclude_archived_tasks" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "exclude_archived_tasks", r.URL.Query(), &params.ExcludeArchivedTasks, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "exclude_archived_tasks"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "exclude_archived_tasks", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "task_id" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "task_id", r.URL.Query(), &params.TaskID, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
@@ -6657,6 +6991,32 @@ func (siw *ServerInterfaceWrapper) GetRun(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetRun(w, r, runID, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRunArchive operation middleware
+func (siw *ServerInterfaceWrapper) SetRunArchive(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runID RunID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRunArchive(w, r, runID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7136,6 +7496,19 @@ func (siw *ServerInterfaceWrapper) ListTasks(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// ------------- Optional query parameter "tag" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "tag", r.URL.Query(), &params.Tag, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tag"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tag", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "archived" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "archived", r.URL.Query(), &params.Archived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
@@ -7451,6 +7824,32 @@ func (siw *ServerInterfaceWrapper) SkipNextTaskRun(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SkipNextTaskRun(w, r, taskID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetTaskTags operation middleware
+func (siw *ServerInterfaceWrapper) SetTaskTags(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskID TaskID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", r.PathValue("taskId"), &taskID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetTaskTags(w, r, taskID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8091,6 +8490,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/discover", wrapper.Discover)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/environment", wrapper.GetEnvironment)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/register", wrapper.Register)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/logout", wrapper.Logout)
@@ -8121,6 +8521,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}", wrapper.GetTask)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/tasks/{taskId}/activation", wrapper.SetTaskActivation)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/tasks/{taskId}/console", wrapper.SetTaskConsole)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/tasks/{taskId}/tags", wrapper.SetTaskTags)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/versions", wrapper.ListTaskVersions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/versions/{seq}", wrapper.GetTaskVersion)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/versions/{seq}/file", wrapper.GetTaskFile)
@@ -8136,6 +8537,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs", wrapper.ListRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{runId}", wrapper.GetRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{runId}/cancel", wrapper.CancelRun)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{runId}/archive", wrapper.SetRunArchive)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{runId}/rerun", wrapper.RerunRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{runId}/events", wrapper.ListRunEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{runId}/logs", wrapper.ReadRunLogs)
@@ -8146,6 +8548,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/events/stream", wrapper.StreamEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/overview", wrapper.GetOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/overview/calendar", wrapper.GetRunCalendar)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/me/ai", wrapper.RemoveAIConfiguration)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/me/ai", wrapper.GetAIConfiguration)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/me/ai", wrapper.SetAIConfiguration)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/ai/models", wrapper.ListAIModels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/ai/chat", wrapper.CreateAIChat)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/credential-requests", wrapper.ListCredentialRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/credential-requests", wrapper.CreateCredentialRequest)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/credential-requests/{requestId}", wrapper.CancelCredentialRequest)
@@ -8154,6 +8561,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/credentials", wrapper.ListCredentials)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/credentials/{credentialId}", wrapper.RevokeCredential)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/credentials/{credentialId}", wrapper.GetCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/credentials/{credentialId}/purge", wrapper.DeleteCredential)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/credentials/{credentialId}/grants/{taskId}", wrapper.RevokeGrant)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/credentials/{credentialId}/grants/{taskId}", wrapper.GrantCredential)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/notification-channels", wrapper.ListNotificationChannels)
@@ -8594,6 +9002,83 @@ type AdminResetPassworddefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response AdminResetPassworddefaultApplicationProblemPlusJSONResponse) VisitAdminResetPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAIChatRequestObject struct {
+	Body *CreateAIChatJSONRequestBody
+}
+
+type CreateAIChatResponseObject interface {
+	VisitCreateAIChatResponse(w http.ResponseWriter) error
+}
+
+type CreateAIChat200JSONResponse AIChatResult
+
+func (response CreateAIChat200JSONResponse) VisitCreateAIChatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAIChatdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateAIChatdefaultApplicationProblemPlusJSONResponse) VisitCreateAIChatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAIModelsRequestObject struct {
+}
+
+type ListAIModelsResponseObject interface {
+	VisitListAIModelsResponse(w http.ResponseWriter) error
+}
+
+type ListAIModels200JSONResponse AIModelList
+
+func (response ListAIModels200JSONResponse) VisitListAIModelsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAIModelsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListAIModelsdefaultApplicationProblemPlusJSONResponse) VisitListAIModelsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -9455,6 +9940,39 @@ func (response GrantCredentialdefaultApplicationProblemPlusJSONResponse) VisitGr
 	return err
 }
 
+type DeleteCredentialRequestObject struct {
+	CredentialID CredentialID `json:"credentialId"`
+}
+
+type DeleteCredentialResponseObject interface {
+	VisitDeleteCredentialResponse(w http.ResponseWriter) error
+}
+
+type DeleteCredential204Response struct {
+}
+
+func (response DeleteCredential204Response) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteCredentialdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteCredentialdefaultApplicationProblemPlusJSONResponse) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DiscoverRequestObject struct {
 }
 
@@ -9482,6 +10000,44 @@ type DiscoverdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response DiscoverdefaultApplicationProblemPlusJSONResponse) VisitDiscoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEnvironmentRequestObject struct {
+}
+
+type GetEnvironmentResponseObject interface {
+	VisitGetEnvironmentResponse(w http.ResponseWriter) error
+}
+
+type GetEnvironment200JSONResponse EnvironmentInfo
+
+func (response GetEnvironment200JSONResponse) VisitGetEnvironmentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEnvironmentdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetEnvironmentdefaultApplicationProblemPlusJSONResponse) VisitGetEnvironmentResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -9627,6 +10183,115 @@ type UpdateMedefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdateMedefaultApplicationProblemPlusJSONResponse) VisitUpdateMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAIConfigurationRequestObject struct {
+}
+
+type RemoveAIConfigurationResponseObject interface {
+	VisitRemoveAIConfigurationResponse(w http.ResponseWriter) error
+}
+
+type RemoveAIConfiguration204Response struct {
+}
+
+func (response RemoveAIConfiguration204Response) VisitRemoveAIConfigurationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveAIConfigurationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RemoveAIConfigurationdefaultApplicationProblemPlusJSONResponse) VisitRemoveAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAIConfigurationRequestObject struct {
+}
+
+type GetAIConfigurationResponseObject interface {
+	VisitGetAIConfigurationResponse(w http.ResponseWriter) error
+}
+
+type GetAIConfiguration200JSONResponse AIConfiguration
+
+func (response GetAIConfiguration200JSONResponse) VisitGetAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAIConfigurationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetAIConfigurationdefaultApplicationProblemPlusJSONResponse) VisitGetAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAIConfigurationRequestObject struct {
+	Body *SetAIConfigurationJSONRequestBody
+}
+
+type SetAIConfigurationResponseObject interface {
+	VisitSetAIConfigurationResponse(w http.ResponseWriter) error
+}
+
+type SetAIConfiguration200JSONResponse AIConfiguration
+
+func (response SetAIConfiguration200JSONResponse) VisitSetAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAIConfigurationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetAIConfigurationdefaultApplicationProblemPlusJSONResponse) VisitSetAIConfigurationResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -10680,6 +11345,46 @@ func (response GetRundefaultApplicationProblemPlusJSONResponse) VisitGetRunRespo
 	return err
 }
 
+type SetRunArchiveRequestObject struct {
+	RunID RunID `json:"runId"`
+	Body  *SetRunArchiveJSONRequestBody
+}
+
+type SetRunArchiveResponseObject interface {
+	VisitSetRunArchiveResponse(w http.ResponseWriter) error
+}
+
+type SetRunArchive200JSONResponse Run
+
+func (response SetRunArchive200JSONResponse) VisitSetRunArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunArchivedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetRunArchivedefaultApplicationProblemPlusJSONResponse) VisitSetRunArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListArtifactsRequestObject struct {
 	RunID  RunID `json:"runId"`
 	Params ListArtifactsParams
@@ -11461,6 +12166,62 @@ func (response SkipNextTaskRundefaultApplicationProblemPlusJSONResponse) VisitSk
 	return err
 }
 
+type SetTaskTagsRequestObject struct {
+	TaskID TaskID `json:"taskId"`
+	Body   *SetTaskTagsJSONRequestBody
+}
+
+type SetTaskTagsResponseObject interface {
+	VisitSetTaskTagsResponse(w http.ResponseWriter) error
+}
+
+type SetTaskTags200JSONResponse TaskTagSet
+
+func (response SetTaskTags200JSONResponse) VisitSetTaskTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTaskTags409ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetTaskTags409ApplicationProblemPlusJSONResponse) VisitSetTaskTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTaskTagsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetTaskTagsdefaultApplicationProblemPlusJSONResponse) VisitSetTaskTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTriggersRequestObject struct {
 	TaskID TaskID `json:"taskId"`
 }
@@ -11983,6 +12744,12 @@ type StrictServerInterface interface {
 	// AdminResetPassword 重置密码
 	// (POST /api/v1/admin/users/{userId}/password)
 	AdminResetPassword(ctx context.Context, request AdminResetPasswordRequestObject) (AdminResetPasswordResponseObject, error)
+	// CreateAIChat 调用 AI 模型
+	// (POST /api/v1/ai/chat)
+	CreateAIChat(ctx context.Context, request CreateAIChatRequestObject) (CreateAIChatResponseObject, error)
+	// ListAIModels 列出可用 AI 模型
+	// (GET /api/v1/ai/models)
+	ListAIModels(ctx context.Context, request ListAIModelsRequestObject) (ListAIModelsResponseObject, error)
 	// DownloadArtifact 下载产物
 	// (GET /api/v1/artifacts/{artifactId}/download)
 	DownloadArtifact(ctx context.Context, request DownloadArtifactRequestObject) (DownloadArtifactResponseObject, error)
@@ -12037,9 +12804,15 @@ type StrictServerInterface interface {
 	// GrantCredential 授权凭证给任务
 	// (PUT /api/v1/credentials/{credentialId}/grants/{taskId})
 	GrantCredential(ctx context.Context, request GrantCredentialRequestObject) (GrantCredentialResponseObject, error)
+	// DeleteCredential 删除已撤销的凭证
+	// (POST /api/v1/credentials/{credentialId}/purge)
+	DeleteCredential(ctx context.Context, request DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error)
 	// Discover 发现平台能力
 	// (GET /api/v1/discover)
 	Discover(ctx context.Context, request DiscoverRequestObject) (DiscoverResponseObject, error)
+	// GetEnvironment 查询部署环境
+	// (GET /api/v1/environment)
+	GetEnvironment(ctx context.Context, request GetEnvironmentRequestObject) (GetEnvironmentResponseObject, error)
 	// StreamEvents 实时事件
 	// (GET /api/v1/events/stream)
 	StreamEvents(ctx context.Context, request StreamEventsRequestObject) (StreamEventsResponseObject, error)
@@ -12049,6 +12822,15 @@ type StrictServerInterface interface {
 	// UpdateMe 修改个人信息
 	// (PATCH /api/v1/me)
 	UpdateMe(ctx context.Context, request UpdateMeRequestObject) (UpdateMeResponseObject, error)
+	// RemoveAIConfiguration 移除个人 AI 配置
+	// (DELETE /api/v1/me/ai)
+	RemoveAIConfiguration(ctx context.Context, request RemoveAIConfigurationRequestObject) (RemoveAIConfigurationResponseObject, error)
+	// GetAIConfiguration 读取个人 AI 配置
+	// (GET /api/v1/me/ai)
+	GetAIConfiguration(ctx context.Context, request GetAIConfigurationRequestObject) (GetAIConfigurationResponseObject, error)
+	// SetAIConfiguration 保存个人 AI 配置
+	// (PUT /api/v1/me/ai)
+	SetAIConfiguration(ctx context.Context, request SetAIConfigurationRequestObject) (SetAIConfigurationResponseObject, error)
 	// ListDevices 列出移动设备
 	// (GET /api/v1/me/devices)
 	ListDevices(ctx context.Context, request ListDevicesRequestObject) (ListDevicesResponseObject, error)
@@ -12127,6 +12909,9 @@ type StrictServerInterface interface {
 	// GetRun 读取运行
 	// (GET /api/v1/runs/{runId})
 	GetRun(ctx context.Context, request GetRunRequestObject) (GetRunResponseObject, error)
+	// SetRunArchive 归档或恢复运行记录
+	// (PUT /api/v1/runs/{runId}/archive)
+	SetRunArchive(ctx context.Context, request SetRunArchiveRequestObject) (SetRunArchiveResponseObject, error)
 	// ListArtifacts 列出产物
 	// (GET /api/v1/runs/{runId}/artifacts)
 	ListArtifacts(ctx context.Context, request ListArtifactsRequestObject) (ListArtifactsResponseObject, error)
@@ -12181,6 +12966,9 @@ type StrictServerInterface interface {
 	// SkipNextTaskRun 跳过下一次定时执行
 	// (POST /api/v1/tasks/{taskId}/skip-next-run)
 	SkipNextTaskRun(ctx context.Context, request SkipNextTaskRunRequestObject) (SkipNextTaskRunResponseObject, error)
+	// SetTaskTags 设置任务标签
+	// (PUT /api/v1/tasks/{taskId}/tags)
+	SetTaskTags(ctx context.Context, request SetTaskTagsRequestObject) (SetTaskTagsResponseObject, error)
 	// ListTriggers 读取触发器
 	// (GET /api/v1/tasks/{taskId}/triggers)
 	ListTriggers(ctx context.Context, request ListTriggersRequestObject) (ListTriggersResponseObject, error)
@@ -12548,6 +13336,61 @@ func (sh *strictHandler) AdminResetPassword(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AdminResetPasswordResponseObject); ok {
 		if err := validResponse.VisitAdminResetPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAIChat operation middleware
+func (sh *strictHandler) CreateAIChat(w http.ResponseWriter, r *http.Request) {
+	var request CreateAIChatRequestObject
+
+	var body CreateAIChatJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAIChat(ctx, request.(CreateAIChatRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAIChat")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAIChatResponseObject); ok {
+		if err := validResponse.VisitCreateAIChatResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAIModels operation middleware
+func (sh *strictHandler) ListAIModels(w http.ResponseWriter, r *http.Request) {
+	var request ListAIModelsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAIModels(ctx, request.(ListAIModelsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAIModels")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAIModelsResponseObject); ok {
+		if err := validResponse.VisitListAIModelsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -13058,6 +13901,32 @@ func (sh *strictHandler) GrantCredential(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+// DeleteCredential operation middleware
+func (sh *strictHandler) DeleteCredential(w http.ResponseWriter, r *http.Request, credentialID CredentialID) {
+	var request DeleteCredentialRequestObject
+
+	request.CredentialID = credentialID
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteCredential(ctx, request.(DeleteCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteCredential")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteCredentialResponseObject); ok {
+		if err := validResponse.VisitDeleteCredentialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Discover operation middleware
 func (sh *strictHandler) Discover(w http.ResponseWriter, r *http.Request) {
 	var request DiscoverRequestObject
@@ -13075,6 +13944,30 @@ func (sh *strictHandler) Discover(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DiscoverResponseObject); ok {
 		if err := validResponse.VisitDiscoverResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEnvironment operation middleware
+func (sh *strictHandler) GetEnvironment(w http.ResponseWriter, r *http.Request) {
+	var request GetEnvironmentRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEnvironment(ctx, request.(GetEnvironmentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEnvironment")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEnvironmentResponseObject); ok {
+		if err := validResponse.VisitGetEnvironmentResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -13156,6 +14049,85 @@ func (sh *strictHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateMeResponseObject); ok {
 		if err := validResponse.VisitUpdateMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveAIConfiguration operation middleware
+func (sh *strictHandler) RemoveAIConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request RemoveAIConfigurationRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveAIConfiguration(ctx, request.(RemoveAIConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveAIConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveAIConfigurationResponseObject); ok {
+		if err := validResponse.VisitRemoveAIConfigurationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAIConfiguration operation middleware
+func (sh *strictHandler) GetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request GetAIConfigurationRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAIConfiguration(ctx, request.(GetAIConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAIConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAIConfigurationResponseObject); ok {
+		if err := validResponse.VisitGetAIConfigurationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetAIConfiguration operation middleware
+func (sh *strictHandler) SetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request SetAIConfigurationRequestObject
+
+	var body SetAIConfigurationJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetAIConfiguration(ctx, request.(SetAIConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetAIConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetAIConfigurationResponseObject); ok {
+		if err := validResponse.VisitSetAIConfigurationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -13905,6 +14877,39 @@ func (sh *strictHandler) GetRun(w http.ResponseWriter, r *http.Request, runID Ru
 	}
 }
 
+// SetRunArchive operation middleware
+func (sh *strictHandler) SetRunArchive(w http.ResponseWriter, r *http.Request, runID RunID) {
+	var request SetRunArchiveRequestObject
+
+	request.RunID = runID
+
+	var body SetRunArchiveJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRunArchive(ctx, request.(SetRunArchiveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRunArchive")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRunArchiveResponseObject); ok {
+		if err := validResponse.VisitSetRunArchiveResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListArtifacts operation middleware
 func (sh *strictHandler) ListArtifacts(w http.ResponseWriter, r *http.Request, runID RunID, params ListArtifactsParams) {
 	var request ListArtifactsRequestObject
@@ -14412,6 +15417,39 @@ func (sh *strictHandler) SkipNextTaskRun(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SkipNextTaskRunResponseObject); ok {
 		if err := validResponse.VisitSkipNextTaskRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetTaskTags operation middleware
+func (sh *strictHandler) SetTaskTags(w http.ResponseWriter, r *http.Request, taskID TaskID) {
+	var request SetTaskTagsRequestObject
+
+	request.TaskID = taskID
+
+	var body SetTaskTagsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetTaskTags(ctx, request.(SetTaskTagsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetTaskTags")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetTaskTagsResponseObject); ok {
+		if err := validResponse.VisitSetTaskTagsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

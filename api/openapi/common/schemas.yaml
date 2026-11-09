@@ -1,7 +1,7 @@
 # 各资源共用的 schema。在根文件 components.schemas 中逐个登记。
 
 # 扩展字段逐个声明，不写 additionalProperties: true。oapi-codegen 为后者生成的
-# AdditionalProperties 在部分响应类型上会被静默丢弃（见 docs/spikes/s2-openapi-codegen.md）。
+# AdditionalProperties 在部分响应类型上会被静默丢弃（见 docs/zh-CN/spikes/s2-openapi-codegen.md）。
 Problem:
   type: object
   description: |
@@ -149,6 +149,9 @@ ErrorCode:
     - title: ManualRunDisabled
       const: manual_run_disabled
       description: 任务关闭了控制台的手动执行，从控制台会话发起的运行被拒绝。访问令牌发起的运行不受影响。下一步：需要从控制台运行时，请 Agent 用 setTaskConsole 打开手动执行。
+    - title: AIProviderError
+      const: ai_provider_error
+      description: 模型服务未返回可用的文本。下一步：检查 AI 配置和服务商状态。
 
 NextAction:
   type: object

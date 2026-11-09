@@ -3,7 +3,8 @@
 // unit-tested in Node.
 import type { Schemas } from "@lerryn/api";
 import { elapsedMs } from "../format";
-import { runStatusMeta, type StatusIcon, type StatusTone } from "../status";
+import type { MessageKey } from "../i18n/i18n";
+import { isRunActive, runStatusMeta, type StatusIcon, type StatusTone } from "../status";
 
 export type Overview = Schemas["Overview"];
 export type AttentionItem = Schemas["AttentionItem"];
@@ -16,9 +17,22 @@ export type PanelSpec = Schemas["PanelSpec"];
 export type Trigger = Schemas["Trigger"];
 export type TaskCredential = Schemas["TaskCredential"];
 
+/** Filter options come from the complete task list for the current project. */
+export function taskTagOptions(tasks: readonly TaskSummary[], locale: string): string[] {
+  const tags = new Set<string>();
+  for (const task of tasks) {
+    for (const tag of task.tags ?? []) tags.add(tag);
+  }
+  return [...tags].sort((a, b) => a.localeCompare(b, locale));
+}
+
+export function tasksWithTag(tasks: readonly TaskSummary[], tag: string): readonly TaskSummary[] {
+  return tag ? tasks.filter((task) => task.tags?.includes(tag)) : tasks;
+}
+
 /** Status tones plus `key`, the kraft tone the prototype gives credential items. */
 export type Tone = StatusTone | "key";
-export type GlyphIcon = StatusIcon | "key" | "server" | "calendar" | "pause" | "pending";
+export type GlyphIcon = StatusIcon | "key" | "server" | "calendar" | "pause" | "pending" | "archive";
 
 export interface Glyph {
   tone: Tone;
@@ -409,9 +423,29 @@ export function sortTasksBySchedule(tasks: readonly TaskSummary[]): TaskSummary[
   });
 }
 
-/** The glyph for a task row: its last run, a pause when inactive, a calendar when it never ran. */
-export function taskGlyph(task: Pick<TaskSummary, 'state' | 'last_run' | 'active_runs'>): Glyph {
-  if (task.state === 'inactive') return { tone: 'idle', icon: 'pause' };
-  if (task.last_run) return runGlyph(task.last_run.status);
-  return { tone: 'idle', icon: 'calendar' };
+/** Current activity takes precedence over activation: inactive tasks can run manually. */
+export function taskStatus(task: {
+  state: TaskSummary['state'];
+  active_version?: number | null;
+  archived_at?: string | null;
+  active_runs?: number;
+  last_run?: { status: string } | null;
+  next_run_at?: string | null;
+}): { glyph: Glyph; label: MessageKey } {
+  if (task.archived_at) return { glyph: { tone: 'idle', icon: 'archive' }, label: 'task.archived' };
+  if ((task.active_runs ?? 0) > 0 || (task.last_run && isRunActive(task.last_run.status))) {
+    const status = task.last_run && isRunActive(task.last_run.status) ? task.last_run.status : 'running';
+    return { glyph: runGlyph(status), label: runStatusMeta(status).label };
+  }
+  if (task.state === 'inactive') return {
+    glyph: { tone: 'idle', icon: task.active_version === null ? 'pending' : 'pause' },
+    label: task.active_version === null ? 'task.neverActivated' : 'task.paused',
+  };
+  if (task.next_run_at) return { glyph: { tone: 'idle', icon: 'calendar' }, label: 'task.scheduled' };
+  return { glyph: { tone: 'idle', icon: 'pending' }, label: 'task.active' };
+}
+
+/** The same current task status is used by task lists and detail headers. */
+export function taskGlyph(task: Parameters<typeof taskStatus>[0]): Glyph {
+  return taskStatus(task).glyph;
 }

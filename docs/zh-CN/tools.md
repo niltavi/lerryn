@@ -1,6 +1,6 @@
 # Tools 接入
 
-[English](en/tools.md) · [文档目录](README.zh-CN.md)
+[English](../en/tools.md) · [文档目录](README.md)
 
 Lerryn 向外部 Agent 提供 MCP、HTTP API 和 CLI，用于创建与更新任务、设置触发器、执行任务，以及读取日志和结果。Settings → Tools 列出内置能力和当前实例的接入地址，提供本文下载；项目工具单独列在页面下方，供任务在运行时引用。
 
@@ -14,7 +14,7 @@ Lerryn 向外部 Agent 提供 MCP、HTTP API 和 CLI，用于创建与更新任�
 | --- | --- |
 | `read` | 发现能力、读取任务、运行、日志和接口说明 |
 | `write` | 提交任务、配置触发器、申请凭证、登记项目工具 |
-| `execute` | 发起、取消、重跑，以及激活或暂停任务 |
+| `execute` | 发起、取消、重跑、激活或暂停任务，以及调用 AI 模型 |
 
 创建和维护任务的 Agent 通常需要这三个范围；只查询运行结果时可只授予 `read`。令牌继承所属用户在项目中的权限，范围不会提升项目角色。令牌过期或撤销后，在客户端更换令牌。不要把令牌放进 URL、任务文件或任务参数。
 
@@ -52,7 +52,10 @@ lerryn mcp --stdio
 | 工具 | HTTP 操作 | 范围 | 用途 |
 | --- | --- | --- | --- |
 | `discover` | `discover` | `read` | 版本、运行时、部署能力、当前身份 |
-| `task_get` | `getTask` | `read` | 任务和最新版本 |
+| `environment_get` | `getEnvironment` | `read` | 查询当前部署的环境 |
+| `task_get` | `getTask` | `read` | 任务、标签和最新版本 |
+| `task_list` | `listTasks` | `read` | 查询可见任务，支持按项目、名称或标签筛选 |
+| `task_set_tags` | `setTaskTags` | `write` | 整体替换标签，空数组清空，不创建新版本 |
 | `task_apply` | `applyTask` | `write` | 创建任务或提交完整新版本，支持 `dry_run` |
 | `task_validate` | `validateTaskVersion` | `read` | 检查凭证、工具、runner 和测试状态 |
 | `trigger_set` | `setTriggers` | `write` | 整体替换定时或 Webhook 触发器，支持预览 |
@@ -63,8 +66,12 @@ lerryn mcp --stdio
 | `run_cancel` | `cancelRun` | `execute` | 请求取消；之后读取状态确认 |
 | `run_rerun` | `rerunRun` | `execute` | 新建关联原运行的重跑 |
 | `credential_request` | `createCredentialRequest` | `write` | 生成用户凭证填写链接 |
+| `ai_models` | `listAIModels` | `read` | 列出当前账号启用的模型 |
+| `ai_chat` | `createAIChat` | `execute` | 使用当前账号配置的模型生成文本 |
 | `api_describe` | 接口说明与 schema | `read` | 按 `operation_id` 或 `query` 查询 |
 | `api_call` | 指定公开操作 | 按接口 | 按 `operation_id` 调用，参数放在 `arguments` 中 |
+
+执行依赖部署环境的操作前，先调用无参数的 `environment_get`。例如生产实例返回 `{"environment":"production"}`。环境由 [部署配置](deploy.md#4-配置参考) 指定，`unspecified` 表示未配置。单次运行是否为测试仍由 `run_start` 的 `test` 参数决定。
 
 MCP 的主流程工具覆盖常用操作。其余接口先查询说明，再调用，例如读取项目工具列表：
 
@@ -80,7 +87,24 @@ MCP 的主流程工具覆盖常用操作。其余接口先查询说明，再调�
 
 以 `api_describe` 返回的 `input_schema`、令牌范围和认证要求为准。部分接口只接受控制台会话，访问令牌无法调用；文件下载等操作可能需要直接使用 HTTP 或 CLI。
 
+整理任务时，可用 `task_list` 传入 `{"tag":"日报","limit":10}`。要更新标签，先用 `task_get` 读取当前标签，再用 `task_set_tags` 传入 `{"task_id":"<TASK_ID>","tags":["日报","CRM"]}`，保留仍需使用的标签。
+
 建立任务时按这个顺序操作：先 `discover`，再用 `task_apply` 的 `dry_run` 预览并正式提交；需要凭证时用 `credential_request` 请用户填写；用 `run_start` 的 `test: true` 测试，并检查日志和业务结果；预览触发器后再设置，最后激活已测试的版本。修改任务时先读取 `latest_version.seq`，通过 `if_match` 提交，遇到版本冲突先合并。定时器要指定 IANA 时区。测试会真实执行代码，有副作用的任务先向用户确认。
+
+## 配置 AI 能力
+
+在 Web 控制台的「密钥 → 凭证 → AI 能力」填写服务商的 HTTPS API 基础地址、API Key 和模型 ID，每行填一个模型。基础地址保留服务商要求的版本路径，例如 `https://api.openai.com/v1`，Lerryn 会在后面加上 `/chat/completions`。
+
+Agent 使用同一账号的访问令牌调用 `ai_models`，再从返回列表中选一个 ID 传给 `ai_chat`。消息会发送给所配置的服务商，调用可能产生费用。当前支持非流式文本生成。请求或结果含有当前账号已存凭证的值时，平台会拦截。
+
+```json
+{
+  "model": "your-model-id",
+  "messages": [{"role": "user", "content": "用一句话概括下文……"}]
+}
+```
+
+API Key 加密保存在该账号的凭证库里。仅改模型列表时可以留空保留现有 Key，更改基础地址时要重新填写。内网 HTTPS 模型网关需要部署方配置 `ai.allowed_networks`。
 
 ## HTTP API 与 CLI
 
@@ -96,6 +120,7 @@ curl --fail-with-body \
 
 ```bash
 lerryn discover
+lerryn api getEnvironment
 lerryn api listTools --describe
 lerryn api listTools --project-id <PROJECT_ID>
 lerryn tasks apply ./hello-lerryn --dry-run

@@ -75,7 +75,7 @@ export function AppShell() {
         <div className="wl-app shell">
           <nav className="rail" aria-label={t("nav.main")}>
             <Link to="/" className="rail-logo" aria-label={t("app.brand")}>
-              <Logo size={12} label="" />
+              <Logo size={15} label="" />
             </Link>
             <RailLink to="/" active={section === "" || section === "tasks"} label={t("nav.overview")} icon={LayoutDashboard} />
             <RailLink to="/runs" active={section === "runs"} label={t("nav.runs")} icon={History} />

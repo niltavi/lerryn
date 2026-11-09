@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/niltavi/lerryn/api"
+	"github.com/niltavi/lerryn/server/internal/config"
 	"github.com/niltavi/lerryn/server/internal/mcp"
+	"github.com/niltavi/lerryn/server/internal/secrets"
 	"github.com/niltavi/lerryn/server/internal/service"
 	"github.com/niltavi/lerryn/server/internal/store/storetest"
 )
@@ -35,7 +38,8 @@ func newMCPServer(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	accounts := service.NewAccounts(storetest.Open(t), nil)
+	db := storetest.Open(t)
+	accounts := service.NewAccounts(db, nil)
 	_, sess, err := accounts.Register(ctx, service.RegisterInput{Username: "agent-owner", Password: "correct horse"})
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +52,24 @@ func newMCPServer(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(New(discardLogger()).WithAccounts(accounts).WithMCP(tools).Handler())
+	key, err := secrets.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := secrets.NewLocalKeyring(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	creds := service.NewCredentials(db, service.NewAuthorizer(db), keys, nil)
+	_, err = creds.SetAIConfiguration(ctx, p, service.AIConfiguration{
+		BaseURL: "https://provider.example/v1", Models: []string{"test-model"},
+	}, "sk-mcp-provider-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Default()
+	cfg.Server.Environment = "test"
+	srv := httptest.NewServer(New(discardLogger()).WithConfig(cfg).WithAccounts(accounts).WithCredentials(creds, nil).WithMCP(tools).Handler())
 	t.Cleanup(srv.Close)
 	return srv.URL, token
 }
@@ -91,6 +112,38 @@ func TestMCPCallsTheAPIAsTheTokenOwner(t *testing.T) {
 	}
 	if got.Principal == nil || got.Principal.Username != "agent-owner" || got.Principal.AuthMethod != "access_token" {
 		t.Fatalf("principal = %+v; the tool call must run as the token's owner", got.Principal)
+	}
+
+	res, err = cs.CallTool(ctx, &mcpsdk.CallToolParams{Name: "ai_models"})
+	if err != nil || res.IsError {
+		t.Fatalf("ai_models = %+v, %v", res, err)
+	}
+	raw, err = json.Marshal(res.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var models struct {
+		Models []string `json:"models"`
+	}
+	if err := json.Unmarshal(raw, &models); err != nil || !slices.Equal(models.Models, []string{"test-model"}) {
+		t.Fatalf("ai_models = %s, %v", raw, err)
+	}
+	res, err = cs.CallTool(ctx, &mcpsdk.CallToolParams{
+		Name: "ai_chat",
+		Arguments: map[string]any{
+			"model": "disabled-model", "messages": []map[string]string{{"role": "user", "content": "Summarize"}},
+		},
+	})
+	if err != nil || !res.IsError {
+		t.Fatalf("ai_chat accepted a disabled model: %+v, %v", res, err)
+	}
+
+	res, err = cs.CallTool(ctx, &mcpsdk.CallToolParams{Name: "environment_get"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, ok := res.StructuredContent.(map[string]any); res.IsError || !ok || data["environment"] != "test" {
+		t.Fatalf("environment_get = %+v, want environment test", res)
 	}
 }
 

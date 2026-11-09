@@ -15,7 +15,7 @@
 | `bundled/openapi.yaml` | Redocly 打包后的单文件。生成物，不要手改 |
 | `.spectral.yaml`、`spectral-functions/` | Spectral 规则 |
 | `redocly.yaml` | Redocly 配置，只用于打包 |
-| `spikes/s2/` | S2 技术验证用的小规范和检查代码，不是正式契约，见 `docs/spikes/s2-openapi-codegen.md` |
+| `spikes/s2/` | S2 技术验证用的小规范和检查代码，不是正式契约，见 `docs/zh-CN/spikes/s2-openapi-codegen.md` |
 
 runner 与 server 之间的内部协议不在这份契约里，见 `server/internal/runproto`。
 

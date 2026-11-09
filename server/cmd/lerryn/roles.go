@@ -361,7 +361,11 @@ func buildServer(ctx context.Context, cfg config.Config, log *slog.Logger) (st s
 	authz := service.NewAuthorizer(db)
 	sc := cfg.Scheduler
 	queue := service.QueueLimits{MaxQueued: sc.MaxQueuedRuns, MaxQueuedPerProject: sc.MaxQueuedRunsPerProject}
-	creds := service.NewCredentials(db, authz, keys, log)
+	aiGuard, err := notify.NewGuard(cfg.AI.AllowedNetworks)
+	if err != nil {
+		return st, fmt.Errorf("configure AI network policy: %w", err)
+	}
+	creds := service.NewCredentials(db, authz, keys, log).WithAINetworkGuard(aiGuard)
 	runs := service.NewRuns(db, authz, log).WithEvents(bus, pgBus != nil).WithLogArchive(blobs).WithQueueLimits(queue).
 		WithPlaintextCheck(creds)
 	coordinator := service.NewCoordinator(db, blobs, runs, log).WithProjectConcurrency(sc.ProjectConcurrency).UseCredentials(creds)

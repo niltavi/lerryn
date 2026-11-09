@@ -542,7 +542,7 @@ func (e *Executor) List(ctx context.Context, labels map[string]string) ([]execut
 // ensureNetwork creates the task network on first use. The bridge disables
 // inter-container traffic so one task cannot reach another task's
 // listeners; whether that holds depends on the daemon managing iptables
-// (see docs/spikes/s4-container-execution.md).
+// (see docs/zh-CN/spikes/s4-container-execution.md).
 //
 // A network that already exists is checked before use: anyone with access
 // to the daemon could have created one under this name without the

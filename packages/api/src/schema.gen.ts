@@ -24,6 +24,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/environment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询部署环境
+         * @description 返回当前 Lerryn 部署配置的环境。未配置时返回 `unspecified`。
+         *     环境标识适用于整个部署，任务运行的 `test` 标记单独设置。
+         */
+        get: operations["getEnvironment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/register": {
         parameters: {
             query?: never;
@@ -504,7 +525,7 @@ export interface paths {
         };
         /**
          * 读取任务
-         * @description 返回任务、它的启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
+         * @description 返回任务、标签、启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
          */
         get: operations["getTask"];
         put?: never;
@@ -556,6 +577,26 @@ export interface paths {
          *     只在用户要求，或者任务不适合随手运行（例如会对外发消息、扣费、写入生产数据）时关闭。不影响触发器。
          */
         put: operations["setTaskConsole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 设置任务标签
+         * @description 整体替换任务的分类标签，传入空数组可清空。只修改任务元数据，不创建任务版本，也不影响执行或触发器。已归档的任务不能修改。
+         */
+        put: operations["setTaskTags"];
         post?: never;
         delete?: never;
         options?: never;
@@ -813,7 +854,8 @@ export interface paths {
         };
         /**
          * 列出运行
-         * @description 列出调用者能查看的运行，按排队时间从新到旧排列。可以按项目、任务、状态、来源和时间筛选。
+         * @description 列出调用者能查看的运行，按排队时间从新到旧排列。默认不含手动归档的运行，archived=true 只返回已归档记录。
+         *     可以按项目、任务、状态、来源和时间筛选。
          */
         get: operations["listRuns"];
         put?: never;
@@ -859,6 +901,29 @@ export interface paths {
          *     对已结束的运行调用不会改变状态。
          */
         post: operations["cancelRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runs/{runId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 归档或恢复运行记录
+         * @description 需要运行控制权限。只允许归档已结束的运行；归档不改变执行状态，也不停止自动重试。
+         *     归档后移出默认列表、概览和日历，记录、事件、日志及产物不再自动清理。
+         *     完整日志存入数据库；此前已转存对象存储的日志会读回数据库，已清理的日志返回 410 expired，不能恢复。
+         *     重复设置相同状态没有额外影响。archived=false 恢复到默认列表，并重新适用部署的保留策略。
+         */
+        put: operations["setRunArchive"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1088,6 +1153,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取个人 AI 配置
+         * @description 读取当前用户的 API 基础地址和可用模型，未配置时模型列表为空。
+         */
+        get: operations["getAIConfiguration"];
+        /**
+         * 保存个人 AI 配置
+         * @description 加密保存 AI 配置。首次配置或变更基础地址时需要提交 API Key。
+         */
+        put: operations["setAIConfiguration"];
+        post?: never;
+        /**
+         * 移除个人 AI 配置
+         * @description 删除当前用户的 AI 配置与存储的 API Key。
+         */
+        delete: operations["removeAIConfiguration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列出可用 AI 模型
+         * @description 列出当前用户为内置 AI 工具启用的模型。
+         */
+        get: operations["listAIModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 调用 AI 模型
+         * @description 使用当前用户的 OpenAI 兼容服务和已启用的模型进行一次文本生成，返回模型文本。服务商可能计费。
+         */
+        post: operations["createAIChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/credential-requests": {
         parameters: {
             query?: never;
@@ -1201,6 +1334,28 @@ export interface paths {
          *     已经启动的运行中已注入的值无法收回，需要时取消这些运行。授权记录保留，便于查看曾经授权给了哪些任务。
          */
         delete: operations["revokeCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credentials/{credentialId}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 删除已撤销的凭证
+         * @description 所有者可以永久删除已撤销的凭证、所有加密版本和任务授权。任务清单保留引用名，原绑定变为缺少凭证。
+         *     尚未填写且未过期的更新请求被取消，历史请求保留状态并清除凭证 ID。审计记录保留。
+         *     未撤销的凭证返回 422 `validation_failed`，不存在或属于其他用户的凭证返回 404 `not_found`。
+         */
+        post: operations["deleteCredential"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1704,7 +1859,7 @@ export interface components {
             current_version?: number;
         };
         /** @description 稳定的错误类别。HTTP 错误的 `Problem.code` 和运行失败的错误类别共用这一组值。 */
-        ErrorCode: string & ("validation_failed" | "version_conflict" | "idempotency_conflict" | "credential_missing" | "credential_unavailable" | "dependency_install_failed" | "runner_unavailable" | "queue_full" | "script_error" | "timeout" | "registration_disabled" | "insufficient_scope" | "not_found" | "unauthenticated" | "username_taken" | "rate_limited" | "run_in_progress" | "out_of_memory" | "run_interrupted" | "origin_not_allowed" | "internal_error" | "permission_denied" | "precondition_required" | "version_not_tested" | "task_archived" | "password_login_disabled" | "last_owner" | "request_closed" | "expired" | "manual_run_disabled");
+        ErrorCode: string & ("validation_failed" | "version_conflict" | "idempotency_conflict" | "credential_missing" | "credential_unavailable" | "dependency_install_failed" | "runner_unavailable" | "queue_full" | "script_error" | "timeout" | "registration_disabled" | "insufficient_scope" | "not_found" | "unauthenticated" | "username_taken" | "rate_limited" | "run_in_progress" | "out_of_memory" | "run_interrupted" | "origin_not_allowed" | "internal_error" | "permission_denied" | "precondition_required" | "version_not_tested" | "task_archived" | "password_login_disabled" | "last_owner" | "request_closed" | "expired" | "manual_run_disabled" | "ai_provider_error");
         /** @description 一条建议的下一步操作。 */
         NextAction: {
             /**
@@ -1807,6 +1962,14 @@ export interface components {
             principal: components["schemas"]["Principal"] | null;
             /** @description `console` 指向控制台首页。 */
             links: components["schemas"]["Links"];
+        };
+        EnvironmentInfo: {
+            /**
+             * @description 部署环境。未配置时为 `unspecified`。
+             * @example production
+             * @enum {string}
+             */
+            environment: "production" | "test" | "staging" | "development" | "unspecified";
         };
         /** @description 服务端的构建信息。 */
         ServerInfo: {
@@ -2581,6 +2744,7 @@ export interface components {
             name: components["schemas"]["TaskName"];
             /** @description 最新版本清单中的用途说明，没有时为空字符串。 */
             description: string;
+            tags: components["schemas"]["TaskTags"];
             state: components["schemas"]["TaskState"];
             /** @description 激活的版本号。触发器只运行激活的版本。从未激活时为 null。 */
             active_version: number | null;
@@ -2610,6 +2774,7 @@ export interface components {
             project_id: string;
             name: components["schemas"]["TaskName"];
             description: string;
+            tags: components["schemas"]["TaskTags"];
             state: components["schemas"]["TaskState"];
             active_version: number | null;
             /** @description 最新版本号。 */
@@ -3029,7 +3194,17 @@ export interface components {
              * @description 日志按保留策略清理的时间，未清理时为 null。清理后 `log_lines` 保留原来的行数，读取日志返回 410 `expired`。
              */
             logs_expired_at: string | null;
+            /**
+             * Format: date-time
+             * @description 手动归档的时间，未归档时为 null。归档后完整日志保存在数据库中，不再自动清理。
+             */
+            archived_at?: string | null;
             links: components["schemas"]["Links"];
+        };
+        /** @description 设置运行记录的手动归档状态。 */
+        SetRunArchiveRequest: {
+            /** @description true 归档并长期保留，false 恢复到默认列表和原保留策略。 */
+            archived: boolean;
         };
         /** @description 对 runner 的简短引用。 */
         RunnerRef: {
@@ -3059,6 +3234,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             task: components["schemas"]["TaskRef"];
+            /**
+             * Format: date-time
+             * @description 手动归档时间，未归档时为 null。
+             */
+            archived_at?: string | null;
             version: number;
             status: components["schemas"]["RunStatus"];
             test: boolean;
@@ -3488,6 +3668,40 @@ export interface components {
             /** @description 超过 2000 项时只返回最早的 2000 项。 */
             truncated: boolean;
         };
+        /** @description 服务商使用的模型 ID。 */
+        AIModelID: string;
+        AIModelList: {
+            /** @description 当前用户启用的模型，未配置时为空。 */
+            models: components["schemas"]["AIModelID"][];
+        };
+        AIConfiguration: {
+            /** @description 已配置的 HTTPS API 基础地址，未配置时省略。 */
+            base_url?: string;
+            models: components["schemas"]["AIModelID"][];
+        };
+        SetAIConfigurationBody: {
+            /** @description 服务商的 HTTPS API 基础地址，包含服务商要求的版本路径，例如 https://api.openai.com/v1。 */
+            base_url: string;
+            /** @description 服务商的 API Key。地址不变时可省略以保留现有 Key。 */
+            api_key?: string;
+            /** @description 允许内置 AI 工具调用的模型。 */
+            models: components["schemas"]["AIModelID"][];
+        };
+        AIChatMessage: {
+            /** @enum {string} */
+            role: "system" | "user" | "assistant";
+            content: string;
+        };
+        AIChatBody: {
+            model: components["schemas"]["AIModelID"];
+            /** @description 按对话顺序排列的文本消息。 */
+            messages: components["schemas"]["AIChatMessage"][];
+        };
+        AIChatResult: {
+            model: components["schemas"]["AIModelID"];
+            /** @description 模型生成的文本。 */
+            content: string;
+        };
         /**
          * @description 字段名，同时是注入时的环境变量名或文件名。
          * @example PRICE_API_TOKEN
@@ -3567,7 +3781,7 @@ export interface components {
             task: components["schemas"]["TaskRef"] | null;
             /**
              * Format: uuid
-             * @description 填写后得到的凭证；更新请求为被更新的凭证。未填写时为 null。
+             * @description 填写后得到的凭证；更新请求为被更新的凭证。尚未创建凭证或凭证已删除时为 null。
              */
             credential_id: string | null;
             fields: components["schemas"]["CredentialFieldSpec"][];
@@ -3984,6 +4198,17 @@ export interface components {
         AuditEventPage: components["schemas"]["CursorPage"] & {
             items: components["schemas"]["AuditEvent"][];
         };
+        /**
+         * @description 用于分类的标签名。区分大小写，首尾不能有空白，不允许控制字符或换行。
+         * @example 日报
+         * @example CRM
+         */
+        TaskTag: string;
+        /** @description 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。 */
+        TaskTags: components["schemas"]["TaskTag"][];
+        TaskTagSet: {
+            tags: components["schemas"]["TaskTags"];
+        };
     };
     responses: {
         /** @description 错误。结构见 `Problem`。 */
@@ -4067,6 +4292,7 @@ export type SchemaProjectRef = components['schemas']['ProjectRef'];
 export type SchemaUserRef = components['schemas']['UserRef'];
 export type SchemaProjectRole = components['schemas']['ProjectRole'];
 export type SchemaDiscovery = components['schemas']['Discovery'];
+export type SchemaEnvironmentInfo = components['schemas']['EnvironmentInfo'];
 export type SchemaServerInfo = components['schemas']['ServerInfo'];
 export type SchemaApiInfo = components['schemas']['ApiInfo'];
 export type SchemaCapabilities = components['schemas']['Capabilities'];
@@ -4158,6 +4384,7 @@ export type SchemaRunTrigger = components['schemas']['RunTrigger'];
 export type SchemaSkipReason = components['schemas']['SkipReason'];
 export type SchemaCanceller = components['schemas']['Canceller'];
 export type SchemaRun = components['schemas']['Run'];
+export type SchemaSetRunArchiveRequest = components['schemas']['SetRunArchiveRequest'];
 export type SchemaRunnerRef = components['schemas']['RunnerRef'];
 export type SchemaRunBrief = components['schemas']['RunBrief'];
 export type SchemaRunSummary = components['schemas']['RunSummary'];
@@ -4191,6 +4418,13 @@ export type SchemaActiveRun = components['schemas']['ActiveRun'];
 export type SchemaUpcomingFire = components['schemas']['UpcomingFire'];
 export type SchemaCalendarItem = components['schemas']['CalendarItem'];
 export type SchemaCalendar = components['schemas']['Calendar'];
+export type SchemaAiModelId = components['schemas']['AIModelID'];
+export type SchemaAiModelList = components['schemas']['AIModelList'];
+export type SchemaAiConfiguration = components['schemas']['AIConfiguration'];
+export type SchemaSetAiConfigurationBody = components['schemas']['SetAIConfigurationBody'];
+export type SchemaAiChatMessage = components['schemas']['AIChatMessage'];
+export type SchemaAiChatBody = components['schemas']['AIChatBody'];
+export type SchemaAiChatResult = components['schemas']['AIChatResult'];
 export type SchemaCredentialFieldName = components['schemas']['CredentialFieldName'];
 export type SchemaCredentialFieldSpec = components['schemas']['CredentialFieldSpec'];
 export type SchemaCreateCredentialRequestBody = components['schemas']['CreateCredentialRequestBody'];
@@ -4237,6 +4471,9 @@ export type SchemaUpdateSettingsRequest = components['schemas']['UpdateSettingsR
 export type SchemaAuditActor = components['schemas']['AuditActor'];
 export type SchemaAuditEvent = components['schemas']['AuditEvent'];
 export type SchemaAuditEventPage = components['schemas']['AuditEventPage'];
+export type SchemaTaskTag = components['schemas']['TaskTag'];
+export type SchemaTaskTags = components['schemas']['TaskTags'];
+export type SchemaTaskTagSet = components['schemas']['TaskTagSet'];
 export type ResponseProblem = components['responses']['Problem'];
 export type ParameterLimit = components['parameters']['Limit'];
 export type ParameterCursor = components['parameters']['Cursor'];
@@ -4311,6 +4548,27 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["Discovery"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前部署的环境。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentInfo"];
                 };
             };
             default: components["responses"]["Problem"];
@@ -4983,6 +5241,8 @@ export interface operations {
                 name?: components["schemas"]["TaskName"];
                 /** @description 按任务名或用途说明中包含的文字筛选，不区分大小写。 */
                 q?: string;
+                /** @description 只返回带有这个标签的任务，精确匹配并区分大小写。 */
+                tag?: components["schemas"]["TaskTag"];
                 /** @description 为 true 时只返回已归档的任务。 */
                 archived?: boolean;
                 /** @description 每页返回的条数。 */
@@ -5108,6 +5368,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Task"];
+                };
+            };
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    setTaskTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 任务 ID。 */
+                taskId: components["parameters"]["TaskID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskTagSet"];
+            };
+        };
+        responses: {
+            /** @description 保存后的标签。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTagSet"];
                 };
             };
             409: components["responses"]["Problem"];
@@ -5461,6 +5750,10 @@ export interface operations {
             query?: {
                 /** @description 只返回这个项目中的数据。省略时返回调用者能查看的全部项目。 */
                 project_id?: components["parameters"]["ProjectFilter"];
+                /** @description true 只返回手动归档的运行，false 或省略时只返回未归档的运行。 */
+                archived?: boolean;
+                /** @description true 隐藏已删除任务的运行，false 或省略时保留这些记录。 */
+                exclude_archived_tasks?: boolean;
                 /** @description 只返回这个任务的运行。 */
                 task_id?: string;
                 /** @description 只返回这些状态的运行，可以重复给出，例如 `status=failed&status=timed_out`。 */
@@ -5541,6 +5834,34 @@ export interface operations {
         responses: {
             /** @description 已接受取消请求。 */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setRunArchive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 运行 ID。 */
+                runId: components["parameters"]["RunID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetRunArchiveRequest"];
+            };
+        };
+        responses: {
+            /** @description 更新后的运行记录。 */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5852,6 +6173,117 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getAIConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 个人 AI 配置。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConfiguration"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setAIConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAIConfigurationBody"];
+            };
+        };
+        responses: {
+            /** @description 已保存的配置，不含 API Key。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConfiguration"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeAIConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 配置已移除。 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAIModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已启用的模型。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIModelList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createAIChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AIChatBody"];
+            };
+        };
+        responses: {
+            /** @description 生成的文本。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIChatResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     listCredentialRequests: {
         parameters: {
             query?: {
@@ -6059,6 +6491,28 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Credential"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 凭证 ID。 */
+                credentialId: components["parameters"]["CredentialID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已删除凭证。 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

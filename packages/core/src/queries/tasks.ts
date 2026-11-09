@@ -4,7 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 
 import { unwrap, useApi, useApiSession } from "../client";
 import { shouldRetry } from "../errors";
-import { usePollInterval } from "../live/live";
+import { RESOURCE_POLL_MS } from "../live/live";
 import { isRunActive } from "../status";
 import { queryKeys } from "./keys";
 
@@ -15,9 +15,26 @@ export type TaskVersionSummary = Schemas["TaskVersionSummary"];
 export type TaskDiff = Schemas["TaskDiff"];
 export type FileDiff = Schemas["FileDiff"];
 
-const ACTIVE_POLL_MS = 3_000;
+export function useSetTaskTags(taskId: string) {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tags: string[]) => unwrap(session.client.PUT("/api/v1/tasks/{taskId}/tags", {
+      params: { path: { taskId } }, body: { tags },
+    })),
+    onMutate: session.capture,
+    onSettled: (_data, _error, _input, isCurrent) => {
+      if (!isCurrent?.()) return;
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll }),
+      ]);
+    },
+  });
+}
 
 export type TaskControl =
+  | { action: "delete" }
   | { action: "pause" }
   | { action: "resume"; version: number }
   | { action: "skip"; scheduledAt: string };
@@ -27,7 +44,9 @@ export function useTaskControl(taskId: string) {
   const session = useApiSession();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: TaskControl): Promise<Schemas["Task"] | TriggerSet> => input.action === "skip"
+    mutationFn: async (input: TaskControl): Promise<Schemas["Task"] | TriggerSet> => input.action === "delete"
+      ? unwrap(session.client.DELETE("/api/v1/tasks/{taskId}", { params: { path: { taskId } } }))
+      : input.action === "skip"
       ? unwrap(session.client.POST("/api/v1/tasks/{taskId}/skip-next-run", {
           params: { path: { taskId } }, body: { scheduled_at: input.scheduledAt },
         }))
@@ -52,12 +71,11 @@ export function useTaskControl(taskId: string) {
 /** The latest runs of a task, newest first. */
 export function useTaskRuns(taskId: string, limit = 30) {
   const api = useApi();
-  const poll = usePollInterval(ACTIVE_POLL_MS * 3);
   return useQuery({
     queryKey: [...queryKeys.taskRuns(taskId), limit],
     queryFn: () => unwrap(api.GET("/api/v1/runs", { params: { query: { task_id: taskId, limit } } })),
     retry: shouldRetry,
-    refetchInterval: poll,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -67,7 +85,7 @@ export function useTaskTriggers(taskId: string) {
     queryKey: queryKeys.taskTriggers(taskId),
     queryFn: () => unwrap(api.GET("/api/v1/tasks/{taskId}/triggers", { params: { path: { taskId } } })),
     retry: shouldRetry,
-    staleTime: 60_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -77,7 +95,7 @@ export function useTaskCredentials(taskId: string) {
     queryKey: queryKeys.taskCredentials(taskId),
     queryFn: () => unwrap(api.GET("/api/v1/tasks/{taskId}/credentials", { params: { path: { taskId } } })),
     retry: shouldRetry,
-    staleTime: 60_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -89,7 +107,7 @@ export function useTaskVersions(taskId: string) {
     queryFn: () =>
       unwrap(api.GET("/api/v1/tasks/{taskId}/versions", { params: { path: { taskId }, query: { limit: 50 } } })),
     retry: shouldRetry,
-    staleTime: 30_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
@@ -115,6 +133,8 @@ export function useTaskDiff(taskId: string, seq: number | null, base: number | n
   return useQuery({
     queryKey: queryKeys.taskDiff(taskId, seq ?? 0, base),
     enabled: seq !== null,
+    // Without an explicit base, activation changes what the server compares against.
+    refetchInterval: base === null ? RESOURCE_POLL_MS : false,
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/tasks/{taskId}/versions/{seq}/diff", {
@@ -139,7 +159,7 @@ export function useResultHistory(taskId: string, count: number, enabled: boolean
     queryFn: () =>
       unwrap(api.GET("/api/v1/runs", { params: { query: { task_id: taskId, test: false, limit: Math.min(100, count * 3) } } })),
     retry: shouldRetry,
-    staleTime: 30_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
   const ids = (runs.data?.items ?? [])
     .filter((r) => r.result_status !== null && !isRunActive(r.status))

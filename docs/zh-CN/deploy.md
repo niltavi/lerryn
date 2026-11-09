@@ -1,6 +1,6 @@
 # Lerryn 部署与运维
 
-[English](en/deploy.md) · [文档目录](README.zh-CN.md)
+[English](../en/deploy.md) · [文档目录](README.md)
 
 这份文档写给部署和维护 Lerryn 的人：安装、配置、指标、备份恢复、迁移、升级回退、容量规划和公网部署。设计依据见技术设计第 4.3、6.1、15 节。
 
@@ -180,6 +180,7 @@ OrbStack 的 Docker 跑在它自己的 Linux 虚拟机里。compose 文件中 `/
 | --- | --- | --- | --- |
 | `server.listen` | `LERRYN_SERVER_LISTEN` | `:33333` | API、MCP 和控制台的监听地址 |
 | `server.public_url` | `LERRYN_SERVER_PUBLIC_URL` | `http://localhost:33333` | 对外访问地址，用来生成控制台链接，必须是绝对 URL |
+| `server.environment` | `LERRYN_SERVER_ENVIRONMENT` | （空） | 部署环境，可填 `production`、`test`、`staging` 或 `development`。留空时 `environment_get` 返回 `unspecified`。同一部署的所有 server 副本须使用相同值 |
 | `server.trusted_proxies` | `LERRYN_SERVER_TRUSTED_PROXIES` | （空） | 反向代理所在的网段（CIDR 列表）。来自这些地址的请求按 `X-Forwarded-For` 取客户端地址，用于登录限速、审计和会话记录；留空时一律用直接连接的地址。参考部署的多节点拓扑填了 Caddy 所在的 `172.30.10.0/24` |
 | `server.extra_origins` | `LERRYN_SERVER_EXTRA_ORIGINS` | （空） | 控制台的其他访问地址，只写 `协议://主机[:端口]`，例如局域网部署前面再接一个隧道域名。从这些地址登录后同样可以修改；返回给 Agent 的链接仍用 `server.public_url` |
 | `server.runner_registration_token_file` | `LERRYN_SERVER_RUNNER_REGISTRATION_TOKEN_FILE` | （空） | 文件内容可作为 runner 注册令牌，与管理员生成的令牌并用；留空时只接受管理员生成的令牌 |
@@ -221,6 +222,7 @@ OrbStack 的 Docker 跑在它自己的 Linux 虚拟机里。compose 文件中 `/
 | `metrics.enabled` | `LERRYN_METRICS_ENABLED` | `false` | 是否提供 Prometheus 指标 |
 | `metrics.listen` | `LERRYN_METRICS_LISTEN` | （空） | 指标的单独监听地址，例如 `:9090`；留空时挂在 `server.listen` 的 `/metrics` 上 |
 | `metrics.token_file` | `LERRYN_METRICS_TOKEN_FILE` | （空） | 抓取指标需要的 Bearer 令牌文件；挂在 `server.listen` 上时必填 |
+| `ai.allowed_networks` | `LERRYN_AI_ALLOWED_NETWORKS` | （空） | AI 调用允许访问的内网网段（CIDR）。默认只访问公网 HTTPS 地址 |
 | `notify.allowed_networks` | `LERRYN_NOTIFY_ALLOWED_NETWORKS` | （空） | 通知允许发往的内网网段（CIDR），例如 `10.20.0.0/16`。默认只发往公网地址，回环、私有和链路本地地址一律拒绝 |
 | `scheduler.max_queued_runs` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS` | `1000` | 整个部署排队中的运行上限。超过时定时和 webhook 触发记为已跳过（`queue_full`），API 发起返回 429 `queue_full`；0 表示不限 |
 | `scheduler.max_queued_runs_per_project` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS_PER_PROJECT` | `200` | 单个项目排队中的运行上限，避免一个项目占满队列；0 表示不限 |
@@ -402,7 +404,7 @@ lerryn --config new.yaml import --input lerryn-export.tar.gz
 
 升级：
 
-1. 阅读新版本的发布说明（`docs/release-notes/`），确认能否直接回退。
+1. 阅读新版本的发布说明（`docs/zh-CN/release-notes/`），确认能否直接回退。
 2. 备份数据库（第 6 节）。
 3. 停止全部 server：单机为 `docker compose stop lerryn`，标准拓扑为 `docker compose stop server-1 server-2`。
 4. 修改 `.env` 中的 `LERRYN_VERSION`，拉取新镜像：`docker compose pull`。

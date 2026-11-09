@@ -47,7 +47,7 @@ tags:
   - name: overview
     description: 控制台概览看板。
   - name: credentials
-    description: 凭证、填写请求和授权。凭证明文只出现在 fillCredentialRequest 的请求体中，不出现在任何响应里。
+    description: 凭证、填写请求和授权。凭证明文只出现在填写或配置凭证的请求体中。
   - name: notifications
     description: 通知渠道和订阅。
   - name: admin
@@ -55,10 +55,12 @@ tags:
   - name: skills
     description: 随服务端发行的 Agent Skill。
   - name: tools
-    description: 项目中登记的工具，供任务清单引用。
+    description: 项目登记工具与平台内置工具。
 paths:
   /api/v1/discover:
     $ref: ./discover/paths.yaml#/discover
+  /api/v1/environment:
+    $ref: ./discover/paths.yaml#/environment
   /api/v1/auth/register:
     $ref: ./auth/paths.yaml#/register
   /api/v1/auth/login:
@@ -107,6 +109,8 @@ paths:
     $ref: ./tasks/paths.yaml#/activation
   /api/v1/tasks/{taskId}/console:
     $ref: ./tasks/paths.yaml#/console
+  /api/v1/tasks/{taskId}/tags:
+    $ref: ./tasks/paths.yaml#/tags
   /api/v1/tasks/{taskId}/versions:
     $ref: ./tasks/paths.yaml#/versions
   /api/v1/tasks/{taskId}/versions/{seq}:
@@ -135,6 +139,8 @@ paths:
     $ref: ./runs/paths.yaml#/run
   /api/v1/runs/{runId}/cancel:
     $ref: ./runs/paths.yaml#/cancel
+  /api/v1/runs/{runId}/archive:
+    $ref: ./runs/paths.yaml#/archive
   /api/v1/runs/{runId}/rerun:
     $ref: ./runs/paths.yaml#/rerun
   /api/v1/runs/{runId}/events:
@@ -155,6 +161,12 @@ paths:
     $ref: ./overview/paths.yaml#/overview
   /api/v1/overview/calendar:
     $ref: ./overview/paths.yaml#/calendar
+  /api/v1/me/ai:
+    $ref: ./ai/paths.yaml#/configuration
+  /api/v1/ai/models:
+    $ref: ./ai/paths.yaml#/models
+  /api/v1/ai/chat:
+    $ref: ./ai/paths.yaml#/chat
   /api/v1/credential-requests:
     $ref: ./credentials/paths.yaml#/credentialRequests
   /api/v1/credential-requests/{requestId}:
@@ -165,6 +177,8 @@ paths:
     $ref: ./credentials/paths.yaml#/credentials
   /api/v1/credentials/{credentialId}:
     $ref: ./credentials/paths.yaml#/credential
+  /api/v1/credentials/{credentialId}/purge:
+    $ref: ./credentials/paths.yaml#/credentialPurge
   /api/v1/credentials/{credentialId}/grants/{taskId}:
     $ref: ./credentials/paths.yaml#/grant
   /api/v1/notification-channels:
@@ -331,6 +345,8 @@ components:
       $ref: ./common/schemas.yaml#/ProjectRole
     Discovery:
       $ref: ./discover/schemas.yaml#/Discovery
+    EnvironmentInfo:
+      $ref: ./discover/schemas.yaml#/EnvironmentInfo
     ServerInfo:
       $ref: ./discover/schemas.yaml#/ServerInfo
     ApiInfo:
@@ -513,6 +529,8 @@ components:
       $ref: ./runs/schemas.yaml#/Canceller
     Run:
       $ref: ./runs/schemas.yaml#/Run
+    SetRunArchiveRequest:
+      $ref: ./runs/schemas.yaml#/SetRunArchiveRequest
     RunnerRef:
       $ref: ./runs/schemas.yaml#/RunnerRef
     RunBrief:
@@ -579,6 +597,20 @@ components:
       $ref: ./overview/schemas.yaml#/CalendarItem
     Calendar:
       $ref: ./overview/schemas.yaml#/Calendar
+    AIModelID:
+      $ref: ./ai/schemas.yaml#/AIModelID
+    AIModelList:
+      $ref: ./ai/schemas.yaml#/AIModelList
+    AIConfiguration:
+      $ref: ./ai/schemas.yaml#/AIConfiguration
+    SetAIConfigurationBody:
+      $ref: ./ai/schemas.yaml#/SetAIConfigurationBody
+    AIChatMessage:
+      $ref: ./ai/schemas.yaml#/AIChatMessage
+    AIChatBody:
+      $ref: ./ai/schemas.yaml#/AIChatBody
+    AIChatResult:
+      $ref: ./ai/schemas.yaml#/AIChatResult
     CredentialFieldName:
       $ref: ./credentials/schemas.yaml#/CredentialFieldName
     CredentialFieldSpec:

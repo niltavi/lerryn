@@ -1,6 +1,6 @@
 # Getting started with Lerryn
 
-[简体中文](../getting-started.md) · [Documentation](README.md)
+[简体中文](../zh-CN/getting-started.md) · [Documentation](README.md)
 
 External agents create and maintain Lerryn tasks through APIs, MCP, or the CLI. The console displays tasks, logs, results, and artifacts and provides account and credential management. This guide connects to an instance and verifies submission, execution, and result retrieval with a Python task that requires no network access or credentials.
 
@@ -10,7 +10,7 @@ For an existing instance, obtain its address from the maintainer and sign in to 
 
 Create an administrator before opening a new instance to the internet, then disable open registration. See [public deployment](deploy.md#11-public-deployment) for commands. Keep an instance private until the first administrator exists.
 
-Use the `lerryn` binary as the client and match its version to the server. See the [repository README](../../README.md#development) to build `bin/lerryn` from source; installation and availability of release archives depend on the corresponding release records. The commands below assume `lerryn` is on `PATH`.
+Use the `lerryn` binary as the client and match its version to the server. See the [development instructions](README.md#development) to build `bin/lerryn` from source; installation and availability of release archives depend on the corresponding release records. The commands below assume `lerryn` is on `PATH`.
 
 ```bash
 lerryn login https://lerryn.example.com --username alice

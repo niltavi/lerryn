@@ -18,6 +18,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/niltavi/lerryn/server/internal/auth"
+	"github.com/niltavi/lerryn/server/internal/notify"
 	"github.com/niltavi/lerryn/server/internal/runproto"
 	"github.com/niltavi/lerryn/server/internal/secrets"
 	"github.com/niltavi/lerryn/server/internal/store"
@@ -32,9 +33,10 @@ import (
 //
 //   - A credential and its fill requests belong to one user. Nobody else,
 //     platform admins included, sees them; other users get ErrNotFound.
-//   - Values are only ever written through Fill, which accepts browser
-//     sessions only, and only read back by RunSecrets for a run assigned to
-//     the calling runner. No other method returns or logs them.
+//   - Task credentials are written through Fill from a browser session and
+//     read back by RunSecrets only for a run assigned to the calling runner.
+//   - The personal AI credential is isolated from task credentials. Its key
+//     stays on the server and is sent only to the configured model provider.
 //   - Granting needs the owner, who must be able to view the task. Taking
 //     over a reference name another user's credential is bound to also
 //     needs permission to modify the task.
@@ -44,6 +46,7 @@ type Credentials struct {
 	keys  secrets.Keyring
 	log   *slog.Logger
 	now   func() time.Time
+	ai    aiProvider
 }
 
 // NewCredentials returns the credential service. keys encrypts and
@@ -52,7 +55,7 @@ func NewCredentials(db *store.DB, authz *Authorizer, keys secrets.Keyring, log *
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	return &Credentials{db: db, authz: authz, keys: keys, log: log, now: store.Now}
+	return &Credentials{db: db, authz: authz, keys: keys, log: log, now: store.Now, ai: newAIProvider(&notify.Guard{})}
 }
 
 // Credential rules (CreateCredentialRequestBody and the fill page).
@@ -172,21 +175,6 @@ func (c *Credentials) CreateRequest(ctx context.Context, p *auth.Principal, in C
 		}
 		task = &t
 	}
-	name := in.Name
-	if in.CredentialID != uuid.Nil {
-		cred, err := c.ownCredential(ctx, c.db, p, in.CredentialID)
-		if err != nil {
-			return CredentialRequestDetail{}, err
-		}
-		if credentialStatus(cred, c.now()) == store.CredentialRevoked {
-			var v validation
-			v.content("#/credential_id", "这个凭证已撤销，不能更新；请改为发起新的凭证请求")
-			return CredentialRequestDetail{}, v.err()
-		}
-		if name == "" {
-			name = cred.Name
-		}
-	}
 	client, err := c.clientName(ctx, p)
 	if err != nil {
 		return CredentialRequestDetail{}, err
@@ -201,7 +189,7 @@ func (c *Credentials) CreateRequest(ctx context.Context, p *auth.Principal, in C
 		UserID:       p.UserID,
 		TaskID:       in.TaskID,
 		CredentialID: in.CredentialID,
-		Name:         name,
+		Name:         in.Name,
 		Purpose:      in.Purpose,
 		Fields:       in.Fields,
 		Status:       store.CredentialRequestPending,
@@ -213,11 +201,25 @@ func (c *Credentials) CreateRequest(ctx context.Context, p *auth.Principal, in C
 	// Idempotency-Key retries are answered before this, by the API's
 	// idempotency layer (httpapi/idempotency.go), with the first response.
 	err = c.db.WriteTx(ctx, func(ctx context.Context, tx bun.Tx) error {
+		if in.CredentialID != uuid.Nil {
+			cred, err := lockOwnCredential(ctx, tx, p, in.CredentialID)
+			if err != nil {
+				return err
+			}
+			if credentialStatus(cred, now) == store.CredentialRevoked {
+				var v validation
+				v.content("#/credential_id", "这个凭证已撤销，不能更新；请改为发起新的凭证请求")
+				return v.err()
+			}
+			if req.Name == "" {
+				req.Name = cred.Name
+			}
+		}
 		if _, err := tx.NewInsert().Model(&req).Exec(ctx); err != nil {
 			return err
 		}
 		kind, actor := actorOf(p)
-		details := map[string]any{"name": name, "fields": fieldNames(in.Fields)}
+		details := map[string]any{"name": req.Name, "fields": fieldNames(in.Fields)}
 		if in.TaskID != uuid.Nil {
 			details["task_id"] = in.TaskID.String()
 		}
@@ -338,7 +340,20 @@ func (c *Credentials) visibleTask(ctx context.Context, p *auth.Principal, id uui
 
 func (c *Credentials) ownCredential(ctx context.Context, idb bun.IDB, p *auth.Principal, id uuid.UUID) (store.Credential, error) {
 	var cred store.Credential
-	err := idb.NewSelect().Model(&cred).Where("id = ? AND owner_user_id = ?", id, p.UserID).Scan(ctx)
+	err := idb.NewSelect().Model(&cred).Where("id = ? AND owner_user_id = ? AND name <> ?", id, p.UserID, aiCredentialName).Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return store.Credential{}, ErrNotFound
+	}
+	return cred, err
+}
+
+// lockOwnCredential serializes removal with new requests and grants.
+// A no-op update takes the row lock on PostgreSQL and also works on SQLite.
+func lockOwnCredential(ctx context.Context, tx bun.Tx, p *auth.Principal, id uuid.UUID) (store.Credential, error) {
+	var cred store.Credential
+	err := tx.NewUpdate().Model(&cred).Set("updated_at = updated_at").
+		Where("id = ? AND owner_user_id = ? AND name <> ?", id, p.UserID, aiCredentialName).
+		Returning("*").Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return store.Credential{}, ErrNotFound
 	}
@@ -525,7 +540,7 @@ func (c *Credentials) List(ctx context.Context, p *auth.Principal, status string
 	}
 	now := c.now()
 	q := c.db.NewSelect().Model((*store.Credential)(nil)).
-		Where("owner_user_id = ?", p.UserID).
+		Where("owner_user_id = ? AND name <> ?", p.UserID, aiCredentialName).
 		Order("name", "id").Limit(int64(limit) + 1)
 	switch status {
 	case "":
@@ -661,6 +676,47 @@ func (c *Credentials) Revoke(ctx context.Context, p *auth.Principal, id uuid.UUI
 	return c.Get(ctx, p, id)
 }
 
+// Delete removes one of p's revoked credentials and its versions and grants.
+// Fill request outcomes and audit records remain available after deletion.
+func (c *Credentials) Delete(ctx context.Context, p *auth.Principal, id uuid.UUID) error {
+	if p == nil {
+		return ErrUnauthenticated
+	}
+	return c.db.WriteTx(ctx, func(ctx context.Context, tx bun.Tx) error {
+		cred, err := lockOwnCredential(ctx, tx, p, id)
+		if err != nil {
+			return err
+		}
+		now := c.now()
+		if credentialStatus(cred, now) != store.CredentialRevoked {
+			var v validation
+			v.content("#", "请先撤销凭证，再删除")
+			return v.err()
+		}
+		// Close pending updates before clearing the link. A pending request
+		// with no credential ID is otherwise treated as a request to create one.
+		if _, err := tx.NewUpdate().Model((*store.CredentialRequest)(nil)).
+			Set("credential_id = NULL").
+			Set("status = CASE WHEN status <> ? THEN status WHEN expires_at <= ? THEN ? ELSE ? END",
+				store.CredentialRequestPending, now, store.CredentialRequestExpired, store.CredentialRequestCancelled).
+			Set("cancelled_at = CASE WHEN status = ? AND expires_at > ? THEN ? ELSE cancelled_at END",
+				store.CredentialRequestPending, now, now).
+			Where("credential_id = ?", cred.ID).Exec(ctx); err != nil {
+			return fmt.Errorf("detach fill requests: %w", err)
+		}
+		// The foreign keys cascade to encrypted versions and task grants.
+		if _, err := tx.NewDelete().Model(&cred).WherePK().Exec(ctx); err != nil {
+			return fmt.Errorf("delete revoked credential: %w", err)
+		}
+		kind, actor := actorOf(p)
+		return writeAudit(ctx, tx, auditEntry{
+			actorKind: kind, actorID: actor,
+			action: "credential.delete", resourceKind: "credential", resourceID: id.String(),
+			result: resultSuccess, details: map[string]any{"name": cred.Name},
+		})
+	})
+}
+
 // Grant binds one of p's credentials to a task under a reference name,
 // replacing whatever the name was bound to (tech design 12.4).
 func (c *Credentials) Grant(ctx context.Context, p *auth.Principal, credentialID, taskID uuid.UUID, name string) (GrantDetail, error) {
@@ -672,22 +728,21 @@ func (c *Credentials) Grant(ctx context.Context, p *auth.Principal, credentialID
 		v.body("#/name", "引用名为 1 到 64 个字符，只能包含大写字母、数字和下划线，以大写字母开头")
 		return GrantDetail{}, v.err()
 	}
-	cred, err := c.ownCredential(ctx, c.db, p, credentialID)
-	if err != nil {
-		return GrantDetail{}, err
-	}
 	task, err := c.visibleTask(ctx, p, taskID)
 	if err != nil {
 		return GrantDetail{}, err
 	}
-	if s := credentialStatus(cred, c.now()); s != store.CredentialActive {
-		var v validation
-		v.content("#/name", "凭证已撤销或已过期，不能授权；请先更新凭证")
-		return GrantDetail{}, v.err()
-	}
 	var g store.CredentialGrant
 	err = c.db.WriteTx(ctx, func(ctx context.Context, tx bun.Tx) error {
-		var err error
+		cred, err := lockOwnCredential(ctx, tx, p, credentialID)
+		if err != nil {
+			return err
+		}
+		if credentialStatus(cred, c.now()) != store.CredentialActive {
+			var v validation
+			v.content("#/name", "凭证已撤销或已过期，不能授权；请先更新凭证")
+			return v.err()
+		}
 		g, err = c.bind(ctx, tx, p, cred.ID, task, name)
 		return err
 	})
@@ -713,10 +768,12 @@ func (c *Credentials) bind(ctx context.Context, tx bun.Tx, p *auth.Principal, cr
 		return current, nil
 	default:
 		var owner store.Credential
-		if err := tx.NewSelect().Model(&owner).Column("owner_user_id").Where("id = ?", current.CredentialID).Scan(ctx); err != nil {
+		err := tx.NewSelect().Model(&owner).Column("owner_user_id").Where("id = ?", current.CredentialID).Scan(ctx)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return store.CredentialGrant{}, err
 		}
-		if owner.OwnerUserID != p.UserID {
+		// A concurrently deleted credential has already lost this grant.
+		if err == nil && owner.OwnerUserID != p.UserID {
 			if err := c.authz.Require(ctx, p, task.ProjectID, ActionModifyTask); err != nil {
 				return store.CredentialGrant{}, err
 			}

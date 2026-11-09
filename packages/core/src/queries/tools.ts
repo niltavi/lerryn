@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { unwrap, useApi } from "../client";
 import { shouldRetry } from "../errors";
+import { RESOURCE_POLL_MS } from "../live/live";
 import { queryKeys } from "./keys";
 
 export type Tool = Schemas["Tool"];
@@ -18,6 +19,6 @@ export function useTools(projectId: string | null, opts: { enabled?: boolean } =
     queryFn: () => unwrap(api.GET("/api/v1/tools", { params: { query: projectId ? { project_id: projectId } : {} } })),
     enabled: opts.enabled ?? true,
     retry: shouldRetry,
-    staleTime: 60_000,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }

@@ -32,7 +32,7 @@ docker compose --profile runners up -d
 
 ## 配置
 
-三层，后者覆盖前者：内置默认值、YAML 配置文件（`--config` 或 `LERRYN_CONFIG`）、`LERRYN_` 前缀的环境变量（例如 `LERRYN_RUNNER_SLOTS=8`，列表用逗号分隔）。未知的键直接报错。全部配置项见 `deploy/lerryn.example.yaml` 和 `docs/deploy.md` 第 4 节。
+三层，后者覆盖前者：内置默认值、YAML 配置文件（`--config` 或 `LERRYN_CONFIG`）、`LERRYN_` 前缀的环境变量（例如 `LERRYN_RUNNER_SLOTS=8`，列表用逗号分隔）。未知的键直接报错。全部配置项见 `deploy/lerryn.example.yaml` 和 `docs/zh-CN/deploy.md` 第 4 节。
 
 通知只能发往公网地址；内网的 webhook 接收方要把它的网段加进 `notify.allowed_networks`（CIDR 列表），只加需要的网段。
 

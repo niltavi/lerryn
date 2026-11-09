@@ -3,15 +3,16 @@ import { CopyButton, StateCard } from "@lerryn/ui-web";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Copy, FileCode, Globe, Plug } from "lucide-react";
 
-import guideZh from "../../../../../docs/tools.md?url";
-import guideEn from "../../../../../docs/en/tools.md?url";
 import { origin } from "../../lib/hooks";
 import { Board, LoadError, usePageTitle } from "../../shell/layout";
 
 // These are Lerryn's own MCP tools, separate from the project registry.
 const BUILTIN_TOOLS = [
   ["discover", "read"],
+  ["environment_get", "read"],
   ["task_get", "read"],
+  ["task_list", "read"],
+  ["task_set_tags", "write"],
   ["task_apply", "write"],
   ["task_validate", "read"],
   ["trigger_set", "write"],
@@ -22,12 +23,14 @@ const BUILTIN_TOOLS = [
   ["run_cancel", "execute"],
   ["run_rerun", "execute"],
   ["credential_request", "write"],
+  ["ai_models", "read"],
+  ["ai_chat", "execute"],
   ["api_describe", "read"],
   ["api_call", "perOperation"],
 ] as const;
 
 export function ToolsPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   usePageTitle(t("tools.title"));
   const tools = useTools(null);
   const projects = useProjects();
@@ -37,10 +40,15 @@ export function ToolsPage() {
     <Board label={t("tools.title")}>
       <div className="board-top">
         <h1 className="h2">{t("tools.title")}</h1>
-        <a href={locale === "en" ? guideEn : guideZh} download="lerryn-tools.md" className="row">
-          <BookOpen className="wl-icon" aria-hidden="true" />
-          {t("tools.guide")}
-        </a>
+        <div className="row">
+          <a href="/docs/en/tools.md" hrefLang="en" download="lerryn-tools.md" className="row">
+            <BookOpen className="wl-icon" aria-hidden="true" />
+            {t("tools.guide")}
+          </a>
+          <a href="/docs/zh-CN/tools.md" hrefLang="zh-CN" download="lerryn-tools-zh-CN.md" className="body-sm">
+            {t("tools.guideZh")}
+          </a>
+        </div>
       </div>
       <p className="body-sm muted">{t("tools.intro")}</p>
       <Interfaces />

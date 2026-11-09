@@ -3,7 +3,7 @@
 // recorded tool calls. Pure functions, tested without React.
 import type { Schemas } from "@lerryn/api";
 
-import { daysUntil, formatDuration } from "../format";
+import { daysUntil, formatDuration, shortId } from "../format";
 import { isRunActive, runStatusMeta } from "../status";
 import { resolvePointer, sortTasksBySchedule, type PanelSpec, type RunSummary, type TaskSummary } from "./model";
 
@@ -19,25 +19,29 @@ export interface TaskGroups {
   attention: TaskSummary[];
   /** Something is queued or running. */
   running: TaskSummary[];
-  /** Everything else, soonest next run first; inactive tasks last. */
+  /** Enabled tasks with a scheduled fire, soonest first. */
   scheduled: TaskSummary[];
+  enabled: TaskSummary[];
+  inactive: TaskSummary[];
 }
 
-/** Splits the task list into the three groups of the list column (prototype Main.dc.html). */
+/** Splits the task list into the status groups of the list column (prototype Main.dc.html). */
 export function groupTasks(tasks: readonly TaskSummary[]): TaskGroups {
-  const groups: TaskGroups = { attention: [], running: [], scheduled: [] };
+  const groups: TaskGroups = { attention: [], running: [], scheduled: [], enabled: [], inactive: [] };
   for (const task of tasks) {
-    if (task.active_runs > 0) groups.running.push(task);
+    if (task.active_runs > 0 || (task.last_run && isRunActive(task.last_run.status))) groups.running.push(task);
+    else if (task.state === "inactive") groups.inactive.push(task);
     else if (task.last_run && ATTENTION.has(task.last_run.status)) groups.attention.push(task);
-    else groups.scheduled.push(task);
+    else if (task.next_run_at) groups.scheduled.push(task);
+    else groups.enabled.push(task);
   }
   const byFinish = (a: TaskSummary, b: TaskSummary) =>
     Date.parse(b.last_run?.finished_at ?? b.updated_at) - Date.parse(a.last_run?.finished_at ?? a.updated_at);
   groups.attention.sort(byFinish);
   groups.running.sort((a, b) => a.name.localeCompare(b.name));
-  const active = sortTasksBySchedule(groups.scheduled.filter((t) => t.state === "active"));
-  const inactive = groups.scheduled.filter((t) => t.state !== "active").sort((a, b) => a.name.localeCompare(b.name));
-  groups.scheduled = [...active, ...inactive];
+  groups.scheduled = sortTasksBySchedule(groups.scheduled);
+  groups.enabled.sort((a, b) => a.name.localeCompare(b.name));
+  groups.inactive.sort((a, b) => a.name.localeCompare(b.name));
   return groups;
 }
 
@@ -287,25 +291,26 @@ export function summarizeRunEvents(events: readonly RunEvent[]): RunEventSummary
 
 // ── Run list ──
 
-export type RunFilter = "all" | "failed" | "active";
+export type RunFilter = "all" | "failed" | "active" | "archived";
 
 /** The statuses each run list filter asks the server for. */
 export const RUN_FILTER_STATUSES: Record<RunFilter, Schemas["RunStatus"][]> = {
   all: [],
+  archived: [],
   failed: ["failed", "timed_out", "interrupted"],
   active: ["queued", "preparing", "running", "cancelling"],
 };
 
 /**
- * Runs whose task name, short id, version ("v12"), current stage or result
+ * Runs whose task name, ID, version ("v12"), current stage or result
  * summary contains the query, ignoring case. The list API has no text search,
  * so this narrows the pages already loaded.
  */
-export function filterRuns(runs: readonly RunSummary[], query: string): RunSummary[] {
+export function filterRuns(runs: readonly RunSummary[], query: string): readonly RunSummary[] {
   const q = query.trim().toLowerCase();
-  if (!q) return runs as RunSummary[];
+  if (!q) return runs;
   return runs.filter((r) =>
-    [r.task.name, r.id.replace(/-/g, "").slice(-8), `v${r.version}`, r.current_stage ?? "", r.result_summary ?? ""].some((s) =>
+    [r.task.name, r.id, shortId(r.id), `v${r.version}`, r.current_stage ?? "", r.result_summary ?? ""].some((s) =>
       s.toLowerCase().includes(q),
     ),
   );
@@ -332,6 +337,29 @@ export function groupRunsByTask(runs: readonly RunSummary[]): RunTaskGroup[] {
     g.runs.push(run);
   }
   return [...groups.values()];
+}
+
+/**
+ * Kanban columns of the runs board, left to right: waiting to start, running,
+ * finished well, and finished without a result (cancelled, failed, skipped).
+ */
+export const RUN_BOARD_COLUMNS = ["scheduled", "active", "done", "attention"] as const;
+export type RunBoardColumn = (typeof RUN_BOARD_COLUMNS)[number];
+
+/** The board column a run belongs to. An unknown status from a newer server waits in "attention". */
+export function runBoardColumn(status: string): RunBoardColumn {
+  switch (status) {
+    case "queued":
+      return "scheduled";
+    case "preparing":
+    case "running":
+    case "cancelling":
+      return "active";
+    case "completed":
+      return "done";
+    default:
+      return "attention";
+  }
 }
 
 /** Whether a run's status needs someone to look at it. */

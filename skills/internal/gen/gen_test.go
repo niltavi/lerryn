@@ -127,7 +127,7 @@ func TestSkillNamesExistInContract(t *testing.T) {
 			return err
 		}
 		// Generated files come from the contract; lerryn-operate names
-		// commands and metrics from docs/deploy.md, not the contract.
+		// commands and metrics from docs/zh-CN/deploy.md, not the contract.
 		if strings.HasPrefix(string(data), "<!-- Code generated") || strings.HasPrefix(p, "lerryn-operate/") {
 			return nil
 		}

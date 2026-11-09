@@ -8,7 +8,7 @@
 
 0.2 版按几项已经确定的决策做了收敛：首版面向企业自部署，但企业专属的功能尽量少做；内置一套门槛很低的账号体系，与 OIDC 并存；沙箱只用加固的 Docker 容器，不做工具网关和更强的隔离方案；移动端只用来查看任务进度。推迟到 P1 的功能集中列在第 19 节。
 
-0.3 版按 M0 的四项技术验证修订，验证记录在 `docs/spikes/` 下（[S1 双数据库](spikes/s1-dual-dialect-storage.md)、[S2 OpenAPI 生成链路](spikes/s2-openapi-codegen.md)、[S3 MCP 无状态模式](spikes/s3-mcp-stateless.md)、[S4 容器执行](spikes/s4-container-execution.md)），同时补上验证合并后已经实现的事实，以 `main` 上的代码为准。0.4 版按 M1 最小闭环的实现修订。各版本的变化见第 23 节。
+0.3 版按 M0 的四项技术验证修订，验证记录在 `docs/zh-CN/spikes/` 下（[S1 双数据库](spikes/s1-dual-dialect-storage.md)、[S2 OpenAPI 生成链路](spikes/s2-openapi-codegen.md)、[S3 MCP 无状态模式](spikes/s3-mcp-stateless.md)、[S4 容器执行](spikes/s4-container-execution.md)），同时补上验证合并后已经实现的事实，以 `main` 上的代码为准。0.4 版按 M1 最小闭环的实现修订。各版本的变化见第 23 节。
 
 文档按这个顺序展开：前提和选型（第 1 至 3 节），架构、数据和执行（第 4 至 8 节），对外接口、MCP 和 Skill（第 9 至 11 节），账号、权限、前端和运维（第 12 至 16 节），最后是验收对应、里程碑、首版从简清单、已知限制、待确认事项、参考和修订记录。
 
@@ -360,11 +360,12 @@ Agent 面板只渲染五种声明式类型，平台不执行任务给出的 HTML
 | `role_bindings` | project_id、user_id、role | （project_id，user_id）唯一 |
 | `tasks` | project_id、name、state（active／inactive）、active_version_id、active_seq、latest_seq、archived_at、triggers_revision、console_hide_manual_run | 部分唯一索引：未归档时（project_id，name）唯一。`If-Match` 对任务取 latest_seq，对触发器集合取 triggers_revision，不另设 row_version |
 | `task_versions` | task_id、seq、manifest、tree_hash、client（提交时的令牌名）、tested_at、created_by | （task_id，seq）唯一 |
+| `task_tags` | task_id、tag | （task_id，tag）主键；（tag，task_id）索引用于按标签筛选；任务物理删除时级联删除 |
 | `task_files` | version_id、path、blob_hash、size、mode | （version_id，path）唯一 |
 | `environments` | runtime、image_digest、lockfile_hash | 主键即环境 ID（内容哈希） |
 | `triggers` | task_id、name、type、enabled、schedule、timezone、catch_up、params、max_body_bytes、token_hash、token_prefix、next_fire_at、last_fired_at | （task_id，name）唯一；token_hash 唯一 |
 | `trigger_fires` | trigger_id、scheduled_at、outcome、run_id（可空）、missed_count | （trigger_id，scheduled_at）唯一 |
-| `runs` | task_id、version_id、env_id、status、trigger_kind、trigger_id、trigger_fire_id、scheduled_at、client、attempt、max_attempts、retry_of、not_before、rerun_of、skip_reason、is_test、runner_id、runner_name、claimed_at、lease_expires_at、queued_at、started_at、finished_at、exit_code、error_code、error_stage、cancel_requested_by、input_key、concurrency_key、log_archive、log_blob、log_bytes、logs_expired_at | 部分唯一索引：concurrency_key 非空且状态为活动状态时唯一；（status，queued_at）索引；（status，lease_expires_at）索引，供对账扫描过期租约；log_archive 为空且已结束的运行按 finished_at 的部分索引，供日志归档扫描。重试和重跑分成 retry_of、rerun_of 两列，代替原来的 parent_run_id，控制台据此分别显示“重试”和“重跑自” |
+| `runs` | task_id、version_id、env_id、status、trigger_kind、trigger_id、trigger_fire_id、scheduled_at、client、attempt、max_attempts、retry_of、not_before、rerun_of、skip_reason、is_test、runner_id、runner_name、claimed_at、lease_expires_at、queued_at、started_at、finished_at、exit_code、error_code、error_stage、cancel_requested_by、input_key、concurrency_key、log_archive、log_blob、log_bytes、logs_expired_at、archived_at | 部分唯一索引：concurrency_key 非空且状态为活动状态时唯一；（status，queued_at）索引；（status，lease_expires_at）索引，供对账扫描过期租约；log_archive 为空且已结束的运行按 finished_at 的部分索引，供日志归档扫描。重试和重跑分成 retry_of、rerun_of 两列，代替原来的 parent_run_id，控制台据此分别显示“重试”和“重跑自” |
 | `run_required_labels` | run_id、label | （run_id，label）唯一 |
 | `run_events` | run_id、seq、kind、payload、ts | （run_id，seq）唯一 |
 | `log_chunks` | run_id、seq_from、seq_to、data | （run_id，seq_from）唯一 |
@@ -488,9 +489,11 @@ S3 兼容存储的实现在 `blob.S3`（M5）。对象布局与本地实现相�
 {"seq": 1024, "ts": "2026-11-02T00:00:01.234Z", "stream": "stdout", "stage": "fetch", "text": "fetched 120 records"}
 ```
 
-**运行结束后：** 主节点把分片合并为归档写入对象存储，再删除分片。归档按每 1000 行一个独立压缩帧组织，另存一份索引，记录每帧的起始序号和字节偏移。读取任意位置时只解压对应的帧，10 万行的日志也不需要整体加载。
+**运行结束后：** 未手动归档的运行由主节点把分片合并为归档写入对象存储，再删除分片。归档按每 1000 行一个独立压缩帧组织，另存一份索引，记录每帧的起始序号和字节偏移。读取任意位置时只解压对应的帧，10 万行的日志也不需要整体加载。
 
 M5 的实现（`service/logarchive.go`）：主节点每 10 秒找出已经结束、日志仍在分片表里的运行，每批最多 20 个，按结束时间先后归档；积压时连续处理。归档对象由若干个独立的 gzip 成员首尾相接组成，每个成员是 1000 行与分片相同的 NDJSON 记录。对象按内容哈希存放在 `blobs/sha256/` 下，与任务文件共用一套存储接口，不另设 `logs/<run_id>/` 前缀：内容寻址的对象写入即不可变，两个节点重复归档得到同一个对象，不需要额外的删除和覆盖语义。帧索引（每帧的起止序号、字节偏移和长度）和对象哈希存在 `runs.log_archive` 一列 JSON 里，只存不查，读取时按 Range 只取需要的帧。写入归档和删除分片在同一个事务里，条件是 `log_archive` 仍为空，两个主节点同时归档也只生效一次。读取日志时，如果先读到的运行还没有归档、读分片时分片已经被删除，就重新读一次运行，改从归档读取，所以归档过程中的翻页不会缺行。压缩用标准库的 gzip，不引入新的依赖。单机部署同样归档，写入本地对象存储。
+
+**用户手动归档。** `setRunArchive`（`PUT /api/v1/runs/{runId}/archive`，变更）需要运行控制权限，设置 `runs.archived_at`（迁移 20261111010000）。只允许归档已结束且日志未过期的运行，日志已清理返回 410 `expired`。先在事务外按每批 1000 行读取完整日志，写入立即取消文件链接的临时文件，内存只保留一批；再锁定运行行并复查状态、日志行数及清理标记，在一个事务内写入 `log_chunks`、清除对象归档引用并设置手动归档时间。此前已自动转存到对象存储的日志也会读回数据库，旧归档对象进入引用回收。后台日志转存及提交条件都排除手动归档的运行，因此完整日志持续留在数据库，分页、流和下载沿用现有读取路径。取消手动归档后恢复后台转存及保留策略。每次实际状态变更写 `run.archive` 审计，重复设置相同状态没有额外影响。
 
 **限制：** 单行超过 64 KiB 截断；单次运行的日志总量有上限，默认 20 万行或 100 MiB，部署可调。超出部分丢弃，同时写入一条截断事件，记录丢弃的行数和字节数，控制台和 API 都会显示。
 
@@ -499,6 +502,8 @@ M5 的实现（`service/logarchive.go`）：主节点每 10 秒找出已经结�
 运行记录、日志、产物分别设置保留期和容量上限，部署级给默认值，项目级可以收紧。清理由主节点定期执行，每次清理都留下记录。被清理的日志和产物，查询时返回"已过期"，而不是空内容。
 
 首个试用版的实现（`service/retention.go`、`service/blobgc.go`，迁移 20261108010000）：
+
+**手动保留优先。** 手动归档的运行不参加日志、运行记录和产物的时间清理，也不计入自动清理的容量上限。保留策略的事务与手动归档使用同一运行行锁，重新检查归档状态后才能清理，避免先选中旧记录、随后误删刚完成的归档。归档不停止自动重试；取消归档后，已经超期的内容可能在下一轮保留策略清理时被删除。
 
 **配置。** 部署级的五项，都在 `retention` 下，0 表示不限，默认全部为 0：部署者决定删什么，升级不会突然删掉数据。PRD 第 11 节的默认值待试用后按磁盘和使用频率确定。
 
@@ -819,6 +824,7 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 | 任务 | `GET /api/v1/tasks` | listTasks | 读取 |
 | 任务 | `PUT /api/v1/projects/{projectId}/tasks/{taskName}` | applyTask | 变更 |
 | 任务 | `GET /api/v1/tasks/{taskId}` | getTask | 读取 |
+| 任务 | `PUT /api/v1/tasks/{taskId}/tags` | setTaskTags | 变更 |
 | 任务 | `GET /api/v1/tasks/{taskId}/versions`、`GET /api/v1/tasks/{taskId}/versions/{seq}` | listTaskVersions、getTaskVersion | 读取 |
 | 任务 | `GET /api/v1/tasks/{taskId}/versions/{seq}/diff` | diffTaskVersion | 读取 |
 | 任务 | `POST /api/v1/tasks/{taskId}/versions/{seq}/validate` | validateTaskVersion | 读取 |
@@ -849,12 +855,14 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 上表是草案。0.5 版写出了 M2 至 M6 和控制台需要的完整契约，与上表的差异以 `api/openapi/` 为准，主要有：
 
 - 任务：`listTasks` 带 `project_id`、`name`（精确匹配，供 CLI 按名字找任务）、`state`、`q`、`archived` 筛选；新增 `getTaskFile`（`GET /tasks/{taskId}/versions/{seq}/file?path=`）、`listTaskCredentials`、`archiveTask`（`DELETE /tasks/{taskId}`，归档而不删除）。`applyTask` 返回 `ApplyTaskResult`（`dry_run`、`created`、`version`、`task`、`diff`、`warnings`），预览用查询参数 `dry_run`，并发保护用请求头 `If-Match`（值为读到的 `latest_version.seq`）。
+- 任务标签：`listTasks` 支持按 `tag` 精确筛选，在游标分页前生效，可以和其他筛选组合。任务详情和列表返回 `tags`，无标签时为空数组。`setTaskTags` 由有任务修改权限的调用者整体替换标签，空数组清空；最多 20 个不重复的标签，每个 1 至 40 个字符，支持中文，区分大小写。归档后仍可读取标签，不能修改。写入和 `task.tags` 审计在同一个事务中完成；审计只记数量，不记标签内容。标签属于项目内的分类元数据，不随任务版本或任务包迁移。
 - 运行：`listRuns` 带项目、任务、状态（可多选）、来源、测试、`rerun_of`、`runner_id` 和时间筛选；`listRunEvents` 用游标分页；新增 `streamRunLogs`、`downloadRunLogs`、`streamEvents` 的 SSE 和下载约定（`api/README.md`）。
 - 新增控制台概览 `getOverview`（需要处理的事、未结束的运行、接下来的触发）和 `getRunCalendar`。
 - 项目新增 `getProject`、`updateProject`、`listMembers` 和 `searchUsers`（`GET /api/v1/users`，按名字开头查找，用于添加成员）。
 - 个人新增 `listDevices`、`revokeDevice`；`login` 带 `device` 时建立只读的设备会话；`exchangePairingCode` 的请求带 `server` 和 `device`。
 - 管理新增 `adminResetPassword`；runner 的管理接口放在 `/api/v1/admin/runners` 下。
-- 凭证新增 `listCredentialRequests`、`cancelCredentialRequest`、`getCredential`；更新已有凭证也走填写请求（`createCredentialRequest` 带 `credential_id`），明文只经过填写请求的提交。控制台的填写框用 `fillCredentialRequest`（`POST /api/v1/credential-requests/{requestId}/values`）提交，只接受登录会话（第 12.4 节）。
+- 任务凭证新增 `listCredentialRequests`、`cancelCredentialRequest`、`getCredential`；更新已有凭证也走填写请求（`createCredentialRequest` 带 `credential_id`），明文只经过填写请求的提交。控制台的填写框用 `fillCredentialRequest`（`POST /api/v1/credential-requests/{requestId}/values`）提交，只接受登录会话（第 12.4 节）。
+- 个人 AI 配置经 `GET /api/v1/me/ai` 读取、`PUT` 保存、`DELETE` 移除，这三个操作只接受登录会话。Agent 经 `GET /api/v1/ai/models` 读取模型，通过 `POST /api/v1/ai/chat` 调用，见第 10.2 节。
 - 通知渠道属于用户本人，订阅写在渠道里（`subscriptions`），新增 `updateNotificationChannel`、`testNotificationChannel`、`listNotificationDeliveries`；通用 webhook 的载荷 `NotificationEvent` 和签名规则写在契约的 `webhooks` 中。
 - Skill：`listSkills`（`GET /api/v1/skills`）返回版本和每个 Skill 的文件清单，`getSkill`（`GET /api/v1/skills/{name}`）返回全部文件内容。两者允许匿名调用，与 `discover` 相同，Skill 本来就随二进制公开发行；都不作为独立的 MCP 工具暴露（`x-mcp: {expose: false}`），MCP 客户端读 resource，或经 `api_call` 调用。
 - 工具：`listTools`、`registerTool`、`removeTool` 的最小实现见第 7.8 节。
@@ -981,7 +989,10 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | 工具 | 类型 | 对应接口 |
 | --- | --- | --- |
 | `discover` | 读取 | discover |
+| `environment_get` | 读取 | getEnvironment |
 | `task_get` | 读取 | getTask |
+| `task_list` | 读取 | listTasks，可按标签筛选 |
+| `task_set_tags` | 变更 | setTaskTags，整体替换任务标签 |
 | `task_apply` | 变更 | applyTask，带 `expected_version`，支持 `dry_run` |
 | `task_validate` | 读取 | validateTaskVersion |
 | `trigger_set` | 变更 | setTriggers |
@@ -992,10 +1003,16 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | `run_cancel` | 执行 | cancelRun |
 | `run_rerun` | 执行 | rerunRun |
 | `credential_request` | 变更 | createCredentialRequest |
+| `ai_models` | 读取 | listAIModels |
+| `ai_chat` | 执行 | createAIChat |
 | `api_describe` | 读取 | 按 operationId 或关键词返回接口说明和 schema |
 | `api_call` | 视接口而定 | 按 operationId 调用任意公开接口 |
 
-前 12 个覆盖主流程，其余接口通过 `api_describe` 和 `api_call` 按需访问。Agent 首次接入只加载 14 个工具，不会一下子被塞进几十个。
+Agent 首次接入加载表中的工具。其他接口通过 `api_describe` 查询，可调用的操作经 `api_call` 访问。
+
+`getEnvironment` 读取 `server.environment`，未配置时返回 `unspecified`，访问令牌需要 `read` 范围。部署环境与单次运行的 `test` 标记独立。
+
+个人 AI 配置只能在 Web 登录会话中修改。配置与密钥复用凭证库的加密和轮换，内部凭证不能通过普通凭证接口读取或授权给任务。`ai_chat` 按令牌所属账号读取配置，检查模型 ID 后从服务端发起请求。AI 配置的地址和模型、聊天请求及返回文本沿用凭证指纹检查。AI 出口沿用通知的连接地址检查，单独由 `ai.allowed_networks` 放行需要访问的内网网段。请求使用 HTTPS，不跟随重定向。
 
 ### 10.3 工具注册与调用路径
 
@@ -1111,7 +1128,7 @@ Agent ──POST /mcp──► Streamable HTTP（无状态）
 
 ### 10.6 CLI
 
-`lerryn` CLI 覆盖全部公开接口。Agent 可以在 shell 中使用，维护者也用它。用法、配置文件、输出格式和退出码见 [docs/cli.md](cli.md)：
+`lerryn` CLI 覆盖全部公开接口。Agent 可以在 shell 中使用，维护者也用它。用法、配置文件、输出格式和退出码见 [docs/zh-CN/cli.md](cli.md)：
 
 ```bash
 lerryn login https://lerryn.example.com          # 内置账号输入用户名和密码；也可以用 --token-stdin 保存访问令牌
@@ -1348,7 +1365,7 @@ M4 的实现细节：
 - 填写页 `/c/{requestId}`：Agent 交给用户的链接打开这里。服务端渲染，不依赖前端组件库，在手机浏览器中也能正常填写。
 - 控制台的填写框：用户已经在控制台里时（更新凭证、概览和凭证页的待填写项、任务页缺少的凭证），直接在模态框中填写，不跳出控制台。提交走 `fillCredentialRequest`，契约只声明 `sessionCookie`，服务层也只接受浏览器会话，所以访问令牌（Agent）和移动端的设备会话都不能调用；不暴露为 MCP 工具，不带幂等键，响应只有完成后的请求，校验错误只用 `#/values/{字段名}` 指出哪一项。从控制台发起的更新在填写框未保存就关闭时，撤回这个请求。代价是明文会经过控制台的脚本，填写页没有这一面。
 
-明文只出现在这两个提交请求中，不出现在 URL、任何 API 响应、MCP 返回或任务参数里。
+任务凭证的明文只从这两个入口提交。个人 AI 的 API Key 在凭证页通过 `setAIConfiguration` 单独提交。公开接口响应、MCP 返回和任务参数均不携带这些明文。
 
 ### 12.5 运行时注入
 
@@ -1382,6 +1399,7 @@ M4 的实现细节：
 - 新凭证以请求的引用名命名；用户已有同名的有效凭证时，新凭证命名为 `名称_2`、`名称_3`，不覆盖已经用在其他任务上的那个。
 - 授权按契约要求调用者是凭证所有者且能查看任务。另加一条：任务的引用名已经绑定**别人的**凭证时，替换它需要修改任务的权限。查看者可以把自己的凭证借给任务，但不能把维护者配好的绑定换掉。
 - 凭证有效的条件：未撤销、未过期、所有者账号未停用。停用账号的凭证和它的会话、令牌一样立即不可用。
+- 所有者可以在控制台永久删除已撤销的凭证。删除操作（`POST /api/v1/credentials/{credentialId}/purge`）同时删除加密版本和任务授权。任务清单仍保留引用名，任务凭证状态变为缺少绑定。尚未填写且未过期的更新请求会取消，历史请求的状态与审计记录保留。
 - `startRun` 在排队前检查非可选凭证，缺少绑定返回 422 `credential_missing`，绑定不可用返回 422 `credential_unavailable`，`next_actions` 指向 `credential_request`。定时和重跑等其他来源的运行不预检，由准备阶段兜底。
 - `createCredentialRequest` 的 `Idempotency-Key` 用 `idempotency_records` 实现，记录保存首次创建的请求 ID。
 
@@ -1411,7 +1429,7 @@ END
 
 - 登录、访问令牌的创建和撤销。
 - 账号、角色和管理设置的变更。
-- 凭证的创建、更新、授权、撤销，以及 runner 的每次领取。
+- 凭证的创建、更新、授权、撤销、删除，以及 runner 的每次领取。
 - 任务的激活和暂停。
 
 每条记录包含操作者（用户、令牌或 runner）、资源、结果、来源地址和时间，不记录明文。操作类型取自操作的 `x-operation-kind`。经 MCP 发起的操作，用 `mcp.ToolCallFromContext` 区分入口并记录工具名，不依赖请求头，客户端无法伪造（第 10.3 节）。审计的查看界面和导出放到 P1。
@@ -1443,7 +1461,7 @@ apps/web             @lerryn/web，Web 控制台
 apps/mobile          移动端（未开始）
 ```
 
-设计令牌没有单独的 `packages/tokens`：`design/scripts/sync-tokens.mjs` 从 `design/tokens.json` 的映射和 `design/niltavi-ui/tokens.json` 的主题快照同时生成 `design/ui-native` 的 Uniwind 主题和 `packages/ui-web/styles/tokens.css`（Tailwind v4 主题和 HeroUI v3 变量映射），两端读的是同一份数值；同一脚本也生成仓库原型和独立凭证填写页的主题。组件采用扁平边框，不再绘制旧版厚度唇边。Logo 路径同样由 `design/scripts/build-logo.mjs` 写到两个组件库。设计语言的约定见 `docs/design-system.md`。
+设计令牌没有单独的 `packages/tokens`：`design/scripts/sync-tokens.mjs` 从 `design/tokens.json` 的映射和 `design/niltavi-ui/tokens.json` 的主题快照同时生成 `design/ui-native` 的 Uniwind 主题和 `packages/ui-web/styles/tokens.css`（Tailwind v4 主题和 HeroUI v3 变量映射），两端读的是同一份数值；同一脚本也生成仓库原型和独立凭证填写页的主题。组件采用扁平边框，不再绘制旧版厚度唇边。Logo 路径同样由 `design/scripts/build-logo.mjs` 写到两个组件库。设计语言的约定见 `docs/zh-CN/design-system.md`。
 
 Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由）和 TanStack Query、HeroUI v3、Tailwind v4。字体 DM Sans、IBM Plex Mono 随构建产物一起提供（`@fontsource`），不连外网。
 
@@ -1466,25 +1484,28 @@ Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由�
 
 - 页面按 PRD 第 4 节：登录与注册、概览、任务详情、运行详情、个人设置（访问令牌、自己的凭证、通知订阅、移动端配对）、管理设置（账号、开放注册和本地登录开关、runner）。凭证填写页首版由服务端渲染（第 12.4 节）。
 - 不提供任务内容编辑。运行与任务控制只对项目的维护者和所有者显示（按 `listProjects` 的 `role` 判断，服务端照常检查权限）：
-  - 任务页的“手动执行”调用 `startRun`，用最新版本和清单默认参数，成功后打开新运行。任务归档或 `console.manual_run` 为 false 时不显示。
+  - 任务页顶部的主按钮“立即重新触发”调用 `startRun`，用最新版本和清单默认参数，成功后打开新运行。任务归档或 `console.manual_run` 为 false 时不显示。
   - 运行页和运行列表预览里已结束的运行有“重试”，调用 `rerunRun`，用最新版本和原运行的参数。不受 `manual_run` 影响：重跑的是已经跑过的运行，Agent 关掉手动执行是不想让人凭空发起一次。
-  - 每次按下“手动执行”或“重试”带一个新的 `Idempotency-Key`，请求被网络层重发不会多出运行；请求进行中按钮禁用，失败时按钮的提示写出原因（上一次运行未结束、队列已满、手动执行已关闭等）。
+  - 每次按下“立即重新触发”或“重试”带一个新的 `Idempotency-Key`，请求被网络层重发不会多出运行；请求进行中按钮禁用，失败时按钮的提示写出原因（上一次运行未结束、队列已满、手动执行已关闭等）。
   - 会话发起的运行 `trigger.client` 为空，控制台据此把来源写成“控制台发起”，和 Agent 用令牌发起的区分开。
-- 任务页提供“跳过下次”“停用任务”和“启用任务”，不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
+- 任务页的“删除任务”复用 `archiveTask`（`DELETE /api/v1/tasks/{taskId}`），确认后停止触发并移出默认任务列表，保留历史，返回概览。归档任务不显示删除或启停操作。运行详情和列表预览提供手动归档／取消归档；默认列表、任务近期运行、概览和日历不展示手动归档的运行，运行列表的“已归档”筛选通过 `listRuns?archived=true` 读取，直接链接仍可查看完整历史。移动端保持只读。
+- 任务页顶部保留“停用任务”或“启用任务”，“跳过下次”和“删除任务”位于右上角的更多操作菜单中。这些操作不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
 - `skipNextTaskRun`（`POST /api/v1/tasks/{taskId}/skip-next-run`，变更）需要修改任务权限，请求带用户确认的 `scheduled_at`。service 在事务内先锁任务、再锁触发器，核对任务仍激活且当前最早的 `next_fire_at` 等于请求时间并晚于当前时间；不匹配返回 422 `validation_failed`，不会跳过之后的计划。同一时间的启用 cron 触发器各记录一条 `manual` 原因的已跳过运行及触发实例，再推进到下一个 cron 时间；写入 `task.skip_next` 审计。立即生效，不支持撤回，不改触发器配置 revision，不影响 Webhook 和已有运行；调度器、日历与频率预览都尊重推进后的时间。不新增独立 MCP 工具，经 `api_call` 可调用。
-- 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用，保持第 10.2 节的 12 个工具。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
+- 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
 - 构建产物内嵌进服务端二进制，任何 server 副本都能提供。`make web` 把 `apps/web/dist` 复制到 `server/internal/console/webdist/`，由 `go:embed` 嵌入；`make build` 和镜像构建都先构建控制台。只跑 Go 的构建嵌入的是空目录，控制台页面返回 503，API 照常工作。
 - 控制台挂在 `/`，比 `/api/`、`/mcp`、`/healthz`、`/readyz` 的优先级低，这些路径即使对应的处理器没有挂载，也不会返回控制台页面。没有扩展名的路径都返回 `index.html`（`no-cache`），由前端路由选页面；带哈希的静态文件缓存一年。页面带 CSP：脚本、连接、字体都只允许本站，禁止被嵌入框架。
 - 控制台只用会话 cookie，不在浏览器存储里保存访问令牌。新建的访问令牌只在创建结果里出现一次，关闭弹窗即从内存中丢弃。 访问令牌和通知渠道的创建请求等待期间，表单拒绝重复提交并保持弹窗打开，避免重复创建或丢失首次返回的令牌、签名密钥；失败后可以在原表单重试。
 - 控制台页面的链接与 `links.console` 一致：任务 `/tasks/{id}`，运行 `/runs/{id}`。
+- 任务详情的标题行右侧提供复制链接。账号菜单下的「关于」页（`/settings/about`）展示 `discover` 返回的实例版本、项目官网、GitHub 仓库和 Niltavi 理念。
 - 全部页面接到契约中的接口：概览看板（需要处理、运行中、今天的波纹日历）、运行列表和预览、任务（启用状态、触发频率与时区、引用凭证、版本与差异、所有者、上次结果的 Agent 面板、运行历史）、运行（阶段、事件、平台记录的工具调用、告警、重跑关联、产物、日志）、个人设置和管理设置（账号、登录设置、执行节点和注册令牌、审计）。读取失败时显示错误和重试，没有数据时显示真实的空状态，不显示示例数据。hook 都在 `@lerryn/core`，移动端共用其中的概览、任务和运行查询以及视图模型。
-- 任务启用状态可由维护者和所有者操作，触发器配置仍由 Agent 管理。凭证页只有元信息，更新凭证时以 `credential_id` 发起填写请求并跳到服务端渲染的 `/c/{id}`，撤销凭证和取消授权在控制台完成；只保存了字段名，所以更新时每个字段按机密的单行值重新填写。 待填写请求与已有凭证分别按需分页，待填区首次读 200 条，读完前导航计数带 `+`；继续加载失败时保留已有记录并重试原游标。每 30 秒刷新已加载的待填页，重算后续游标；填写完成后重新读取并移除已完成请求。
+- 任务启用状态可由维护者和所有者操作，触发器配置仍由 Agent 管理。任务凭证列表只展示元信息，更新凭证时以 `credential_id` 发起填写请求并跳到服务端渲染的 `/c/{id}`，撤销凭证和取消授权在控制台完成；只保存了字段名，所以更新时每个字段按机密的单行值重新填写。 待填写请求与已有凭证分别按需分页，待填区首次读 200 条，读完前导航计数带 `+`；继续加载失败时保留已有记录并重试原游标。每 30 秒刷新已加载的待填页，重算后续游标；填写完成后重新读取并移除已完成请求。
+- 「密钥 → 凭证」中的「AI 能力」允许用户保存基础地址、API Key 和可用模型。编辑时保留已存的地址与模型，Key 字段留空。移除配置会清除该账号保存的 AI 凭证版本。
 - 执行节点管理按需分页，每页 200 条，每 10 秒刷新已加载的页面并重算游标。后页读取失败保留已显示节点，重试原游标；未读完时，运行、容量和在线数的标签明确限定为已显示节点，读完后展示完整统计。注册令牌创建中不接受重复提交或关闭，保留只返回一次的令牌；失败后可以重试或关闭，完成后清除页面中的令牌。
 - 实时更新：概览等页面订阅 `streamEvents`，收到 `run` 事件后让相关查询失效，连接不可用时按间隔轮询，每 60 秒重试一次流；运行日志先用 `readRunLogs` 读末尾，再用 `streamRunLogs` 从这一页的游标跟随，浏览器断线后带 `Last-Event-ID` 续读，服务端拒绝时改为按游标轮询。两条路径都按行号合并。
 - 管理员关闭本地密码登录后，`discover` 的 `login_methods` 不再包含 password，`capabilities.admin_password_login` 为 true。登录页读到 `discover` 后直接以企业账号登录为主，只在 `admin_password_login` 为 true 时留一个“管理员登录”的入口；两者都没有时不显示密码表单。不带这个字段的旧服务端仍按一次 `password_login_disabled` 切换版式。移动端没有单点登录，按同样的规则在填好服务器地址后隐藏密码表单，只留扫码配对和管理员入口。
 - 工具登记表（第 7.8 节）只做展示：任务页的运行环境里列出清单引用的工具和类型，项目中没有登记的名称标为未登记；个人设置的“工具”页按项目列出能查看的工具。登记和移除由 Agent 经 API 完成，控制台不提供，与不编辑任务的原则一致。
 - 访问令牌页的“接入”区除 MCP、API、CLI 地址外，给出 `lerryn skills install` 一行；MCP 客户端直接读取 `lerryn://skills/` 下的 resource，不需要另外说明。
-- Settings → Tools 展示 Lerryn 的内置 MCP 工具、令牌范围、MCP / HTTP API / CLI / Skill 接入方式和任务内的 `sbx` 能力，提供中英文 [Tools 接入文档](tools.md) 下载。项目登记的工具在独立分区展示；该列表为空或加载失败不影响内置能力和接入信息。
+- Settings → Tools 展示 Lerryn 的内置 MCP 工具、令牌范围、MCP / HTTP API / CLI / Skill 接入方式和任务内的 `sbx` 能力。下载 [Tools 接入文档](tools.md) 时，英文版（`/docs/en/tools.md`）排在首位，中文版（`/docs/zh-CN/tools.md`）另有入口。两个地址在发版时保持不变。项目登记的工具在独立分区展示；该列表为空或加载失败不影响内置能力和接入信息。
 - 概览今天的波纹日历里，计划触发的提示按任务列出服务端给的 `schedule_text`；任务页触发器的频率本来就取自触发器的 `schedule_text`。
 - 产物预览只渲染纯文本和结构化数据。HTML 和脚本类产物只提供下载，响应头强制作为附件。 预览按现有字符上限读取响应流，只多读用于判断截断的内容；确认超限或关闭预览时取消剩余读取。未截断的 JSON 仍做格式化；读取失败时返回错误，不展示部分结果。下载继续提供完整文件。
 - 首版语言为简体中文和英文。
@@ -1579,7 +1600,7 @@ services:
 
 标准拓扑包含 2 个 server、若干 runner 和 PostgreSQL，对象存储使用企业已有的 S3 兼容服务。
 
-两种拓扑的 Compose 文件在 `deploy/single-node/` 和 `deploy/multi-node/`，安装步骤见 [docs/deploy.md](deploy.md)。标准拓扑的参考部署用 Caddy 做反向代理，对象存储用 MinIO 的社区构建（官方已不再发布社区版镜像）。
+两种拓扑的 Compose 文件在 `deploy/single-node/` 和 `deploy/multi-node/`，安装步骤见 [docs/zh-CN/deploy.md](deploy.md)。标准拓扑的参考部署用 Caddy 做反向代理，对象存储用 MinIO 的社区构建（官方已不再发布社区版镜像）。
 
 runner 需要访问 Docker 或 Podman 的 API，这基本等于拥有所在主机的 root 权限。建议：
 
@@ -1668,7 +1689,7 @@ log:
 
 导出格式是一个压缩包，包含任务、版本、触发器、授权关系和凭证引用，不含凭证明文。它有三个用途：跨实例迁移、SQLite 迁到 PostgreSQL、A15 的恢复验证。导入时保留运行关联；对象存储中已经不存在的产物标为缺失。
 
-M6 的实现（`server/internal/ops`，操作步骤见 [docs/deploy.md](deploy.md)）：
+M6 的实现（`server/internal/ops`，操作步骤见 [docs/zh-CN/deploy.md](deploy.md)）：
 
 - `lerryn backup` 在快照前登记独立的 `blob-backup:` 租约（30 秒有效，每 10 秒续期），用 `VACUUM INTO` 在一个读事务里复制 SQLite，再按快照引用复制本地对象，打成一个 tar.gz，server 运行时可以执行。对象回收在每个 SQLite 写事务内检查这些租约，有备份时暂缓删除对象，普通写入与保留策略的记录清理继续执行。对象在复制时校验 SHA-256；续期失败、保护中断、对象缺失或校验不符时移除残缺归档，临时文件与存储目录里的无关文件不进入备份。`lerryn restore` 在创建暂存区前检查数据库及其 WAL、SHM 路径与存储目录是否重叠；暂存父目录创建后再检查一次，覆盖此前不存在的大小写别名，重叠时清理本次暂存内容和新建的空目录。完整解压并检查后才替换现有数据，原数据改名保留。PostgreSQL 不走这两个命令，用 `pg_dump`。
 - 导出按表导出全部数据，而不是只挑任务相关的几类对象。SQLite 迁到 PostgreSQL 需要完整的实例，账号、令牌、运行和日志都要带走；按表导出也不需要为以后新增的表逐一修改导出代码。表和外键从数据库读取，按外键顺序写入；值转成两种数据库都接受的形式（布尔、UTC 文本时间、文本 UUID）。对象按引用它的列收集，与保留策略回收对象时检查的引用一致：各表的 `blob_hash`、未过期产物的 `blob_key`、运行的 `log_blob` 和 `input_key`，以及 `log_blob` 出现之前归档的日志在 `log_archive` 中记录的对象。最初只收集 `blob_hash`，产物、归档日志和 webhook 请求体没有导出，导入的实例上这些内容读不到。不导出 goose 的版本表和租约表。凭证按密文导出，导入的实例需要同一个主密钥。
@@ -1687,7 +1708,7 @@ M6 的实现（`server/internal/ops`，操作步骤见 [docs/deploy.md](deploy.m
 - 权限：导出需要查看任务，查看者也可以。任务包里的内容查看者本来就能经 `getTaskVersion`、`getTaskFile` 和 `listTriggers` 读到，导出没有扩大可见范围；不让查看者导出只会让他们逐个文件去读。导入需要目标项目的修改任务权限（维护者或所有者），与 `applyTask` 相同。令牌范围按 `x-operation-kind`：导出 `read`，导入 `write`。
 - 上限：导入的请求体与其他接口一样最大 4 MiB。导出时按编码后的大小累加，从所选版本往前取，超过约 4 MiB 或 50 个版本时省略更早的版本，省略的数量写在 `omitted_versions` 中，导出的结果总能导入。单个版本的文件最多 1 MiB，正常情况下一定放得下；JSON 转义让一个版本超过上限时，导出返回 `validation_failed`。
 - 审计：导出写 `exportTask`（读取操作本来不记录，导出把任务的全部代码带离部署，所以单独记录），详情为导出的版本号、省略数和是否带触发器；导入写 `importTask`，详情为源任务名、版本、建立的触发器和需要绑定的凭证引用名。拒绝含凭证值的导入按第 11.7 节记 `denied`。
-- 两个操作都不作为独立的 MCP 工具（`x-mcp: {expose: false}`），经 `api_call` 调用：它们不在第 11.3 节的主流程里，而且任务包可能远大于单次工具结果的 32 KiB 上限。导入的响应只带任务的 ID、名字、最新版本号和控制台链接，不带完整的 `Task`，否则 `api_describe importTask` 会超过这个上限。CLI 为它们提供 `lerryn tasks export` 和 `lerryn tasks import`（[docs/cli.md](cli.md)）。
+- 两个操作都不作为独立的 MCP 工具（`x-mcp: {expose: false}`），经 `api_call` 调用：它们不在第 11.3 节的主流程里，而且任务包可能远大于单次工具结果的 32 KiB 上限。导入的响应只带任务的 ID、名字、最新版本号和控制台链接，不带完整的 `Task`，否则 `api_describe importTask` 会超过这个上限。CLI 为它们提供 `lerryn tasks export` 和 `lerryn tasks import`（[docs/zh-CN/cli.md](cli.md)）。
 - 不需要迁移：导入写的是已有的任务、版本、文件和触发器表。
 
 ### 15.6 可观测
@@ -1743,7 +1764,7 @@ skills/               Agent Skills（Apache-2.0）
 apps/                 web、mobile
 packages/             tokens、ui-web、ui-native、api、core
 deploy/               Compose 文件，后续加 Helm
-docs/                 PRD、技术设计、实施规划
+docs/                 语言入口；en/ 英文，zh-CN/ 中文（含 PRD、技术设计、实施规划），assets/ 共用资源
 tests/
   acceptance/         A01 至 A18、B01 至 B03
   chaos/              多节点故障注入
@@ -1903,7 +1924,7 @@ Go module 放在仓库根目录，与现有的 pnpm workspace 并存，覆盖 `s
 | 0.2 | 按已经确定的决策收敛范围：首版面向企业自部署，企业专属功能尽量少做，MCP OAuth、外部密钥服务、工具网关、审计界面、滚动升级等移到 P1（第 19 节）；增加门槛很低的内置账号，与 OIDC 并存，管理员可关闭开放注册和本地密码登录；沙箱只用加固的 Docker 容器；移动端只读查看任务进度；确定名称 Lerryn 和 AGPL-3.0 许可证；里程碑和目录与实施规划同步 |
 | 0.3 | 按 M0 技术验证 S1 至 S4 修订，补上合并后已经实现的事实。存储：选主改为 upsert，SQLite 写事务用 `BEGIN IMMEDIATE` 并在进程内串行，类型对照和建模约定，方言专属代码范围，PostgreSQL 最低版本 15，启动时自动迁移和迁移锁，`/readyz` 检查迁移版本。契约：生成链路以打包结果为输入并嵌入服务端，新增错误码 `unauthenticated`、`internal_error`、`out_of_memory` 和状态码对应，请求 ID、请求校验、可空字段的约定，`discover` 的响应结构。MCP：`x-mcp` 结构和工具标注以 `api/README.md` 为准，工具注册表运行时构建，`/mcp` 挂在 API 处理链上，新增 `mcp` 配置段，删除旧协议的会话粘滞预案，`/mcp` 前置令牌校验。执行：默认加固补全，只用 `Mounts` 挂载，`full` 网络的任务间隔离及其前提，OOM 的判定规则，停止确认的细节，凭证改为经 stdin 交给 `sbx` 入口写入。部署：Compose 示例改为同路径绑定挂载并说明原因，镜像预建 `/var/lib/lerryn`，CI 新增两个执行器集成测试作业。账号：按 M0 账号骨架的实现补全第 12.1、12.2 节（用户名规则、会话 cookie、`Origin` 校验、令牌只能在会话中创建、按契约声明鉴权、登录限速、权限框架），`access_tokens` 增加 `prefix`，新增错误码 `username_taken`、`rate_limited`、`origin_not_allowed` |
 | 0.4 | 按 M1 的实现修订：runner 续租间隔改为 2 秒；第 7.6 节改为先上报终态再删除容器，并说明 runner ID 的保存位置；新增错误类别 `run_interrupted`，runner 重启清理和租约过期都用它；第 9.3 节的请求校验改为已实现的事实；第 7.7 节说明日志行阶段标注的近似性；第 5.4 节补充 `OOMKilled` 在 cgroup v2 上不可靠，主进程以 137 退出时推断为 `out_of_memory`；`storage.path` 默认值改为 `/var/lib/lerryn/storage`，避免与对象前缀 `blobs/` 叠成两层 |
-| 0.4（M2 补充） | MCP 注册表为全部操作建立索引，新增 `api_describe` 和 `api_call`（第 10.3 节）；CLI 改为由操作索引驱动，不基于生成的 Go 客户端，补充登录、配置文件、输出格式、退出码和 stdio 代理的设计（第 10.6 节，详见 `docs/cli.md`） |
+| 0.4（M2 补充） | MCP 注册表为全部操作建立索引，新增 `api_describe` 和 `api_call`（第 10.3 节）；CLI 改为由操作索引驱动，不基于生成的 Go 客户端，补充登录、配置文件、输出格式、退出码和 stdio 代理的设计（第 10.6 节，详见 `docs/zh-CN/cli.md`） |
 | 0.4（控制台补充） | 按 Web 控制台的第一版修订第 13 节：仓库结构改为设计令牌和 `ui-native` 留在 `design/`、`ui-web` 的主题由同一个生成脚本输出；写明控制台的栈、嵌入方式、挂载与缓存规则、CSP，以及接口未就绪页面的处理 |
 | 0.5（M2 实现） | 第 5.2 节写明"成功的测试运行"的判定和归档的效果；第 5.5 节运行事件由 runner 和服务端共用一个序号，新增 `runs.runner_event_seq`；第 7.4 节产物的收集、上限、类型判断和下载头；第 9.3 节幂等中间件、`If-Match` 的细节和 SSE 的实现方式。契约修正：`RunEvent.data` 和 `RunResult.data` 原来只有说明没有类型，OpenAPI 3.0 语义的校验器（kin-openapi 的响应校验）把它们当成不可为 null，现在列出全部 JSON 类型和 null。校验接口按 runner 标签检查有没有能领取的在线 runner；工具清单尚无登记接口，引用任何工具都报错；日历的计划触发在调度器提供展开 cron 的接口前只列每个触发器的下一次 |
 | 0.5 | 写出 M2 至 M6 和控制台的完整契约与数据模型：第 9.2 节记录契约与端点草案的差异；第 5.3 节清单的凭证改为按引用名声明、由授权绑定，新增 Agent 面板 `panels`，触发器按 `name` 整体替换并带 `revision`；第 5.5 节按迁移 20261104010000 至 20261104014000 更新表（任务归档和激活列、运行的来源、重试和重跑列、触发器、幂等、配对码、凭证、产物、通知）；第 7.4 节新增 `/sbx/in`；第 8.2 节新增 `catch_up: latest`；第 12.4 节更新凭证也走填写请求；第 14 节通知渠道属于用户本人。新增错误码 `permission_denied`、`precondition_required`、`version_not_tested`、`task_archived`、`password_login_disabled`、`last_owner`。SQLite 迁移中用 ALTER 加的列不带外键，因为 SQLite 不能删除参与外键的列，回滚会失败 |

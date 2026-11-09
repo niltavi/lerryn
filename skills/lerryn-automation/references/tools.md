@@ -7,9 +7,12 @@
 | 工具 | 操作 | 类型 | 令牌范围 | CLI |
 | --- | --- | --- | --- | --- |
 | `discover` | `discover` `GET /api/v1/discover` | read | `read` | `lerryn discover`，`lerryn api discover` |
+| `environment_get` | `getEnvironment` `GET /api/v1/environment` | read | `read` | `lerryn api getEnvironment` |
 | `task_apply` | `applyTask` `PUT /api/v1/projects/{projectId}/tasks/{taskName}` | mutate | `write` | `lerryn tasks apply <目录>`，`lerryn api applyTask` |
+| `task_list` | `listTasks` `GET /api/v1/tasks` | read | `read` | `lerryn api listTasks` |
 | `task_get` | `getTask` `GET /api/v1/tasks/{taskId}` | read | `read` | `lerryn tasks get <任务>`，`lerryn api getTask` |
 | `task_set_active` | `setTaskActivation` `POST /api/v1/tasks/{taskId}/activation` | execute | `execute` | `lerryn api setTaskActivation` |
+| `task_set_tags` | `setTaskTags` `PUT /api/v1/tasks/{taskId}/tags` | mutate | `write` | `lerryn api setTaskTags` |
 | `task_validate` | `validateTaskVersion` `POST /api/v1/tasks/{taskId}/versions/{seq}/validate` | read | `read` | `lerryn api validateTaskVersion` |
 | `trigger_set` | `setTriggers` `PUT /api/v1/tasks/{taskId}/triggers` | mutate | `write` | `lerryn api setTriggers` |
 | `run_start` | `startRun` `POST /api/v1/tasks/{taskId}/runs` | execute | `execute` | `lerryn runs start <任务>`，`lerryn api startRun` |
@@ -17,6 +20,8 @@
 | `run_cancel` | `cancelRun` `POST /api/v1/runs/{runId}/cancel` | execute | `execute` | `lerryn runs cancel <运行>`，`lerryn api cancelRun` |
 | `run_rerun` | `rerunRun` `POST /api/v1/runs/{runId}/rerun` | execute | `execute` | `lerryn api rerunRun` |
 | `run_logs` | `readRunLogs` `GET /api/v1/runs/{runId}/logs` | read | `read` | `lerryn runs logs <运行>`，`lerryn api readRunLogs` |
+| `ai_models` | `listAIModels` `GET /api/v1/ai/models` | read | `read` | `lerryn api listAIModels` |
+| `ai_chat` | `createAIChat` `POST /api/v1/ai/chat` | execute | `execute` | `lerryn api createAIChat` |
 | `credential_request` | `createCredentialRequest` `POST /api/v1/credential-requests` | mutate | `write` | `lerryn api createCredentialRequest` |
 | `api_describe` | 任意操作的说明和 schema | read | `read` | `lerryn api <operationId> --describe` |
 | `api_call` | 按 operationId 调用任意公开操作，参数放在 `arguments` 里：`{"operation_id": "getCredentialRequest", "arguments": {"request_id": "<id>"}}` | 视操作而定 | 视操作而定 | `lerryn api <operationId>` |
@@ -28,6 +33,11 @@
 读取 Lerryn 服务端的版本、可用运行时、部署能力、匹配的 Skill 版本和当前身份。
 开始建立或修改任务前先调用一次；Skill 版本与本地不一致时，从服务端获取匹配的版本。
 
+### environment_get（查询部署环境）
+
+查询当前连接的 Lerryn 部署是生产、测试、预发布还是开发环境。
+对环境敏感的操作先调用此工具。`unspecified` 表示环境未知。
+
 ### task_apply（提交任务）
 
 创建任务或提交新版本：给出完整的清单（manifest）和全部文件（files，UTF-8 文本）。
@@ -37,9 +47,14 @@ project_id 用 discover 返回的 principal.personal_project_id。运行时只�
 任务里用 `sbx stage start <阶段>`、`sbx stage done <阶段>`、`sbx stage fail <阶段> --message <原因>` 上报进度，用 `sbx result --status ok|partial|failed --summary <摘要> --data-json '<JSON>'` 上报业务结果。Python 里也可以 `import sbx`：`sbx.params()` 返回运行参数，`with sbx.stage("id"):` 上报阶段，`sbx.result("ok", 摘要, data)` 上报结果。
 需要凭证时在 manifest.credentials 写引用名，不要把明文写进文件或参数。提交后用 run_start 带 test 为 true 测试。
 
+### task_list（列出任务）
+
+查找有权查看的任务及其标签。可按 project_id、任务名 name 或标签 tag 精确筛选，也可用 q 搜索名称和用途说明。
+默认不含已归档任务。建议 limit 为 10；若响应被截断，用更小的 limit 重试。还有结果时，用相同筛选条件和响应中的 next_cursor 继续读取。
+
 ### task_get（读取任务）
 
-读取任务的状态、激活版本和最新版本（清单和文件列表）。修改任务前先读，把 latest_version.seq 作为 task_apply 的 if_match。
+读取任务的标签、状态、激活版本和最新版本（清单和文件列表）。提交新版本前先读，把 latest_version.seq 作为 task_apply 的 if_match。
 文件内容用 api_call 调用 getTaskFile 读取。
 
 ### task_set_active（激活或暂停任务）
@@ -47,6 +62,11 @@ project_id 用 discover 返回的 principal.personal_project_id。运行时只�
 active 为 true 时激活一个版本（默认最新版本），触发器从此按计划运行它；false 时暂停。
 只在测试运行成功、并且检查过结果符合用户要求之后激活。未测试的版本返回 version_not_tested。
 完成后把任务的 links.console 交给用户。
+
+### task_set_tags（设置任务标签）
+
+整体替换指定任务的分类标签。先读取任务的 tags，保留仍需使用的标签，再提交完整数组。传入空数组清空标签。
+标签用于查找和分类，不影响任务版本或执行节点。不要把凭证或其他敏感数据用作标签。
 
 ### task_validate（校验版本）
 
@@ -84,6 +104,15 @@ errors 非空时先按每项的 code 处理，例如 credential_missing 用 cred
 
 读取运行日志。只想看结尾时传 tail（例如 100）；要逐页读完时省略 tail，用返回的 next_cursor 继续。
 complete 为 true 表示运行已结束且已读到最后一行。返回 expired 表示日志已按保留策略清理，不必重试。
+
+### ai_models（列出可用 AI 模型）
+
+返回当前用户为 ai_chat 启用的模型 ID。如果列表为空，请用户在 Web 控制台的凭证页配置 AI 能力。
+
+### ai_chat（调用 AI 模型）
+
+用当前用户配置的服务生成文本。先用 ai_models 确认模型 ID，再提交 model 和 messages。
+消息会发给用户配置的模型服务，调用可能产生费用。
 
 ### credential_request（请用户填写凭证）
 

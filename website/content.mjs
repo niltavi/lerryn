@@ -33,7 +33,7 @@ export const languages = {
     themeDark: 'Switch to dark theme', themeLight: 'Switch to light theme',
   },
   zh: {
-    lang: 'zh-CN', path: 'zh/', docs: '', alternate: '', alternateLabel: 'English',
+    lang: 'zh-CN', path: 'zh/', docs: 'zh-CN/', alternate: '', alternateLabel: 'English',
     title: 'Lerryn — 让 Agent 在你自己的机器上跑自动化任务',
     description: '把重复的工作交给 Agent，由 Lerryn 在你自己的机器上按时运行。凭证由你保管，每次运行都有记录。',
     skip: '跳到正文', github: 'GitHub 仓库',

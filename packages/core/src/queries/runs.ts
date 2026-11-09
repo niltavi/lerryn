@@ -4,7 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { ApiError, isNotFound, unwrap, useApi, useApiSession } from "../client";
 import { isExpired, shouldRetry } from "../errors";
-import { useOpenStream, usePollInterval } from "../live/live";
+import { RESOURCE_POLL_MS, useOpenStream, usePollInterval } from "../live/live";
 import {
   applyEarlier,
   applyForward,
@@ -45,12 +45,13 @@ export function useTask(taskId: string | undefined) {
     enabled: !!taskId,
     queryFn: () => unwrap(api.GET("/api/v1/tasks/{taskId}", { params: { path: { taskId: taskId! } } })),
     retry: noRetryOnNotFound,
+    refetchInterval: RESOURCE_POLL_MS,
   });
 }
 
 /**
  * A run, refreshed until it reaches a final state: every `pollMs` while the
- * event stream is down, and on each run event while it is up.
+ * event stream is down, and on each event with a slower safety poll while up.
  */
 export function useRun(runId: string, options: { pollMs?: number; enabled?: boolean } = {}) {
   const api = useApi();
@@ -73,20 +74,30 @@ export function useRunLive(runId: string) {
 }
 
 export interface RunListFilter {
+  archived?: boolean;
   projectId?: string | null;
   taskId?: string;
   status?: RunStatus[];
+  /** Only runs queued at or after this instant (RFC 3339). */
+  since?: string;
 }
 
 const RUN_PAGE = 50;
 
-/** Runs across the user's tasks, newest first, a page at a time. */
-export function useRunList(filter: RunListFilter) {
+/** Console run history, newest first. Deleted tasks are hidden in the default views. */
+export function useRunList(filter: RunListFilter, options: { enabled?: boolean } = {}) {
   const api = useApi();
   const poll = usePollInterval(10_000);
-  const key = { projectId: filter.projectId ?? null, taskId: filter.taskId ?? null, status: filter.status ?? [] };
+  const key = {
+    projectId: filter.projectId ?? null,
+    taskId: filter.taskId ?? null,
+    status: filter.status ?? [],
+    archived: filter.archived ?? false,
+    since: filter.since ?? null,
+  };
   return useInfiniteQuery({
     queryKey: queryKeys.runList(key),
+    enabled: options.enabled ?? true,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       unwrap(
@@ -94,9 +105,12 @@ export function useRunList(filter: RunListFilter) {
           params: {
             query: {
               limit: RUN_PAGE,
+              ...(key.archived ? { archived: true } : {}),
+              ...(!key.archived && !key.taskId ? { exclude_archived_tasks: true } : {}),
               ...(key.projectId ? { project_id: key.projectId } : {}),
               ...(key.taskId ? { task_id: key.taskId } : {}),
               ...(key.status.length ? { status: key.status } : {}),
+              ...(key.since ? { since: key.since } : {}),
               ...(pageParam ? { cursor: pageParam } : {}),
             },
           },
@@ -106,9 +120,36 @@ export function useRunList(filter: RunListFilter) {
     select: (data: InfiniteData<RunPage, string | null>) => ({
       items: data.pages.flatMap((p) => p.items),
       hasMore: data.pages.at(-1)?.next_cursor != null,
+      pageCount: data.pages.length,
     }),
     retry: shouldRetry,
     refetchInterval: poll,
+  });
+}
+
+/** Archive visibility and retention are server state, shared across every view. */
+export function useSetRunArchive() {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, archived }: { runId: string; archived: boolean; taskId: string }) => unwrap(session.client.PUT("/api/v1/runs/{runId}/archive", {
+      params: { path: { runId } }, body: { archived },
+    })),
+    onMutate: session.capture,
+    onSuccess: (run, _input, isCurrent) => {
+      if (isCurrent?.()) queryClient.setQueryData(queryKeys.run(run.id), run);
+    },
+    onSettled: (_data, _error, input, isCurrent) => {
+      if (!isCurrent?.()) return;
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.run(input.runId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.task(input.taskId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.runListAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.overviewAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.calendarAll }),
+      ]);
+    },
   });
 }
 
@@ -136,12 +177,14 @@ export function useCanControlRuns(projectId: string | undefined): boolean {
 /** Refreshes what a new run changes: the task's runs, run lists and the overview. */
 function useRunStarted() {
   const queryClient = useQueryClient();
-  return (run: Run, _variables: string, isCurrent: (() => boolean) | undefined) => {
+  return (run: Run, _variables: unknown, isCurrent: (() => boolean) | undefined) => {
     if (!isCurrent?.()) return;
     queryClient.setQueryData(queryKeys.run(run.id), run);
     void queryClient.invalidateQueries({ queryKey: queryKeys.task(run.task_id) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.runListAll });
     void queryClient.invalidateQueries({ queryKey: queryKeys.overviewAll });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.calendarAll });
     if (run.rerun_of) void queryClient.invalidateQueries({ queryKey: queryKeys.reruns(run.rerun_of) });
   };
 }
@@ -157,21 +200,23 @@ function runIdempotencyKey(): string {
 }
 
 /**
- * Starts a run of a task's latest version with its default params. Each press
- * carries a fresh idempotency key, so a request the network retries does not
- * start a second run.
+ * Starts the task's latest version with default or supplied params. Each
+ * request carries a fresh idempotency key so network retries are safe.
  */
 export function useStartRun() {
   const session = useApiSession();
   const api = session.client;
   const started = useRunStarted();
   return useMutation({
-    mutationFn: (taskId: string) =>
-      unwrap(
+    mutationFn: (input: string | { taskId: string; params: NonNullable<Schemas["StartRunRequest"]["params"]> }) => {
+      const taskId = typeof input === "string" ? input : input.taskId;
+      return unwrap(
         api.POST("/api/v1/tasks/{taskId}/runs", {
           params: { path: { taskId }, header: { "Idempotency-Key": runIdempotencyKey() } },
+          body: typeof input === "string" ? undefined : { params: input.params, test: false },
         }),
-      ),
+      );
+    },
     onMutate: session.capture,
     onSuccess: started,
   });

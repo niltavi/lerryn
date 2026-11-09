@@ -71,6 +71,7 @@ for (const c of Object.values(languages)) {
   <link rel="preload" href="${base}assets/fonts/cormorant-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${base}assets/site.css">
   <script src="${base}assets/site.js" defer></script>
+  <script src="${base}assets/paging.js" defer></script>
 </head>
 <body data-theme-dark="${escape(c.themeDark)}" data-theme-light="${escape(c.themeLight)}">
   <a class="skip" href="#main">${escape(c.skip)}</a>

@@ -1,5 +1,5 @@
 # 标准拓扑中 remote runner 的配置。runner.data_dir 由 compose.yaml 的环境变量按 runner 分别设置。
-# 所有项的说明见 docs/deploy.md 的配置参考。
+# 所有项的说明见 docs/zh-CN/deploy.md 的配置参考。
 
 runner:
   mode: remote

@@ -10,6 +10,7 @@ import {
   groupRunsByTask,
   groupTasks,
   historyNeeds,
+  runBoardColumn,
   summarizeRunEvents,
   TOOL_ARGS_PREVIEW,
 } from "./console";
@@ -21,6 +22,7 @@ function task(over: Partial<TaskSummary>): TaskSummary {
     project_id: "p",
     name: "t",
     description: "",
+    tags: [],
     state: "active",
     active_version: 1,
     latest_version: 1,
@@ -46,9 +48,9 @@ const brief = (status: string, finished = "2026-11-02T08:00:00Z") =>
   }) as TaskSummary["last_run"];
 
 describe("groupTasks", () => {
-  it("puts running first by activity, failures in attention, the rest by next run with paused last", () => {
+  it("separates running, failed, scheduled, enabled and inactive tasks", () => {
     const g = groupTasks([
-      task({ name: "paused", state: "inactive" }),
+      task({ name: "paused", state: "inactive", last_run: brief("failed") }),
       task({ name: "later", next_run_at: "2026-11-03T09:00:00Z" }),
       task({ name: "soon", next_run_at: "2026-11-03T08:00:00Z" }),
       task({ name: "broken", last_run: brief("timed_out") }),
@@ -57,7 +59,9 @@ describe("groupTasks", () => {
     ]);
     expect(g.running.map((t) => t.name)).toEqual(["busy"]);
     expect(g.attention.map((t) => t.name)).toEqual(["broken"]);
-    expect(g.scheduled.map((t) => t.name)).toEqual(["soon", "later", "fine", "paused"]);
+    expect(g.scheduled.map((t) => t.name)).toEqual(["soon", "later"]);
+    expect(g.enabled.map((t) => t.name)).toEqual(["fine"]);
+    expect(g.inactive.map((t) => t.name)).toEqual(["paused"]);
   });
 
   it("filters by name or purpose", () => {
@@ -240,6 +244,7 @@ describe("filterRuns", () => {
     ["TASK-A", ["a"]],
     ["v12", ["a"]],
     ["0000b2", ["b"]],
+    ["0192F3A1-0000-7000-8000-0000000000A1", ["a"]],
     ["多维表格", ["a"]],
     ["线索", ["b"]],
     ["  ", ["a", "b"]],
@@ -256,5 +261,23 @@ describe("groupRunsByTask", () => {
       ["a", ["1", "3"]],
       ["b", ["2"]],
     ]);
+  });
+});
+
+describe("runBoardColumn", () => {
+  it.each([
+    ["queued", "scheduled"],
+    ["preparing", "active"],
+    ["running", "active"],
+    ["cancelling", "active"],
+    ["completed", "done"],
+    ["failed", "attention"],
+    ["timed_out", "attention"],
+    ["cancelled", "attention"],
+    ["interrupted", "attention"],
+    ["skipped", "attention"],
+    ["from_the_future", "attention"],
+  ])("puts %s in %s", (status, column) => {
+    expect(runBoardColumn(status)).toBe(column);
   });
 });

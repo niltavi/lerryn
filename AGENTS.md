@@ -6,10 +6,10 @@
 
 Lerryn 是由外部 Agent 通过 API 和 MCP 操作的自动化沙箱，面向企业自部署。
 
-- 产品范围：[docs/agent-automation-sandbox-prd.md](docs/agent-automation-sandbox-prd.md)
-- 技术设计：[docs/agent-automation-sandbox-tech-design.md](docs/agent-automation-sandbox-tech-design.md)
-- 实施规划和当前阶段：[docs/agent-automation-sandbox-implementation-plan.md](docs/agent-automation-sandbox-implementation-plan.md)
-- 设计语言与组件库：[docs/design-system.md](docs/design-system.md)，以及项目 Skill `.claude/skills/lerryn-design-system`
+- 产品范围：[docs/zh-CN/agent-automation-sandbox-prd.md](docs/zh-CN/agent-automation-sandbox-prd.md)
+- 技术设计：[docs/zh-CN/agent-automation-sandbox-tech-design.md](docs/zh-CN/agent-automation-sandbox-tech-design.md)
+- 实施规划和当前阶段：[docs/zh-CN/agent-automation-sandbox-implementation-plan.md](docs/zh-CN/agent-automation-sandbox-implementation-plan.md)
+- 设计语言与组件库：[docs/zh-CN/design-system.md](docs/zh-CN/design-system.md)，以及项目 Skill `.claude/skills/lerryn-design-system`
 
 ## 目录与负责的工作流
 
@@ -25,7 +25,7 @@ Lerryn 是由外部 Agent 通过 API 和 MCP 操作的自动化沙箱，面向�
 | `server/internal/events/`、`tests/chaos/` | 多节点 | W7 |
 | `deploy/`、`server/internal/notify/` | 部署与运维 | W8 |
 | `server/internal/service/` | 业务逻辑，按领域分文件（`task.go`、`run.go` 等） | 各工作流只改自己领域的文件 |
-| `design/` | 设计语言与组件库 | 设计语言工作；改动前读 `docs/design-system.md` |
+| `design/` | 设计语言与组件库 | 设计语言工作；改动前读 `docs/zh-CN/design-system.md` |
 | `apps/`、`packages/` | 产品前端，组件库完成后确定 | W9 |
 | `docs/` | 产品与技术文档 | 改动时说明原因 |
 | `website/` | 面向 lerryn.niltavi.com 的独立静态官网 | 官网；不与产品控制台共用入口 |
@@ -78,7 +78,6 @@ Lerryn 是由外部 Agent 通过 API 和 MCP 操作的自动化沙箱，面向�
 
 - 提交说明使用英文，遵循 Git 的命令式标题风格；标题简洁，不加句号。需要正文时，空一行说明原因与结果。
 - 提交与推送按维护者授权执行；不擅自变基、强推、切换或删除分支。
-- 开完 PR 就交回给维护者：不开启 Auto-fix，不盯 CI，不主动修 CI 或处理 CI/CD 流水线，除非维护者明确要求。
 - 开发服务器由维护者在本地启动。需要运行中的服务时说明需求，不自行启动或重启。测试自己拉起的临时进程和容器不在此列。
 
 ## 需要人工审查的改动

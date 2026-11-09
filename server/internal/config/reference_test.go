@@ -13,7 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// The configuration reference in docs/deploy.md and the example file in
+// The configuration reference in docs/zh-CN/deploy.md and the example file in
 // deploy/ are checked against the Config struct here, so that a key added,
 // renamed or given a new default cannot leave the documentation behind.
 
@@ -91,14 +91,14 @@ func formatDefault(v reflect.Value) string {
 }
 
 func TestConfigReferenceMatchesDocs(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join(repoRoot, "docs", "deploy.md"))
+	data, err := os.ReadFile(filepath.Join(repoRoot, "docs", "zh-CN", "deploy.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, table, ok := strings.Cut(string(data), "<!-- config-reference:start -->")
 	table, _, ok2 := strings.Cut(table, "<!-- config-reference:end -->")
 	if !ok || !ok2 {
-		t.Fatal("docs/deploy.md lacks the config-reference markers")
+		t.Fatal("docs/zh-CN/deploy.md lacks the config-reference markers")
 	}
 	documented := map[string]key{}
 	for line := range strings.Lines(table) {
@@ -108,7 +108,7 @@ func TestConfigReferenceMatchesDocs(t *testing.T) {
 		}
 		k := key{path: unquote(cells[0]), env: unquote(cells[1]), def: unquote(cells[2])}
 		if _, dup := documented[k.path]; dup {
-			t.Errorf("docs/deploy.md lists %s twice", k.path)
+			t.Errorf("docs/zh-CN/deploy.md lists %s twice", k.path)
 		}
 		documented[k.path] = k
 	}
@@ -116,20 +116,20 @@ func TestConfigReferenceMatchesDocs(t *testing.T) {
 	for _, want := range configKeys(t) {
 		got, ok := documented[want.path]
 		if !ok {
-			t.Errorf("docs/deploy.md: configuration reference lacks %s; add a row: | `%s` | `%s` | %s | ... |",
+			t.Errorf("docs/zh-CN/deploy.md: configuration reference lacks %s; add a row: | `%s` | `%s` | %s | ... |",
 				want.path, want.path, want.env, quoteDefault(want.def))
 			continue
 		}
 		if got.env != want.env {
-			t.Errorf("docs/deploy.md: %s environment variable is %s, want %s", want.path, got.env, want.env)
+			t.Errorf("docs/zh-CN/deploy.md: %s environment variable is %s, want %s", want.path, got.env, want.env)
 		}
 		if got.def != want.def {
-			t.Errorf("docs/deploy.md: %s default is %q, want %q", want.path, got.def, want.def)
+			t.Errorf("docs/zh-CN/deploy.md: %s default is %q, want %q", want.path, got.def, want.def)
 		}
 		delete(documented, want.path)
 	}
 	for path := range documented {
-		t.Errorf("docs/deploy.md documents %s, which Config does not have", path)
+		t.Errorf("docs/zh-CN/deploy.md documents %s, which Config does not have", path)
 	}
 }
 

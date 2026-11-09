@@ -15,10 +15,14 @@ import (
 )
 
 // Credentials is the credential service the API calls.
-// *service.Credentials implements it. Values travel one way only: into
-// Fill, from the console's fill dialog, just as from the server-rendered
-// fill page (server/internal/web). No operation returns one.
+// *service.Credentials implements it. Credential values are accepted from
+// the console and the server-rendered fill page. No operation returns one.
 type Credentials interface {
+	AIConfiguration(ctx context.Context, p *auth.Principal) (service.AIConfiguration, error)
+	AIModels(ctx context.Context, p *auth.Principal) ([]string, error)
+	SetAIConfiguration(ctx context.Context, p *auth.Principal, config service.AIConfiguration, key string) (service.AIConfiguration, error)
+	RemoveAIConfiguration(ctx context.Context, p *auth.Principal) error
+	AIChat(ctx context.Context, p *auth.Principal, model string, messages []service.AIMessage) (string, error)
 	CreateRequest(ctx context.Context, p *auth.Principal, in service.CreateRequestInput) (service.CredentialRequestDetail, error)
 	GetRequest(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.CredentialRequestDetail, error)
 	ListRequests(ctx context.Context, p *auth.Principal, status string, limit *int, cursor string) ([]service.CredentialRequestDetail, string, error)
@@ -27,6 +31,7 @@ type Credentials interface {
 	List(ctx context.Context, p *auth.Principal, status string, limit *int, cursor string) ([]service.CredentialDetail, string, error)
 	Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.CredentialDetail, error)
 	Revoke(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.CredentialDetail, error)
+	Delete(ctx context.Context, p *auth.Principal, id uuid.UUID) error
 	Grant(ctx context.Context, p *auth.Principal, credentialID, taskID uuid.UUID, name string) (service.GrantDetail, error)
 	RevokeGrant(ctx context.Context, p *auth.Principal, credentialID, taskID uuid.UUID) error
 	TaskCredentials(ctx context.Context, p *auth.Principal, taskID uuid.UUID) (int, []service.TaskCredential, error)
@@ -191,6 +196,17 @@ func (h *handler) RevokeCredential(ctx context.Context, req RevokeCredentialRequ
 		return errorResponse[RevokeCredentialdefaultApplicationProblemPlusJSONResponse](ctx, err)
 	}
 	return RevokeCredential200JSONResponse(toCredential(d)), nil
+}
+
+// DeleteCredential permanently removes one of the caller's revoked credentials.
+func (h *handler) DeleteCredential(ctx context.Context, req DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error) {
+	if h.credentials == nil {
+		return nil, errNoCredentials
+	}
+	if err := h.credentials.Delete(ctx, auth.PrincipalFrom(ctx), req.CredentialID); err != nil {
+		return errorResponse[DeleteCredentialdefaultApplicationProblemPlusJSONResponse](ctx, err)
+	}
+	return DeleteCredential204Response{}, nil
 }
 
 // GrantCredential grants a credential to a task under a reference name.

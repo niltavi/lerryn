@@ -41,7 +41,7 @@ export interface RunStatusMeta {
   label: MessageKey;
 }
 
-// docs/design-system.md section 7 gives this mapping.
+// docs/zh-CN/design-system.md section 7 gives this mapping.
 const META: Record<RunStatus, RunStatusMeta> = {
   queued: { tone: "idle", icon: "clock", active: true, label: "run.status.queued" },
   preparing: { tone: "run", icon: "wave", active: true, label: "run.status.preparing" },

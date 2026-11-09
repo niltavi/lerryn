@@ -16,6 +16,7 @@ export {
   stageRows,
   startOfLocalDay,
   taskGlyph,
+  taskStatus,
   type ActiveRun,
   type AttentionItem,
   type AttentionView,

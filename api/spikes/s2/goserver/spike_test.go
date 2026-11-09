@@ -16,7 +16,7 @@ import (
 )
 
 // Tests named TestKnownIssue* pin generator behaviour that is wrong or
-// surprising. They are recorded in docs/spikes/s2-openapi-codegen.md; when
+// surprising. They are recorded in docs/zh-CN/spikes/s2-openapi-codegen.md; when
 // one starts failing after an oapi-codegen upgrade, re-check the finding.
 
 func TestNullableRequiredFieldsEncodeAsNull(t *testing.T) {

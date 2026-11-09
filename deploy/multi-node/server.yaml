@@ -1,5 +1,5 @@
 # 标准拓扑中 server 的配置，两个 server 共用。server.public_url 由 compose.yaml 的环境变量设置。
-# 所有项的说明见 docs/deploy.md 的配置参考。
+# 所有项的说明见 docs/zh-CN/deploy.md 的配置参考。
 
 server:
   listen: ":33333"

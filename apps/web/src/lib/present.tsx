@@ -2,7 +2,7 @@ import {
   formatClock,
   formatDate,
   formatDateTime,
-  runStatusMeta,
+  taskStatus,
   type Glyph,
   type Locale,
   type MessageKey,
@@ -10,7 +10,7 @@ import {
   type Translate,
 } from "@lerryn/core";
 import { StatusIcon } from "@lerryn/ui-web";
-import { CalendarClock, CircleDashed, KeyRound, Pause, Server } from "lucide-react";
+import { Archive, CalendarClock, CircleDashed, KeyRound, Pause, Server } from "lucide-react";
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(" ");
 
@@ -19,6 +19,9 @@ export function GlyphView({ glyph, label, size = "md" }: { glyph: Glyph; label: 
   const { icon } = glyph;
   let inner;
   switch (icon) {
+    case "archive":
+      inner = <Archive className="wl-icon" aria-hidden="true" />;
+      break;
     case "key":
       inner = <KeyRound className="wl-icon" aria-hidden="true" />;
       break;
@@ -45,10 +48,8 @@ export function GlyphView({ glyph, label, size = "md" }: { glyph: Glyph; label: 
 }
 
 /** The accessible name of a task row's glyph. */
-export function taskGlyphLabel(task: Pick<TaskSummary, "state" | "last_run">, t: Translate): string {
-  if (task.state === "inactive") return t("task.paused");
-  if (task.last_run) return t(runStatusMeta(task.last_run.status).label);
-  return t("states.awaitingFirstRun");
+export function taskGlyphLabel(task: TaskSummary, t: Translate): string {
+  return t(taskStatus(task).label);
 }
 
 /**

@@ -63,6 +63,7 @@ type Config struct {
 	Mirrors   Mirrors   `yaml:"mirrors" envPrefix:"MIRRORS_"`
 	MCP       MCP       `yaml:"mcp" envPrefix:"MCP_"`
 	Metrics   Metrics   `yaml:"metrics" envPrefix:"METRICS_"`
+	AI        AI        `yaml:"ai" envPrefix:"AI_"`
 	Notify    Notify    `yaml:"notify" envPrefix:"NOTIFY_"`
 	Scheduler Scheduler `yaml:"scheduler" envPrefix:"SCHEDULER_"`
 	Retention Retention `yaml:"retention" envPrefix:"RETENTION_"`
@@ -75,6 +76,8 @@ type Server struct {
 	// PublicURL is the externally reachable base URL, used to build console
 	// links returned to agents and in notifications.
 	PublicURL string `yaml:"public_url" env:"PUBLIC_URL"`
+	// Environment identifies the deployment to clients. Empty means unspecified.
+	Environment string `yaml:"environment" env:"ENVIRONMENT"`
 	// ExtraOrigins are other addresses the console is opened at, such as a
 	// tunnel's domain in front of a LAN deployment. Session writes from them
 	// are accepted like those from public_url; links returned to agents
@@ -227,6 +230,12 @@ type Metrics struct {
 	TokenFile string `yaml:"token_file" env:"TOKEN_FILE"`
 }
 
+// AI configures outgoing requests to model providers.
+type AI struct {
+	// AllowedNetworks permits selected internal model gateways.
+	AllowedNetworks []string `yaml:"allowed_networks" env:"ALLOWED_NETWORKS" envSeparator:","`
+}
+
 // Notify configures outgoing notifications (tech design 14).
 type Notify struct {
 	// AllowedNetworks lists CIDR networks notifications may reach even
@@ -343,6 +352,11 @@ func (c Config) Validate() error {
 	if u, err := url.Parse(c.Server.PublicURL); err != nil || u.Scheme == "" || u.Host == "" {
 		errs = append(errs, fmt.Errorf("server.public_url must be an absolute URL, got %q", c.Server.PublicURL))
 	}
+	switch c.Server.Environment {
+	case "", "production", "test", "staging", "development":
+	default:
+		errs = append(errs, errors.New("server.environment must be empty or one of production, test, staging, development"))
+	}
 	for _, n := range c.Server.TrustedProxies {
 		if _, err := netip.ParsePrefix(strings.TrimSpace(n)); err != nil {
 			errs = append(errs, fmt.Errorf("server.trusted_proxies: %q is not a CIDR network such as 172.30.0.0/24", n))
@@ -428,6 +442,11 @@ func (c Config) Validate() error {
 	}
 	if c.Metrics.Enabled && c.Metrics.Listen != "" && c.Metrics.Listen == c.Server.Listen {
 		errs = append(errs, fmt.Errorf("metrics.listen must differ from server.listen (%q); leave it empty to serve /metrics on server.listen", c.Server.Listen))
+	}
+	for _, n := range c.AI.AllowedNetworks {
+		if _, err := netip.ParsePrefix(strings.TrimSpace(n)); err != nil {
+			errs = append(errs, fmt.Errorf("ai.allowed_networks: %q is not a CIDR network such as 10.0.0.0/8", n))
+		}
 	}
 	for _, n := range c.Notify.AllowedNetworks {
 		if _, err := netip.ParsePrefix(strings.TrimSpace(n)); err != nil {

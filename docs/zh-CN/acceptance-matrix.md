@@ -16,7 +16,7 @@
 | 保留策略（PRD 日志、产物和保留策略） | `go test -tags integration -run TestRetentionPolicy -v ./tests/acceptance/` | 约 50 秒 |
 | M1（A09、A10、A13 接口） | `go test -tags integration -run TestM1 -v ./server/cmd/lerryn/` | 约 15 秒 |
 | M5（B02、B03，S3 存储） | `go test -tags integration -run TestM5 -v ./server/cmd/lerryn/` | 约 70 秒 |
-| 控制台界面（A03、A04、A06、A13、A17 的 Web 部分及冒烟、axe） | `make e2e-web`，见 [apps/web/e2e/README.md](../apps/web/e2e/README.md) | 约 1.5 分钟 |
+| 控制台界面（A03、A04、A06、A13、A17 的 Web 部分及冒烟、axe） | `make e2e-web`，见 [apps/web/e2e/README.md](../../apps/web/e2e/README.md) | 约 1.5 分钟 |
 | 手机页面（A17，iOS 模拟器上的 Expo Go） | `make e2e-mobile`，配对时在模拟器上点一次「登录」 | 约 2 分钟 |
 | A17、A18 的账号部分（测试用 OIDC 提供方） | `go test -run 'TestA17\|TestA18' -v ./server/cmd/lerryn/` | 几秒 |
 | Agent 评测（A01、A11、A12 的 Agent 部分） | `LERRYN_AGENT_EVALS=claude go test -run TestAgentEvals -v -timeout 60m ./tests/agent-evals/` | 每个场景 1 至 3 分钟，花费见第 4 节 |

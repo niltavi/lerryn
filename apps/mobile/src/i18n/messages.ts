@@ -1,6 +1,6 @@
 // Copy that only the mobile app uses. Shared copy (run states, log, time)
 // comes from @lerryn/core's catalogs so the two consoles say the same thing.
-// Rules from docs/design-system.md section 4: calm and short, a space between
+// Rules from docs/zh-CN/design-system.md section 4: calm and short, a space between
 // Chinese and Latin text or digits, no exclamation marks.
 export const zhCN = {
   login: {

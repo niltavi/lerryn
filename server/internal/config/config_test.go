@@ -54,6 +54,41 @@ runner:
 	}
 }
 
+func TestLoadDeploymentEnvironment(t *testing.T) {
+	t.Setenv("LERRYN_SERVER_ENVIRONMENT", "")
+	if err := os.Unsetenv("LERRYN_SERVER_ENVIRONMENT"); err != nil {
+		t.Fatal(err)
+	}
+	path := writeFile(t, "server:\n  environment: production\n")
+	for _, tt := range []struct {
+		name    string
+		env     *string
+		want    string
+		wantErr bool
+	}{
+		{name: "YAML", want: "production"},
+		{name: "environment override", env: new("test"), want: "test"},
+		{name: "empty override keeps YAML", env: new(""), want: "production"},
+		{name: "invalid override", env: new("prodution"), wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.env != nil {
+				t.Setenv("LERRYN_SERVER_ENVIRONMENT", *tt.env)
+			}
+			cfg, err := Load(path)
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "server.environment") {
+					t.Fatalf("expected environment validation error, got %v", err)
+				}
+				return
+			}
+			if err != nil || cfg.Server.Environment != tt.want {
+				t.Fatalf("environment = %q, err = %v, want %q", cfg.Server.Environment, err, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadRejectsUnknownFields(t *testing.T) {
 	path := writeFile(t, "server:\n  lisen: \":9000\"\n")
 	if _, err := Load(path); err == nil {

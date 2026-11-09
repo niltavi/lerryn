@@ -187,6 +187,7 @@ func (r *Runs) attention(ctx context.Context, p *auth.Principal, projects []uuid
 		var runs []store.Run
 		err := r.db.NewSelect().Model(&runs).
 			Where("run.project_id IN (?) AND run.is_test = ? AND run.status IN (?)", bun.List(projects), false, bun.List(outcomes)).
+			Where("run.archived_at IS NULL").
 			// Runners can report equal finish times. Queue time and ID
 			// break ties so a task has exactly one latest outcome.
 			Where(`NOT EXISTS (SELECT 1 FROM runs AS r2
@@ -452,6 +453,7 @@ func (r *Runs) Calendar(ctx context.Context, p *auth.Principal, in CalendarInput
 	var runs []store.Run
 	q := r.db.NewSelect().Model(&runs).
 		Where("project_id IN (?) AND is_test = ?", bun.List(projects), false).
+		Where("archived_at IS NULL").
 		Where("COALESCE(started_at, queued_at) >= ? AND COALESCE(started_at, queued_at) < ?", from, to)
 	if in.TaskID != nil {
 		q = q.Where("task_id = ?", *in.TaskID)

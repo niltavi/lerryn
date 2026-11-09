@@ -1,7 +1,7 @@
 import { daysUntil, useAccessTokens, useDevices, useI18n, useNotificationChannels, usePendingCredentialRequests } from "@lerryn/core";
 import { WaveGlyph } from "@lerryn/ui-web";
 import { Outlet } from "@tanstack/react-router";
-import { Bell, KeyRound, Plug, Smartphone, UserRound } from "lucide-react";
+import { Bell, Info, KeyRound, Plug, Smartphone, UserRound } from "lucide-react";
 
 import { ListColumn, SectionLink } from "../../shell/layout";
 
@@ -34,7 +34,7 @@ export function KeySettingsLayout() {
   );
 }
 
-/** Personal account: notifications, paired phones and profile. */
+/** Personal account and project information. */
 export function AccountSettingsLayout() {
   const { t } = useI18n();
   const channels = useNotificationChannels();
@@ -42,9 +42,10 @@ export function AccountSettingsLayout() {
   return (
     <>
       <ListColumn title={t("settings.account")} label={t("settings.account")}>
+        <SectionLink to="/settings/account" icon={UserRound} label={t("settings.account")} />
         <SectionLink to="/settings/notifications" icon={Bell} label={t("settings.notifications")} meta={channels.data?.items.length || undefined} />
         <SectionLink to="/settings/pairing" icon={Smartphone} label={t("settings.pairing")} meta={devices.data?.items.length || undefined} />
-        <SectionLink to="/settings/account" icon={UserRound} label={t("settings.account")} />
+        <SectionLink to="/settings/about" icon={Info} label={t("settings.about")} />
       </ListColumn>
       <Outlet />
     </>

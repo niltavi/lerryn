@@ -1,6 +1,6 @@
 # Lerryn 标准拓扑的参考部署（技术设计第 4.3、15.2 节）：Caddy 反向代理、2 个 server、
 # PostgreSQL、S3 兼容对象存储（MinIO 社区构建），以及 2 个 remote runner。
-# 部署步骤见 docs/deploy.md 的“多节点部署”一节。
+# 部署步骤见 docs/zh-CN/deploy.md 的“多节点部署”一节。
 #
 # 这个文件把所有角色放在一台机器上，用于试用和验收。生产环境中 runner 放在专用主机上
 # （见 runner-host.compose.yaml），数据库和对象存储使用企业已有的高可用服务。

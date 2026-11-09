@@ -5,6 +5,8 @@
 server:
   listen: ":33333"
   public_url: "https://lerryn.example.com"
+  # 可选。填写 production、test、staging 或 development，留空表示未配置
+  environment: ""
   # 可选。控制台的其他访问地址（例如隧道域名），从这些地址登录后同样可以修改
   extra_origins: []
   # 可选。文件内容可以作为 runner 的注册令牌，与管理员生成的令牌并用
@@ -71,6 +73,9 @@ metrics:                            # Prometheus 指标，默认关闭
   enabled: false
   listen: ""                        # 单独的监听地址，例如 ":9090"；留空时挂在 server.listen 的 /metrics 上
   token_file: ""                    # 抓取时需要的 Bearer 令牌文件；挂在 server.listen 上时必填
+
+ai:                                 # AI 模型调用出口
+  allowed_networks: []              # 允许访问的内网模型网关网段，默认只访问公网 HTTPS 地址
 
 notify:                             # 通知出口（技术设计第 14 节）
   allowed_networks: []              # 允许发往的内网网段，例如 ["10.20.0.0/16"]；默认只发往公网地址
