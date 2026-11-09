@@ -11,24 +11,21 @@ import {
 } from "@lerryn/core";
 import { StatusGlyph } from "@lerryn/ui-web";
 import { Link } from "@tanstack/react-router";
-import { X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { useNow } from "../lib/hooks";
 import { errorCodeLabel, shortWhen, skipReasonLabel } from "../lib/present";
 import { LoadError, LoadMore } from "../shell/layout";
-import { RunPreview } from "./RunPreview";
+import { RunsBoardPreview } from "./RunsBoardPreview";
 
 /** Pages fetched without asking; past this the board offers "show more". */
 const AUTO_PAGES = 6;
 
-/** Finished columns grow all day; they show this many until expanded. */
-export const COLUMN_LIMIT = 8;
-const CAPPED: ReadonlySet<RunBoardColumn> = new Set(["done", "attention"]);
+const COLUMN_BATCH = 50;
 
 /**
  * The runs board: the last 48 hours of runs in four columns by status, and
- * the selected run's preview beside them. When a run's status moves it to
+ * a floating preview of the selected run. When a run's status moves it to
  * another column, its card is carried there.
  */
 export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runId?: string; viewSwitch: ReactNode }) {
@@ -39,7 +36,7 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
   const now = useNow(30_000);
   const items = runs.data?.items;
   const pages = runs.data?.pageCount ?? 0;
-  const [expanded, setExpanded] = useState<ReadonlySet<RunBoardColumn>>(new Set());
+  const [limits, setLimits] = useState<Partial<Record<RunBoardColumn, number>>>({});
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = runs;
   useEffect(() => {
@@ -58,19 +55,12 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
 
   const shown = useMemo(() => {
     const out = { ...columns };
-    for (const c of CAPPED) if (!expanded.has(c)) out[c] = columns[c].slice(0, COLUMN_LIMIT);
+    for (const c of RUN_BOARD_COLUMNS) out[c] = columns[c].slice(0, limits[c] ?? COLUMN_BATCH);
     return out;
-  }, [columns, expanded]);
+  }, [columns, limits]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   useCardMoves(boardRef, shown, !!runs.data);
-
-  const toggle = (c: RunBoardColumn) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(c)) next.add(c);
-      return next;
-    });
 
   return (
     <>
@@ -90,8 +80,7 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
                 column={column}
                 runs={shown[column]}
                 total={columns[column].length}
-                expanded={expanded.has(column)}
-                onToggle={CAPPED.has(column) ? () => toggle(column) : undefined}
+                onShowMore={() => setLimits((prev) => ({ ...prev, [column]: (prev[column] ?? COLUMN_BATCH) + COLUMN_BATCH }))}
                 taskId={taskId}
                 now={now}
               />
@@ -100,20 +89,7 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
         )}
         <LoadMore show={pages >= AUTO_PAGES && !!runs.data?.hasMore} pending={isFetchingNextPage} onPress={() => void fetchNextPage()} />
       </main>
-      {runId ? (
-        <aside className="board kb-preview" aria-label={t("runs.preview")}>
-          <Link
-            to="/runs"
-            search={{ view: "board", ...(taskId ? { task: taskId } : {}) }}
-            className="chip kb-preview-close"
-            activeOptions={{ exact: true, includeSearch: true }}
-            aria-label={t("common.close")}
-          >
-            <X className="wl-icon" aria-hidden="true" />
-          </Link>
-          <RunPreview runId={runId} />
-        </aside>
-      ) : null}
+      {runId ? <RunsBoardPreview runId={runId} taskId={taskId} /> : null}
     </>
   );
 }
@@ -122,40 +98,53 @@ function BoardColumn({
   column,
   runs,
   total,
-  expanded,
-  onToggle,
+  onShowMore,
   taskId,
   now,
 }: {
   column: RunBoardColumn;
   runs: RunSummary[];
   total: number;
-  expanded: boolean;
-  onToggle?: () => void;
+  onShowMore: () => void;
   taskId?: string;
   now: number;
 }) {
   const { t } = useI18n();
   const title = t(`runs.board.column.${column}`);
+  const more = Math.min(COLUMN_BATCH, total - runs.length);
+  const listRef = useRef<HTMLUListElement>(null);
+  const firstAdded = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (firstAdded.current === null) return;
+    listRef.current?.children[firstAdded.current]?.querySelector("a")?.focus();
+    firstAdded.current = null;
+  }, [runs]);
+
   return (
     <section className={`kb-col kb-col--${column}`} aria-label={title} data-column={column}>
       <h2 className="kb-head">
         <span>{title}</span>
         <span className="n">{total}</span>
       </h2>
-      <ul className="kb-list">
-        {runs.map((run) => (
-          <li key={run.id} className="kb-item" data-run={run.id}>
-            <RunCard run={run} taskId={taskId} now={now} />
-          </li>
-        ))}
-      </ul>
-      {total === 0 ? <div className="kb-empty">{t("runs.board.empty")}</div> : null}
-      {onToggle && total > COLUMN_LIMIT ? (
-        <button type="button" className="kb-more" aria-expanded={expanded} onClick={onToggle}>
-          {expanded ? t("runs.board.showLess") : t("runs.board.showAll", { count: total })}
-        </button>
-      ) : null}
+      <div className="kb-scroll">
+        {total === 0 ? <div className="kb-empty">{t("runs.board.empty")}</div> : (
+          <ul className="kb-list" ref={listRef}>
+            {runs.map((run) => (
+              <li key={run.id} className="kb-item" data-run={run.id}>
+                <RunCard run={run} taskId={taskId} now={now} />
+              </li>
+            ))}
+          </ul>
+        )}
+        {more > 0 ? (
+          <button type="button" className="kb-more" onClick={() => {
+            firstAdded.current = runs.length;
+            onShowMore();
+          }}>
+            {t("runs.board.showMore", { count: more })}
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -178,6 +167,7 @@ function RunCard({ run, taskId, now }: { run: RunSummary; taskId?: string; now: 
       to="/runs"
       search={{ view: "board", run: run.id, ...(taskId ? { task: taskId } : {}) }}
       className="kb-card"
+      resetScroll={false}
       activeOptions={{ exact: true, includeSearch: true }}
     >
       <StatusGlyph status={run.status} />
@@ -196,15 +186,15 @@ interface Spot {
   column: RunBoardColumn;
   x: number;
   y: number;
+  scroller: HTMLElement;
 }
 
 /**
  * Animates cards whose place on the board changed (FLIP). A card that changes
  * column is lifted, carried across and set down like a dragged card; one that
  * only shifts within its column slides briefly, if it is on screen; a new one
- * fades in. Places are offsets inside the board (its offsetParent), which
- * ignore transforms and scrolling, so a card mid-flight or a scrolled page is
- * not mistaken for a move.
+ * fades in. Layout offsets ignore scrolling and transforms. Cross-column
+ * moves use a copy above the scroll areas so the card is not clipped in flight.
  */
 function useCardMoves(boardRef: RefObject<HTMLDivElement | null>, columns: Record<RunBoardColumn, RunSummary[]>, loaded: boolean) {
   const spots = useRef<Map<string, Spot> | null>(null);
@@ -216,26 +206,31 @@ function useCardMoves(boardRef: RefObject<HTMLDivElement | null>, columns: Recor
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const before = spots.current;
     const after = new Map<string, Spot>();
+    const boardTop = board.getBoundingClientRect().top;
 
     for (const column of RUN_BOARD_COLUMNS) {
+      const scroller = board.querySelector<HTMLElement>(`[data-column="${column}"] .kb-scroll`);
+      if (!scroller) continue;
       for (const run of columns[column]) {
         const el = board.querySelector<HTMLElement>(`[data-run="${run.id}"]`);
         if (!el) continue;
-        const spot = { column, x: el.offsetLeft, y: el.offsetTop };
+        const spot = { column, x: el.offsetLeft, y: el.offsetTop, scroller };
         after.set(run.id, spot);
         if (!before || reduce || typeof el.animate !== "function") continue;
 
         const prev = before.get(run.id);
+        const y = spot.y - scroller.scrollTop;
+        if (!onScreen(boardTop + y, el.offsetHeight, scroller)) continue;
         if (!prev) {
-          if (onScreen(el)) el.animate([{ opacity: 0, transform: "scale(0.96)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: "ease-out" });
+          el.animate([{ opacity: 0, transform: "scale(0.96)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: "ease-out" });
           continue;
         }
         const dx = prev.x - spot.x;
         const dy = prev.y - spot.y;
         if (prev.column !== column) {
-          el.getAnimations().forEach((a) => a.cancel());
-          carry(el, dx, dy);
-        } else if ((dx || dy) && onScreen(el)) {
+          const fromY = prev.y - prev.scroller.scrollTop;
+          if (onScreen(boardTop + fromY, el.offsetHeight, prev.scroller)) carry(board, el, spot.x, y, dx, fromY - y);
+        } else if (dx || dy) {
           // Neighbours making room should read as a nudge, not a second move.
           el.getAnimations().forEach((a) => a.cancel());
           el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 200, easing: "ease-out" });
@@ -246,16 +241,24 @@ function useCardMoves(boardRef: RefObject<HTMLDivElement | null>, columns: Recor
   }, [boardRef, columns, loaded]);
 }
 
-function onScreen(el: HTMLElement): boolean {
-  const r = el.getBoundingClientRect();
-  return r.bottom > 0 && r.top < window.innerHeight;
+function onScreen(top: number, height: number, scroller: HTMLElement): boolean {
+  const r = scroller.getBoundingClientRect();
+  return top + height > Math.max(0, r.top) && top < Math.min(window.innerHeight, r.bottom);
 }
 
 /** Lift, carry and drop: the card leaves its old spot and lands in the new one. */
-function carry(el: HTMLElement, dx: number, dy: number) {
+function carry(board: HTMLElement, el: HTMLElement, x: number, y: number, dx: number, dy: number) {
+  const card = el.firstElementChild as HTMLElement;
+  const copy = card.cloneNode(true) as HTMLElement;
+  copy.inert = true;
+  copy.setAttribute("aria-hidden", "true");
+  copy.classList.add("kb-flying-card");
+  Object.assign(copy.style, { left: `${x}px`, top: `${y}px`, width: `${el.offsetWidth}px` });
+  board.append(copy);
+
   const tilt = dx > 0 ? 2 : -2;
   el.classList.add("kb-item--moving");
-  const anim = el.animate(
+  const anim = copy.animate(
     [
       { transform: `translate(${dx}px, ${dy}px)`, offset: 0, easing: "ease-out" },
       { transform: `translate(${dx}px, ${dy - 6}px) rotate(${tilt}deg) scale(1.04)`, offset: 0.18, easing: "cubic-bezier(0.45, 0, 0.2, 1)" },
@@ -264,7 +267,13 @@ function carry(el: HTMLElement, dx: number, dy: number) {
     ],
     { duration: 900 },
   );
-  const done = () => el.classList.remove("kb-item--moving");
+  const cancel = () => anim.cancel();
+  board.addEventListener("scroll", cancel, true);
+  const done = () => {
+    board.removeEventListener("scroll", cancel, true);
+    el.classList.remove("kb-item--moving");
+    copy.remove();
+  };
   anim.onfinish = done;
   anim.oncancel = done;
 }

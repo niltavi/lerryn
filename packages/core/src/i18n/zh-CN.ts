@@ -349,8 +349,13 @@ export const zhCN = {
       label: "运行看板",
       window: "近 48 小时",
       empty: "暂无",
-      showAll: "显示全部 {count} 条",
-      showLess: "收起",
+      showMore: "再显示 {count} 条",
+      previewMode: {
+        label: "切换预览大小",
+        compact: "切换小窗",
+        expanded: "向上展开",
+        fullscreen: "切换全屏",
+      },
       column: {
         scheduled: "已排期",
         active: "进行中",
