@@ -36,6 +36,9 @@ func (h *handler) ListRuns(ctx context.Context, req ListRunsRequestObject) (List
 	if pr.Archived != nil {
 		in.Archived = *pr.Archived
 	}
+	if pr.ExcludeArchivedTasks != nil {
+		in.ExcludeArchivedTasks = *pr.ExcludeArchivedTasks
+	}
 	if pr.Status != nil {
 		for _, s := range *pr.Status {
 			in.Statuses = append(in.Statuses, string(s))
