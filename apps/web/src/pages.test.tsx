@@ -418,7 +418,9 @@ function fakeServer(opts: FakeOptions = {}) {
           ? [{ ...failedRun, task: TASK_REF, current_stage: null, result_status: null, result_summary: null }]
           : opts.runs ?? []).filter((r) =>
           !!r.archived_at === archiveOnly && !(excludeArchivedTasks && r.task.id === task.id && task.archived_at));
-        return json({ items, next_cursor: null });
+        const offset = Number(url.searchParams.get("cursor") ?? 0);
+        const end = offset + Number(url.searchParams.get("limit") ?? 50);
+        return json({ items: items.slice(offset, end), next_cursor: end < items.length ? String(end) : null });
       }
       case "GET /api/v1/tools":
         return opts.toolsResponse?.() ?? json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
@@ -1421,7 +1423,9 @@ describe("runs board", () => {
     await waitFor(() => expect(column("进行中").getByText("moving-run")).toBeTruthy());
     expect(animate).toHaveBeenCalledTimes(1);
     const item = column("进行中").getByText("moving-run").closest("li")!;
-    expect(animate.mock.contexts[0]).toBe(item);
+    const flying = board.querySelector(".kb-flying-card");
+    expect(animate.mock.contexts[0]).toBe(flying);
+    expect(flying?.getAttribute("aria-hidden")).toBe("true");
     expect(item.classList.contains("kb-item--moving")).toBe(true);
     delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
     delete (HTMLElement.prototype as Partial<HTMLElement>).getAnimations;
@@ -1449,7 +1453,7 @@ describe("runs board", () => {
     await screen.findByRole("region", { name: "运行列表" });
   });
 
-  it("shows a card's run beside the board and closes it by link", async () => {
+  it("opens a floating run preview and switches sizes without changing the selected run", async () => {
     const { router } = renderApp("/runs?view=board", { runs: [{ ...summary(1, "failed-run", "failed", -5), id: FAILED_RUN.id }] });
     const user = userEvent.setup();
     const board = await screen.findByRole("main", { name: "运行看板" });
@@ -1457,25 +1461,66 @@ describe("runs board", () => {
     expect(router.state.location.pathname).toBe("/runs");
     expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
     const preview = await screen.findByRole("complementary", { name: "运行预览" });
+    expect(preview.getAttribute("data-mode")).toBe("compact");
     expect(await within(preview).findByRole("link", { name: /打开/ })).toBeTruthy();
     expect(within(board).getByRole("link", { name: /failed-run/ }).getAttribute("aria-current")).toBe("page");
     expect(within(preview).getByRole("link", { name: "关闭" }).getAttribute("aria-current")).toBeNull();
+    const changeSize = async (name: string) => {
+      await user.click(within(preview).getByRole("button", { name: "切换预览大小" }));
+      await user.click(await screen.findByRole("menuitemradio", { name }));
+    };
+    await changeSize("向上展开");
+    expect(preview.getAttribute("data-mode")).toBe("expanded");
+    await changeSize("切换全屏");
+    expect(await screen.findByRole("dialog", { name: "运行预览" })).toBe(preview);
+    expect(preview.getAttribute("data-mode")).toBe("fullscreen");
+    await changeSize("切换小窗");
+    expect(await screen.findByRole("complementary", { name: "运行预览" })).toBe(preview);
+    expect(preview.getAttribute("data-mode")).toBe("compact");
+    expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
     await user.click(within(preview).getByRole("link", { name: "关闭" }));
     await waitFor(() => expect(screen.queryByRole("complementary", { name: "运行预览" })).toBeNull());
     expect(router.state.location.search).toEqual({ view: "board" });
   });
 
-  it("shows the newest finished runs and the rest on request", async () => {
-    const runs = Array.from({ length: 11 }, (_, n) => summary(n + 1, `done-${n + 1}`, "completed", -n - 1));
-    renderApp("/runs?view=board", { runs });
+  it("shows 50 cards per column and appends the next batch only to the chosen column", async () => {
+    const runs = [
+      ...Array.from({ length: 103 }, (_, n) => summary(n + 1, `done-${n + 1}`, "completed", -n - 1)),
+      ...Array.from({ length: 49 }, (_, n) => summary(n + 104, `queued-${n + 1}`, "queued", -n - 104)),
+      ...Array.from({ length: 11 }, (_, n) => summary(n + 153, `failed-${n + 1}`, "failed", -n - 153)),
+    ];
+    const date = new Date();
+    const calendar = [0, 1].map((hour): Schemas["CalendarItem"] => ({
+      kind: "planned",
+      task: { ...TASK_REF, name: `plan-${hour + 1}` },
+      run_id: null,
+      status: null,
+      start: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, hour).toISOString(),
+      end: null,
+      trigger_id: `trigger-${hour + 1}`,
+    }));
+    renderApp("/runs?view=board", { runs, calendar });
     const user = userEvent.setup();
     const done = within(await screen.findByRole("region", { name: "已完成" }));
-    await waitFor(() => expect(done.getAllByRole("link")).toHaveLength(8));
-    expect(done.getByText("11")).toBeTruthy();
-    await user.click(done.getByRole("button", { name: "显示全部 11 条" }));
-    expect(done.getAllByRole("link")).toHaveLength(11);
-    await user.click(done.getByRole("button", { name: "收起" }));
-    expect(done.getAllByRole("link")).toHaveLength(8);
+    const scheduled = within(screen.getByRole("region", { name: "已排期" }));
+    const attention = within(screen.getByRole("region", { name: "待处理" }));
+    expect(await attention.findByText("failed-11")).toBeTruthy();
+    expect(attention.getAllByRole("link")).toHaveLength(11);
+    expect(attention.queryByRole("button")).toBeNull();
+    expect(done.getAllByRole("link")).toHaveLength(50);
+    expect(scheduled.getAllByRole("link")).toHaveLength(50);
+    expect(scheduled.queryByText("plan-2")).toBeNull();
+    expect(done.getByText("103")).toBeTruthy();
+    await user.click(done.getByRole("button", { name: "再显示 50 条" }));
+    expect(done.getAllByRole("link")).toHaveLength(100);
+    expect(document.activeElement).toBe(done.getByRole("link", { name: /done-51/ }));
+    expect(scheduled.getAllByRole("link")).toHaveLength(50);
+    await user.click(done.getByRole("button", { name: "再显示 3 条" }));
+    expect(done.getAllByRole("link")).toHaveLength(103);
+    expect(done.queryByRole("button")).toBeNull();
+    await user.click(scheduled.getByRole("button", { name: "再显示 1 条" }));
+    expect(scheduled.getAllByRole("link")).toHaveLength(51);
+    expect(document.activeElement).toBe(scheduled.getByRole("link", { name: /plan-2/ }));
   });
 
   it("leads back from a run's page to the runs view last used", async () => {
