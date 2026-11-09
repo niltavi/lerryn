@@ -205,6 +205,7 @@ export const en: Messages = {
     tasks: "Tasks",
     copyLink: "Copy task link",
     runNow: "Run now",
+    moreActions: "More task actions",
     delete: "Delete task",
     deleteBody: "Deleting “{name}” stops its triggers and removes it from the task list. Started runs will finish. History remains available; archive records and logs you want to keep permanently.",
     skipNext: "Skip next run",

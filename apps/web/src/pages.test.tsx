@@ -780,15 +780,21 @@ describe("task page", () => {
       .toEqual([{ tags: ["日报", "CRM"] }, { tags: [] }]);
   });
 
-  it("confirms deletion, hides runs by default and preserves task history", async () => {
+  it("confirms deletion from the task menu, hides runs by default and preserves task history", async () => {
     const { server, router } = renderApp(`/tasks/${TASK.id}`, { role: "owner", showRunInList: true });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "删除任务" }));
+    const more = await screen.findByRole("button", { name: "更多任务操作" });
+    expect(screen.queryByRole("button", { name: "删除任务" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "删除任务" })).toBeNull();
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "删除任务" }));
     let dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/历史运行仍可查看/)).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(document.activeElement).toBe(more));
     expect(server.requests.some((r) => r.method === "DELETE")).toBe(false);
-    await user.click(screen.getByRole("button", { name: "删除任务" }));
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "删除任务" }));
     dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "删除任务" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
@@ -854,7 +860,13 @@ describe("task page", () => {
     await user.click(within(dialog).getByRole("button", { name: "停用任务" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("已暂停")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "跳过下次" })).toBeNull();
+    const more = screen.getByRole("button", { name: "更多任务操作" });
+    await user.click(more);
+    const menu = screen.getByRole("menu", { name: "更多任务操作" });
+    expect(within(menu).queryByRole("menuitem", { name: "跳过下次" })).toBeNull();
+    expect(within(menu).getByRole("menuitem", { name: "删除任务" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
     await user.click(screen.getByRole("button", { name: "启用任务" }));
     dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/启用 v1/)).toBeTruthy();
@@ -867,10 +879,16 @@ describe("task page", () => {
   it("confirms the exact next time and refreshes the displayed schedule after skipping", async () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "owner" });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "跳过下次" }));
+    const more = await screen.findByRole("button", { name: "更多任务操作" });
+    await screen.findByText("按计划");
+    expect(screen.queryByRole("button", { name: "跳过下次" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "跳过下次" })).toBeNull();
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "跳过下次" }));
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "取消" }));
     expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(0);
-    await user.click(screen.getByRole("button", { name: "跳过下次" }));
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "跳过下次" }));
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "跳过下次" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     const post = server.requests.find((r) => r.method === "POST")!;
@@ -908,7 +926,7 @@ describe("task page", () => {
     renderApp(`/tasks/${TASK.id}`, { role: state === "viewer" ? "viewer" : "owner", task: state === "archived" ? { archived_at: iso(-10) } : {} });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    for (const name of ["停用任务", "启用任务", "跳过下次", "删除任务"]) expect(screen.queryByRole("button", { name })).toBeNull();
+    for (const name of ["停用任务", "启用任务", "更多任务操作", "立即重新触发"]) expect(screen.queryByRole("button", { name })).toBeNull();
   });
 
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
@@ -923,14 +941,16 @@ describe("task page", () => {
     fireEvent.click(screen.getByRole("button", { name: "填写" }));
     expect(await within(await screen.findByRole("dialog")).findByText("weekday-digest 需要凭证")).toBeTruthy();
     // Without run control in the project: no editing, running or pausing.
-    for (const name of [/运行$/, /暂停/, /编辑/, /重试/, /手动执行/]) {
+    for (const name of [/运行$/, /暂停/, /编辑/, /重试/, /立即重新触发/]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
   });
 
   it("starts a run with a fresh idempotency key and opens it", async () => {
     const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer" });
-    fireEvent.click(await screen.findByRole("button", { name: "手动执行" }));
+    const button = await screen.findByRole("button", { name: "立即重新触发" });
+    expect(button.textContent).toContain("立即重新触发");
+    fireEvent.click(button);
     await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${NEW_RUN.id}`));
     const post = server.requests.find((r) => r.method === "POST")!;
     expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/runs`);
@@ -940,8 +960,12 @@ describe("task page", () => {
 
   it("stays on the task when the run is refused", async () => {
     const { router } = renderApp(`/tasks/${TASK.id}`, { role: "owner", startError: "run_in_progress" });
-    fireEvent.click(await screen.findByRole("button", { name: "手动执行" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "手动执行" }).hasAttribute("disabled")).toBe(false));
+    const user = userEvent.setup();
+    const button = await screen.findByRole("button", { name: "立即重新触发" });
+    await user.click(button);
+    await user.unhover(button);
+    await user.hover(button);
+    expect((await screen.findByRole("tooltip")).textContent).toContain("上一次运行");
     expect(router.state.location.pathname).toBe(`/tasks/${TASK.id}`);
   });
 
@@ -949,14 +973,14 @@ describe("task page", () => {
     renderApp(`/tasks/${TASK.id}`, { role: "viewer" });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    expect(screen.queryByRole("button", { name: "手动执行" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "立即重新触发" })).toBeNull();
   });
 
   it("hides manual runs when the agent turned them off", async () => {
     renderApp(`/tasks/${TASK.id}`, { role: "owner", manualRun: false });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    expect(screen.queryByRole("button", { name: "手动执行" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "立即重新触发" })).toBeNull();
   });
 });
 

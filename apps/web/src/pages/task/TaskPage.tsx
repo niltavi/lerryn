@@ -116,10 +116,10 @@ function TaskBoard({ task }: { task: Task }) {
           {t(status.label)}
           {active && task.active_version ? <span className="mono-sm">v{task.active_version}</span> : null}
         </span>
-        <div className="tools">
-          <TaskActions key={task.id} task={task} nextFire={nextFire} />
-          <RunNowButton task={task} />
+        <div className="tools ml-auto flex-wrap justify-end">
           <CopyButton value={task.links.console} label={t("task.copyLink")} icon={Link2} />
+          <RunNowButton task={task} />
+          <TaskActions key={task.id} task={task} nextFire={nextFire} />
         </div>
       </div>
 

@@ -74,7 +74,12 @@ export interface ActionMenuProps {
 export function ActionMenu({ label, icon, items }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
+  const close = () => {
+    trigger.current?.focus();
+    setOpen(false);
+  };
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
@@ -88,10 +93,10 @@ export function ActionMenu({ label, icon, items }: ActionMenuProps) {
       ref={ref}
       className={cx("disc disc--right", open && "is-open")}
       onKeyDown={(e) => {
-        if (e.key === "Escape") setOpen(false);
+        if (open && e.key === "Escape") close();
       }}
     >
-      <IconButton label={label} icon={icon} aria-expanded={open} aria-controls={id} onPress={() => setOpen((o) => !o)} />
+      <IconButton ref={trigger} label={label} icon={icon} aria-expanded={open} aria-controls={id} onPress={() => setOpen((o) => !o)} />
       {open ? (
         <div className="pop menu" id={id} role="menu" aria-label={label}>
           {items.map((item) => (
@@ -101,7 +106,7 @@ export function ActionMenu({ label, icon, items }: ActionMenuProps) {
               role="menuitem"
               className={item.danger ? "danger" : undefined}
               onClick={() => {
-                setOpen(false);
+                close();
                 item.onSelect();
               }}
             >
