@@ -22,6 +22,17 @@ It all runs on your own machines, from a single Mac mini to a small cluster. You
 
 <br />
 
+![Task history, business results, and revenue trends](docs/assets/screenshots/task-history-en.png)
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/screenshots/runs-board-en.png" />
+  <img src="docs/assets/screenshots/runs-board-en.gif" alt="Runs moving automatically across the board as their status changes" />
+</picture>
+
+![Credential requests, task grants, and expiry management](docs/assets/screenshots/credentials-en.png)
+
+<br />
+
 <div>
 <a href="docs/en/for-agents.md">For agents</a>
 <a href="https://niltavi.com/">
