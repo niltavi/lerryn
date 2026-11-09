@@ -92,6 +92,7 @@ export const en: Messages = {
     unarchive: "Unarchive record",
     archived: "Archived",
     archiveBody: "Move this run to Archived. Its record, full log and remaining artifacts will be kept without automatic cleanup. Task schedules and automatic retries continue.",
+    skipArchiveConfirmation: "Don't ask again",
     unarchiveBody: "Return this run to the default list. Records, logs and artifacts will follow the deployment's retention policy again.",
     archiveExpired: "This log was already removed by retention and cannot be archived in full.",
     archiveActive: "Wait for the run to finish before archiving it.",
