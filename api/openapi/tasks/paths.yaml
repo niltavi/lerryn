@@ -9,7 +9,12 @@ tasks:
       每项带最近一次运行和下一次计划触发时间，供控制台的任务列表使用。
     x-operation-kind: read
     x-mcp:
-      expose: false
+      expose: true
+      tool: task_list
+      title: 列出任务
+      description: |
+        查找有权查看的任务及其标签。可按 project_id、任务名 name 或标签 tag 精确筛选，也可用 q 搜索名称和用途说明。
+        默认不含已归档任务。建议 limit 为 10；若响应被截断，用更小的 limit 重试。还有结果时，用相同筛选条件和响应中的 next_cursor 继续读取。
     parameters:
       - $ref: "../common/parameters.yaml#/ProjectFilter"
       - name: state
@@ -29,6 +34,11 @@ tasks:
           type: string
           minLength: 1
           maxLength: 100
+      - name: tag
+        in: query
+        description: 只返回带有这个标签的任务，精确匹配并区分大小写。
+        schema:
+          $ref: "./schemas.yaml#/TaskTag"
       - name: archived
         in: query
         description: 为 true 时只返回已归档的任务。
@@ -109,14 +119,14 @@ task:
     operationId: getTask
     tags: [tasks]
     summary: 读取任务
-    description: 返回任务、它的启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
+    description: 返回任务、标签、启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
     x-operation-kind: read
     x-mcp:
       expose: true
       tool: task_get
       title: 读取任务
       description: |
-        读取任务的状态、激活版本和最新版本（清单和文件列表）。修改任务前先读，把 latest_version.seq 作为 task_apply 的 if_match。
+        读取任务的标签、状态、激活版本和最新版本（清单和文件列表）。提交新版本前先读，把 latest_version.seq 作为 task_apply 的 if_match。
         文件内容用 api_call 调用 getTaskFile 读取。
     parameters:
       - $ref: "../common/parameters.yaml#/TaskID"
@@ -215,6 +225,42 @@ console:
           application/json:
             schema:
               $ref: "./schemas.yaml#/Task"
+      "409":
+        $ref: "../common/responses.yaml#/Problem"
+      default:
+        $ref: "../common/responses.yaml#/Problem"
+
+tags:
+  put:
+    operationId: setTaskTags
+    tags: [tasks]
+    summary: 设置任务标签
+    description: 整体替换任务的分类标签，传入空数组可清空。只修改任务元数据，不创建任务版本，也不影响执行或触发器。已归档的任务不能修改。
+    x-operation-kind: mutate
+    x-mcp:
+      expose: true
+      tool: task_set_tags
+      title: 设置任务标签
+      description: |
+        整体替换指定任务的分类标签。先读取任务的 tags，保留仍需使用的标签，再提交完整数组。传入空数组清空标签。
+        标签用于查找和分类，不影响任务版本或执行节点。不要把凭证或其他敏感数据用作标签。
+      hints:
+        destructive: true
+    parameters:
+      - $ref: "../common/parameters.yaml#/TaskID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/TaskTagSet"
+    responses:
+      "200":
+        description: 保存后的标签。
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/TaskTagSet"
       "409":
         $ref: "../common/responses.yaml#/Problem"
       default:

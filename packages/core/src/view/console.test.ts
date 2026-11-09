@@ -20,6 +20,7 @@ function task(over: Partial<TaskSummary>): TaskSummary {
     project_id: "p",
     name: "t",
     description: "",
+    tags: [],
     state: "active",
     active_version: 1,
     latest_version: 1,

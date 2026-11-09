@@ -26,7 +26,7 @@ function setup(count = 200) {
     reads.push({ project, cursor, signal: req.signal, label: state.label });
     const fail = state.fail;
     const items: Schemas["TaskSummary"][] = Array.from({ length: Math.min(100, count - cursor) }, (_, offset) => ({
-      id: `task${cursor + offset}`, name: `${state.label}-${cursor + offset}`, project_id: project ?? "project", description: "",
+      id: `task${cursor + offset}`, name: `${state.label}-${cursor + offset}`, project_id: project ?? "project", description: "", tags: [],
       state: "inactive", active_version: null, latest_version: 1, last_run: null, next_run_at: null,
       active_runs: 0, updated_at: "2026-11-03T00:00:00Z", links: { console: "http://lerryn.test/" },
     }));

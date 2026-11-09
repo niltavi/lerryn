@@ -32,6 +32,8 @@ func TestLoadContract(t *testing.T) {
 		name, operationID, method, path string
 	}{
 		{"task_get", "getTask", "GET", "/api/v1/tasks/{taskId}"},
+		{"task_list", "listTasks", "GET", "/api/v1/tasks"},
+		{"task_set_tags", "setTaskTags", "PUT", "/api/v1/tasks/{taskId}/tags"},
 		{"task_apply", "applyTask", "PUT", "/api/v1/projects/{projectId}/tasks/{taskName}"},
 		{"task_validate", "validateTaskVersion", "POST", "/api/v1/tasks/{taskId}/versions/{seq}/validate"},
 		{"trigger_set", "setTriggers", "PUT", "/api/v1/tasks/{taskId}/triggers"},
@@ -54,16 +56,18 @@ func TestLoadContract(t *testing.T) {
 	}
 	// Everything else stays behind api_describe and api_call, so a new
 	// client loads a short tool list (tech design 10.2).
-	if n := len(reg.Tools()); n != 12 {
+	if n := len(reg.Tools()); n != 14 {
 		names := make([]string, 0, n)
 		for _, tool := range reg.Tools() {
 			names = append(names, tool.Name)
 		}
-		t.Errorf("%d tools are exposed, want the 12 of tech design 10.2: %v", n, names)
+		t.Errorf("%d tools are exposed, want the 14 of tech design 10.2: %v", n, names)
 	}
-	// trigger_set replaces the whole set, so it must be marked destructive.
-	if tool, ok := reg.Tool("trigger_set"); ok && (tool.Annotations.DestructiveHint == nil || !*tool.Annotations.DestructiveHint) {
-		t.Error("trigger_set must be marked destructive")
+	// These tools replace whole sets, so they must be marked destructive.
+	for _, name := range []string{"trigger_set", "task_set_tags"} {
+		if tool, ok := reg.Tool(name); ok && (tool.Annotations.DestructiveHint == nil || !*tool.Annotations.DestructiveHint) {
+			t.Errorf("%s must be marked destructive", name)
+		}
 	}
 	// The optimistic-concurrency and idempotency headers reach agents as
 	// plain arguments.

@@ -1,7 +1,9 @@
-import { formatClock, formatDuration, useMe } from '@lerryn/core';
-import { Logo, Mono, useLerrynTheme } from '@lerryn/ui-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { formatClock, formatDuration, taskTagOptions, tasksWithTag, useMe } from '@lerryn/core';
+import { Logo, Mono, Select, useLerrynTheme } from '@lerryn/ui-native';
 import { router } from 'expo-router';
 import { ChevronDown } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useStrings } from '../src/i18n/useStrings';
@@ -240,6 +242,7 @@ function TodayStrip({ items, now }: { items: NonNullable<Parameters<typeof daySt
 
 function TaskSection({ tasks, now }: { tasks: ReturnType<typeof useTaskList>; now: number }) {
   const { t, m, locale } = useStrings();
+  const [tag, setTag] = useState('');
   if (tasks.isPending) return null;
   if (tasks.isError && !tasks.data) {
     return (
@@ -249,11 +252,36 @@ function TaskSection({ tasks, now }: { tasks: ReturnType<typeof useTaskList>; no
       </View>
     );
   }
-  const items = sortTasksBySchedule(tasks.data?.items ?? []);
-  if (items.length === 0) return null;
+  const tasksInProject = tasks.data?.items ?? [];
+  if (tasksInProject.length === 0) return null;
+  const tags = taskTagOptions(tasksInProject, locale);
+  const selected = tags.includes(tag) ? tag : '';
+  const items = sortTasksBySchedule(tasksWithTag(tasksInProject, selected));
   return (
     <View className="gap-2">
       <SectionLabel>{m('overview.tasks')}</SectionLabel>
+      {tags.length > 0 ? (
+        <Select
+          presentation="bottom-sheet"
+          value={{ value: selected, label: selected || t('task.allTags') }}
+          onValueChange={(option) => setTag(option?.value ?? '')}
+        >
+          <Select.Trigger accessibilityLabel={`${t('task.filterByTag')}, ${selected || t('task.allTags')}`}>
+            <Select.Value placeholder={t('task.allTags')} numberOfLines={1} />
+            <Select.TriggerIndicator />
+          </Select.Trigger>
+          <Select.Portal>
+            <Select.Overlay />
+            <Select.Content presentation="bottom-sheet" snapPoints={['60%']} enableDynamicSizing={false}>
+              <BottomSheetScrollView>
+                <Select.ListLabel>{t('task.filterByTag')}</Select.ListLabel>
+                <Select.Item value="" label={t('task.allTags')} />
+                {tags.map((tag) => <Select.Item key={tag} value={tag} label={tag} />)}
+              </BottomSheetScrollView>
+            </Select.Content>
+          </Select.Portal>
+        </Select>
+      ) : null}
       <View>
         {items.map((task, i) => {
           const status = taskStatus(task);
@@ -264,6 +292,7 @@ function TaskSection({ tasks, now }: { tasks: ReturnType<typeof useTaskList>; no
               first={i === 0}
               glyph={<Glyph glyph={status.glyph} label={label} />}
               title={task.name}
+              detail={task.tags?.length ? <Txt variant="caption" numberOfLines={1} className="text-ink-muted">{task.tags.join(' · ')}</Txt> : undefined}
               titleMuted={status.label === 'task.paused' || status.label === 'task.neverActivated'}
               trailing={task.next_run_at ? shortWhen(task.next_run_at, locale, now) : '—'}
               onPress={() => openTarget({ kind: 'task', taskId: task.id })}

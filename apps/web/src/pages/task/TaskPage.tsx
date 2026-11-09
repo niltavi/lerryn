@@ -56,6 +56,7 @@ import { Board, LoadError, usePageTitle } from "../../shell/layout";
 import { NotFoundBody } from "../NotFoundPage";
 import { RunNowButton } from "../run/RunActions";
 import { TaskListColumn } from "../TaskListColumn";
+import { TaskTags } from "./TaskTags";
 import { VersionDiffDialog } from "./VersionDiffDialog";
 import { TaskActions } from "./TaskActions";
 
@@ -125,6 +126,7 @@ function TaskBoard({ task }: { task: Task }) {
       <div className="stack" style={{ gap: 6 }}>
         <h1 className="h1">{task.name}</h1>
         {task.description ? <p className="muted">{task.description}</p> : null}
+        <TaskTags key={task.id} task={task} />
       </div>
 
       <div className="hero">

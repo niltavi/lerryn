@@ -410,10 +410,33 @@ TaskState:
     inactive 为未激活或已暂停，触发器不产生运行，仍可以手动发起运行。
   enum: [active, inactive]
 
+TaskTag:
+  type: string
+  minLength: 1
+  maxLength: 40
+  description: 用于分类的标签名。区分大小写，首尾不能有空白，不允许控制字符或换行。
+  examples: [日报, CRM]
+
+TaskTags:
+  type: array
+  description: 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+  maxItems: 20
+  uniqueItems: true
+  items:
+    $ref: "#/TaskTag"
+
+TaskTagSet:
+  type: object
+  additionalProperties: false
+  required: [tags]
+  properties:
+    tags:
+      $ref: "#/TaskTags"
+
 Task:
   type: object
   description: 一个自动化任务和它的最新版本。
-  required: [id, project_id, name, description, state, active_version, latest_version, console, created_by, created_at, updated_at, archived_at, links]
+  required: [id, project_id, name, description, tags, state, active_version, latest_version, console, created_by, created_at, updated_at, archived_at, links]
   properties:
     id:
       type: string
@@ -426,6 +449,8 @@ Task:
     description:
       type: string
       description: 最新版本清单中的用途说明，没有时为空字符串。
+    tags:
+      $ref: "#/TaskTags"
     state:
       $ref: "#/TaskState"
     active_version:
@@ -455,7 +480,7 @@ Task:
 TaskSummary:
   type: object
   description: 任务列表中的一项。
-  required: [id, project_id, name, description, state, active_version, latest_version, last_run, next_run_at, active_runs, updated_at, links]
+  required: [id, project_id, name, description, tags, state, active_version, latest_version, last_run, next_run_at, active_runs, updated_at, links]
   properties:
     id:
       type: string
@@ -467,6 +492,8 @@ TaskSummary:
       $ref: "#/TaskName"
     description:
       type: string
+    tags:
+      $ref: "#/TaskTags"
     state:
       $ref: "#/TaskState"
     active_version:

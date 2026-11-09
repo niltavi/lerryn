@@ -12,6 +12,8 @@ import { Board, LoadError, usePageTitle } from "../../shell/layout";
 const BUILTIN_TOOLS = [
   ["discover", "read"],
   ["task_get", "read"],
+  ["task_list", "read"],
+  ["task_set_tags", "write"],
   ["task_apply", "write"],
   ["task_validate", "read"],
   ["trigger_set", "write"],

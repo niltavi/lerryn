@@ -52,7 +52,9 @@ Protect the token file as a credential. The MCP client launches the final comman
 | Tool | HTTP operation | Scope | Purpose |
 | --- | --- | --- | --- |
 | `discover` | `discover` | `read` | Versions, runtimes, capabilities, identity |
-| `task_get` | `getTask` | `read` | Task and latest version |
+| `task_get` | `getTask` | `read` | Task, tags, and latest version |
+| `task_list` | `listTasks` | `read` | List visible tasks by project, name, or tag |
+| `task_set_tags` | `setTaskTags` | `write` | Replace all tags without creating a version; pass an empty array to clear them |
 | `task_apply` | `applyTask` | `write` | Create a task or submit a complete version, with `dry_run` |
 | `task_validate` | `validateTaskVersion` | `read` | Check credentials, tools, runners, and test status |
 | `trigger_set` | `setTriggers` | `write` | Replace all cron or Webhook triggers, with previews |
@@ -79,6 +81,8 @@ Then pass this to `api_call`:
 ```
 
 Follow the returned `input_schema`, token scopes, and authentication requirements. Some operations require a console session and cannot use access tokens. File downloads and similar operations may need direct HTTP or the CLI.
+
+To find tagged tasks, call `task_list` with `{"tag":"Reporting","limit":10}`. To edit tags, read the current tags with `task_get`, then pass the complete desired set to `task_set_tags`, for example `{"task_id":"<TASK_ID>","tags":["Reporting","CRM"]}`.
 
 To build a task, call `discover`, preview `task_apply` with `dry_run`, and submit. Request credentials with `credential_request` when needed. Test with `run_start` and `test: true`, and inspect logs and business results. Preview triggers before setting them, then activate the tested version. Before an update, read `latest_version.seq` and pass it as `if_match`; merge changes on a version conflict. Cron triggers require an IANA timezone. Tests execute real code: confirm tasks with side effects with the user first.
 

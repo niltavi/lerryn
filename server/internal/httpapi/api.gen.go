@@ -3232,7 +3232,10 @@ type Task struct {
 
 	// State 任务的启用状态（技术设计第 5.2 节）。active 为已激活，触发器按计划运行激活的版本；
 	// inactive 为未激活或已暂停，触发器不产生运行，仍可以手动发起运行。
-	State     TaskState `json:"state"`
+	State TaskState `json:"state"`
+
+	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+	Tags      TaskTags  `json:"tags"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -3430,7 +3433,10 @@ type TaskSummary struct {
 
 	// State 任务的启用状态（技术设计第 5.2 节）。active 为已激活，触发器按计划运行激活的版本；
 	// inactive 为未激活或已暂停，触发器不产生运行，仍可以手动发起运行。
-	State     TaskState `json:"state"`
+	State TaskState `json:"state"`
+
+	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+	Tags      TaskTags  `json:"tags"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -3441,6 +3447,20 @@ type TaskSummaryPage struct {
 	// NextCursor 下一页的游标，原样传给下一次请求的 `cursor` 参数。为 null 表示没有更多数据。游标不透明，不要解析或拼接。
 	NextCursor *string `json:"next_cursor"`
 }
+
+// TaskTag 用于分类的标签名。区分大小写，首尾不能有空白，不允许控制字符或换行。
+//
+// Examples: 日报, CRM
+type TaskTag = string
+
+// TaskTagSet defines model for TaskTagSet.
+type TaskTagSet struct {
+	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+	Tags TaskTags `json:"tags"`
+}
+
+// TaskTags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
+type TaskTags = []TaskTag
 
 // TaskVersion 任务的一个不可变版本。
 type TaskVersion struct {
@@ -4142,6 +4162,9 @@ type ListTasksParams struct {
 	// Q 按任务名或用途说明中包含的文字筛选，不区分大小写。
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
+	// Tag 只返回带有这个标签的任务，精确匹配并区分大小写。
+	Tag *TaskTag `form:"tag,omitempty" json:"tag,omitempty"`
+
 	// Archived 为 true 时只返回已归档的任务。
 	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
 
@@ -4313,6 +4336,9 @@ type StartRunJSONRequestBody = StartRunRequest
 
 // SkipNextTaskRunJSONRequestBody defines body for SkipNextTaskRun for application/json ContentType.
 type SkipNextTaskRunJSONRequestBody = SkipNextRunRequest
+
+// SetTaskTagsJSONRequestBody defines body for SetTaskTags for application/json ContentType.
+type SetTaskTagsJSONRequestBody = TaskTagSet
 
 // SetTriggersJSONRequestBody defines body for SetTriggers for application/json ContentType.
 type SetTriggersJSONRequestBody = SetTriggersRequest
@@ -4553,6 +4579,9 @@ type ServerInterface interface {
 	// SkipNextTaskRun 跳过下一次定时执行
 	// (POST /api/v1/tasks/{taskId}/skip-next-run)
 	SkipNextTaskRun(w http.ResponseWriter, r *http.Request, taskID TaskID)
+	// SetTaskTags 设置任务标签
+	// (PUT /api/v1/tasks/{taskId}/tags)
+	SetTaskTags(w http.ResponseWriter, r *http.Request, taskID TaskID)
 	// ListTriggers 读取触发器
 	// (GET /api/v1/tasks/{taskId}/triggers)
 	ListTriggers(w http.ResponseWriter, r *http.Request, taskID TaskID)
@@ -7195,6 +7224,19 @@ func (siw *ServerInterfaceWrapper) ListTasks(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// ------------- Optional query parameter "tag" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "tag", r.URL.Query(), &params.Tag, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tag"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tag", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "archived" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "archived", r.URL.Query(), &params.Archived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
@@ -7510,6 +7552,32 @@ func (siw *ServerInterfaceWrapper) SkipNextTaskRun(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SkipNextTaskRun(w, r, taskID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetTaskTags operation middleware
+func (siw *ServerInterfaceWrapper) SetTaskTags(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskID TaskID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", r.PathValue("taskId"), &taskID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetTaskTags(w, r, taskID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8180,6 +8248,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}", wrapper.GetTask)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/tasks/{taskId}/activation", wrapper.SetTaskActivation)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/tasks/{taskId}/console", wrapper.SetTaskConsole)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/tasks/{taskId}/tags", wrapper.SetTaskTags)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/versions", wrapper.ListTaskVersions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/versions/{seq}", wrapper.GetTaskVersion)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/tasks/{taskId}/versions/{seq}/file", wrapper.GetTaskFile)
@@ -11561,6 +11630,62 @@ func (response SkipNextTaskRundefaultApplicationProblemPlusJSONResponse) VisitSk
 	return err
 }
 
+type SetTaskTagsRequestObject struct {
+	TaskID TaskID `json:"taskId"`
+	Body   *SetTaskTagsJSONRequestBody
+}
+
+type SetTaskTagsResponseObject interface {
+	VisitSetTaskTagsResponse(w http.ResponseWriter) error
+}
+
+type SetTaskTags200JSONResponse TaskTagSet
+
+func (response SetTaskTags200JSONResponse) VisitSetTaskTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTaskTags409ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetTaskTags409ApplicationProblemPlusJSONResponse) VisitSetTaskTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTaskTagsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetTaskTagsdefaultApplicationProblemPlusJSONResponse) VisitSetTaskTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTriggersRequestObject struct {
 	TaskID TaskID `json:"taskId"`
 }
@@ -12284,6 +12409,9 @@ type StrictServerInterface interface {
 	// SkipNextTaskRun 跳过下一次定时执行
 	// (POST /api/v1/tasks/{taskId}/skip-next-run)
 	SkipNextTaskRun(ctx context.Context, request SkipNextTaskRunRequestObject) (SkipNextTaskRunResponseObject, error)
+	// SetTaskTags 设置任务标签
+	// (PUT /api/v1/tasks/{taskId}/tags)
+	SetTaskTags(ctx context.Context, request SetTaskTagsRequestObject) (SetTaskTagsResponseObject, error)
 	// ListTriggers 读取触发器
 	// (GET /api/v1/tasks/{taskId}/triggers)
 	ListTriggers(ctx context.Context, request ListTriggersRequestObject) (ListTriggersResponseObject, error)
@@ -14548,6 +14676,39 @@ func (sh *strictHandler) SkipNextTaskRun(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SkipNextTaskRunResponseObject); ok {
 		if err := validResponse.VisitSkipNextTaskRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetTaskTags operation middleware
+func (sh *strictHandler) SetTaskTags(w http.ResponseWriter, r *http.Request, taskID TaskID) {
+	var request SetTaskTagsRequestObject
+
+	request.TaskID = taskID
+
+	var body SetTaskTagsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetTaskTags(ctx, request.(SetTaskTagsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetTaskTags")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetTaskTagsResponseObject); ok {
+		if err := validResponse.VisitSetTaskTagsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

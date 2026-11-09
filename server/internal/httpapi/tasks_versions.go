@@ -17,7 +17,7 @@ func (h *handler) ListTasks(ctx context.Context, req ListTasksRequestObject) (Li
 	if h.tasks == nil {
 		return nil, errNoTasks
 	}
-	in := service.TaskListInput{ProjectID: req.Params.ProjectID, Limit: req.Params.Limit}
+	in := service.TaskListInput{ProjectID: req.Params.ProjectID, Limit: req.Params.Limit, Tag: req.Params.Tag}
 	if s := req.Params.State; s != nil {
 		in.State = string(*s)
 	}
@@ -44,6 +44,7 @@ func (h *handler) ListTasks(ctx context.Context, req ListTasksRequestObject) (Li
 			ProjectID:     s.Task.ProjectID,
 			Name:          s.Task.Name,
 			Description:   s.Task.Description,
+			Tags:          append(TaskTags{}, s.Tags...),
 			State:         taskState(s.Task),
 			ActiveVersion: activeVersion(s.Task),
 			LatestVersion: s.Task.LatestSeq,
@@ -117,6 +118,21 @@ func (h *handler) SetTaskConsole(ctx context.Context, req SetTaskConsoleRequestO
 		return nil, err
 	}
 	return SetTaskConsole200JSONResponse(t), nil
+}
+
+// SetTaskTags replaces the task's classification tags.
+func (h *handler) SetTaskTags(ctx context.Context, req SetTaskTagsRequestObject) (SetTaskTagsResponseObject, error) {
+	if h.tasks == nil {
+		return nil, errNoTasks
+	}
+	if req.Body == nil {
+		return problemResponse[SetTaskTagsdefaultApplicationProblemPlusJSONResponse](ctx, http.StatusBadRequest, ErrorCodeValidationFailed, "请提供 tags 数组"), nil
+	}
+	tags, err := h.tasks.SetTags(ctx, auth.PrincipalFrom(ctx), req.TaskID, req.Body.Tags)
+	if err != nil {
+		return errorResponse[SetTaskTagsdefaultApplicationProblemPlusJSONResponse](ctx, err)
+	}
+	return SetTaskTags200JSONResponse{Tags: tags}, nil
 }
 
 // ListTaskVersions lists the versions of a task, newest first.

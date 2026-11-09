@@ -360,6 +360,7 @@ Agent 面板只渲染五种声明式类型，平台不执行任务给出的 HTML
 | `role_bindings` | project_id、user_id、role | （project_id，user_id）唯一 |
 | `tasks` | project_id、name、state（active／inactive）、active_version_id、active_seq、latest_seq、archived_at、triggers_revision、console_hide_manual_run | 部分唯一索引：未归档时（project_id，name）唯一。`If-Match` 对任务取 latest_seq，对触发器集合取 triggers_revision，不另设 row_version |
 | `task_versions` | task_id、seq、manifest、tree_hash、client（提交时的令牌名）、tested_at、created_by | （task_id，seq）唯一 |
+| `task_tags` | task_id、tag | （task_id，tag）主键；（tag，task_id）索引用于按标签筛选；任务物理删除时级联删除 |
 | `task_files` | version_id、path、blob_hash、size、mode | （version_id，path）唯一 |
 | `environments` | runtime、image_digest、lockfile_hash | 主键即环境 ID（内容哈希） |
 | `triggers` | task_id、name、type、enabled、schedule、timezone、catch_up、params、max_body_bytes、token_hash、token_prefix、next_fire_at、last_fired_at | （task_id，name）唯一；token_hash 唯一 |
@@ -823,6 +824,7 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 | 任务 | `GET /api/v1/tasks` | listTasks | 读取 |
 | 任务 | `PUT /api/v1/projects/{projectId}/tasks/{taskName}` | applyTask | 变更 |
 | 任务 | `GET /api/v1/tasks/{taskId}` | getTask | 读取 |
+| 任务 | `PUT /api/v1/tasks/{taskId}/tags` | setTaskTags | 变更 |
 | 任务 | `GET /api/v1/tasks/{taskId}/versions`、`GET /api/v1/tasks/{taskId}/versions/{seq}` | listTaskVersions、getTaskVersion | 读取 |
 | 任务 | `GET /api/v1/tasks/{taskId}/versions/{seq}/diff` | diffTaskVersion | 读取 |
 | 任务 | `POST /api/v1/tasks/{taskId}/versions/{seq}/validate` | validateTaskVersion | 读取 |
@@ -853,6 +855,7 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 上表是草案。0.5 版写出了 M2 至 M6 和控制台需要的完整契约，与上表的差异以 `api/openapi/` 为准，主要有：
 
 - 任务：`listTasks` 带 `project_id`、`name`（精确匹配，供 CLI 按名字找任务）、`state`、`q`、`archived` 筛选；新增 `getTaskFile`（`GET /tasks/{taskId}/versions/{seq}/file?path=`）、`listTaskCredentials`、`archiveTask`（`DELETE /tasks/{taskId}`，归档而不删除）。`applyTask` 返回 `ApplyTaskResult`（`dry_run`、`created`、`version`、`task`、`diff`、`warnings`），预览用查询参数 `dry_run`，并发保护用请求头 `If-Match`（值为读到的 `latest_version.seq`）。
+- 任务标签：`listTasks` 支持按 `tag` 精确筛选，在游标分页前生效，可以和其他筛选组合。任务详情和列表返回 `tags`，无标签时为空数组。`setTaskTags` 由有任务修改权限的调用者整体替换标签，空数组清空；最多 20 个不重复的标签，每个 1 至 40 个字符，支持中文，区分大小写。归档后仍可读取标签，不能修改。写入和 `task.tags` 审计在同一个事务中完成；审计只记数量，不记标签内容。标签属于项目内的分类元数据，不随任务版本或任务包迁移。
 - 运行：`listRuns` 带项目、任务、状态（可多选）、来源、测试、`rerun_of`、`runner_id` 和时间筛选；`listRunEvents` 用游标分页；新增 `streamRunLogs`、`downloadRunLogs`、`streamEvents` 的 SSE 和下载约定（`api/README.md`）。
 - 新增控制台概览 `getOverview`（需要处理的事、未结束的运行、接下来的触发）和 `getRunCalendar`。
 - 项目新增 `getProject`、`updateProject`、`listMembers` 和 `searchUsers`（`GET /api/v1/users`，按名字开头查找，用于添加成员）。
@@ -986,6 +989,8 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | --- | --- | --- |
 | `discover` | 读取 | discover |
 | `task_get` | 读取 | getTask |
+| `task_list` | 读取 | listTasks，可按标签筛选 |
+| `task_set_tags` | 变更 | setTaskTags，整体替换任务标签 |
 | `task_apply` | 变更 | applyTask，带 `expected_version`，支持 `dry_run` |
 | `task_validate` | 读取 | validateTaskVersion |
 | `trigger_set` | 变更 | setTriggers |
@@ -999,7 +1004,7 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | `api_describe` | 读取 | 按 operationId 或关键词返回接口说明和 schema |
 | `api_call` | 视接口而定 | 按 operationId 调用任意公开接口 |
 
-前 12 个覆盖主流程，其余接口通过 `api_describe` 和 `api_call` 按需访问。Agent 首次接入只加载 14 个工具，不会一下子被塞进几十个。
+专用工具覆盖常用操作，其余接口通过 `api_describe` 和 `api_call` 按需访问。
 
 ### 10.3 工具注册与调用路径
 
@@ -1477,7 +1482,7 @@ Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由�
 - 任务页的“删除任务”复用 `archiveTask`（`DELETE /api/v1/tasks/{taskId}`），确认后停止触发并移出默认任务列表，保留历史，返回概览。归档任务不显示删除或启停操作。运行详情和列表预览提供手动归档／取消归档；默认列表、任务近期运行、概览和日历不展示手动归档的运行，运行列表的“已归档”筛选通过 `listRuns?archived=true` 读取，直接链接仍可查看完整历史。移动端保持只读。
 - 任务页提供“跳过下次”“停用任务”和“启用任务”，不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
 - `skipNextTaskRun`（`POST /api/v1/tasks/{taskId}/skip-next-run`，变更）需要修改任务权限，请求带用户确认的 `scheduled_at`。service 在事务内先锁任务、再锁触发器，核对任务仍激活且当前最早的 `next_fire_at` 等于请求时间并晚于当前时间；不匹配返回 422 `validation_failed`，不会跳过之后的计划。同一时间的启用 cron 触发器各记录一条 `manual` 原因的已跳过运行及触发实例，再推进到下一个 cron 时间；写入 `task.skip_next` 审计。立即生效，不支持撤回，不改触发器配置 revision，不影响 Webhook 和已有运行；调度器、日历与频率预览都尊重推进后的时间。不新增独立 MCP 工具，经 `api_call` 可调用。
-- 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用，保持第 10.2 节的 12 个工具。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
+- 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
 - 构建产物内嵌进服务端二进制，任何 server 副本都能提供。`make web` 把 `apps/web/dist` 复制到 `server/internal/console/webdist/`，由 `go:embed` 嵌入；`make build` 和镜像构建都先构建控制台。只跑 Go 的构建嵌入的是空目录，控制台页面返回 503，API 照常工作。
 - 控制台挂在 `/`，比 `/api/`、`/mcp`、`/healthz`、`/readyz` 的优先级低，这些路径即使对应的处理器没有挂载，也不会返回控制台页面。没有扩展名的路径都返回 `index.html`（`no-cache`），由前端路由选页面；带哈希的静态文件缓存一年。页面带 CSP：脚本、连接、字体都只允许本站，禁止被嵌入框架。
 - 控制台只用会话 cookie，不在浏览器存储里保存访问令牌。新建的访问令牌只在创建结果里出现一次，关闭弹窗即从内存中丢弃。 访问令牌和通知渠道的创建请求等待期间，表单拒绝重复提交并保持弹窗打开，避免重复创建或丢失首次返回的令牌、签名密钥；失败后可以在原表单重试。

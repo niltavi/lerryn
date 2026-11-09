@@ -7,6 +7,8 @@ import {
   runGlyph,
   runStatusMeta,
   taskGlyph,
+  taskTagOptions,
+  tasksWithTag,
   useI18n,
   useTaskList,
   type TaskGroups,
@@ -28,12 +30,15 @@ import { ListColumn } from "../shell/layout";
  * which would claim there are no tasks.
  */
 export function TaskListColumn({ currentTaskId, projectId = null }: { currentTaskId?: string; projectId?: string | null }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const tasks = useTaskList(projectId);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
+  const [tag, setTag] = useState("");
   const items = tasks.data?.items ?? [];
-  const shown = filterTasks(items, query);
+  const tags = taskTagOptions(items, locale);
+  const selectedTag = tags.includes(tag) ? tag : "";
+  const shown = filterTasks(tasksWithTag(items, selectedTag), query);
   const groups = groupTasks(shown);
   const live = groups.running.length > 0;
   const now = useNow(1000, live);
@@ -41,7 +46,7 @@ export function TaskListColumn({ currentTaskId, projectId = null }: { currentTas
   return (
     <ListColumn
       title={t("task.tasks")}
-      count={tasks.data ? items.length : undefined}
+      count={tasks.data ? shown.length : undefined}
       label={t("task.list")}
       tools={
         items.length > 0 ? (
@@ -56,6 +61,14 @@ export function TaskListColumn({ currentTaskId, projectId = null }: { currentTas
         ) : null
       }
     >
+      {tags.length > 0 ? (
+        <div className="list-search field-select">
+          <select value={selectedTag} onChange={(e) => setTag(e.target.value)} aria-label={t("task.filterByTag")}>
+            <option value="">{t("task.allTags")}</option>
+            {tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+          </select>
+        </div>
+      ) : null}
       {searching ? (
         <div className="list-search">
           <label className="log-find">
@@ -121,6 +134,7 @@ function Group({
 function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: boolean; now: number; kind: keyof TaskGroups }) {
   const { t, locale } = useI18n();
   const run = task.last_run;
+  const tags = task.tags?.join(" · ");
   let meta: string = "—";
   let sub: string | null = null;
   let bad = false;
@@ -146,6 +160,7 @@ function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: bo
           {task.name}
         </span>
         {sub ? <span className="li-sub">{sub}</span> : null}
+        {tags ? <span className="li-sub" title={tags}>{tags}</span> : null}
       </span>
       <span className={bad ? "li-meta bad" : "li-meta"}>{meta}</span>
     </Link>

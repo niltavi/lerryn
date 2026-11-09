@@ -10,7 +10,7 @@ import { useProjects, useTaskList } from "./overview";
 import { useCanControlRuns } from "./runs";
 
 type Task = Schemas["TaskSummary"];
-const task = (id: string): Task => ({ id, name: id, project_id: "project", description: "", state: "inactive", active_version: null,
+const task = (id: string): Task => ({ id, name: id, project_id: "project", description: "", tags: [], state: "inactive", active_version: null,
   latest_version: 1, last_run: null, next_run_at: null, active_runs: 0, updated_at: "2026-11-03T00:00:00Z", links: { console: "http://lerryn.test/" } });
 const page = (items: { id: string }[], next_cursor: string | null = null) => new Response(JSON.stringify({ items, next_cursor }), { headers: { "Content-Type": "application/json" } });
 const project = (id: string, role: Schemas["Project"]["role"] = "viewer"): Schemas["Project"] => ({

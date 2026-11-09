@@ -504,7 +504,7 @@ export interface paths {
         };
         /**
          * 读取任务
-         * @description 返回任务、它的启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
+         * @description 返回任务、标签、启用状态、激活版本和最新版本（含清单和文件列表，不含文件内容）。
          */
         get: operations["getTask"];
         put?: never;
@@ -556,6 +556,26 @@ export interface paths {
          *     只在用户要求，或者任务不适合随手运行（例如会对外发消息、扣费、写入生产数据）时关闭。不影响触发器。
          */
         put: operations["setTaskConsole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 设置任务标签
+         * @description 整体替换任务的分类标签，传入空数组可清空。只修改任务元数据，不创建任务版本，也不影响执行或触发器。已归档的任务不能修改。
+         */
+        put: operations["setTaskTags"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2605,6 +2625,7 @@ export interface components {
             name: components["schemas"]["TaskName"];
             /** @description 最新版本清单中的用途说明，没有时为空字符串。 */
             description: string;
+            tags: components["schemas"]["TaskTags"];
             state: components["schemas"]["TaskState"];
             /** @description 激活的版本号。触发器只运行激活的版本。从未激活时为 null。 */
             active_version: number | null;
@@ -2634,6 +2655,7 @@ export interface components {
             project_id: string;
             name: components["schemas"]["TaskName"];
             description: string;
+            tags: components["schemas"]["TaskTags"];
             state: components["schemas"]["TaskState"];
             active_version: number | null;
             /** @description 最新版本号。 */
@@ -4023,6 +4045,17 @@ export interface components {
         AuditEventPage: components["schemas"]["CursorPage"] & {
             items: components["schemas"]["AuditEvent"][];
         };
+        /**
+         * @description 用于分类的标签名。区分大小写，首尾不能有空白，不允许控制字符或换行。
+         * @example 日报
+         * @example CRM
+         */
+        TaskTag: string;
+        /** @description 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。 */
+        TaskTags: components["schemas"]["TaskTag"][];
+        TaskTagSet: {
+            tags: components["schemas"]["TaskTags"];
+        };
     };
     responses: {
         /** @description 错误。结构见 `Problem`。 */
@@ -4277,6 +4310,9 @@ export type SchemaUpdateSettingsRequest = components['schemas']['UpdateSettingsR
 export type SchemaAuditActor = components['schemas']['AuditActor'];
 export type SchemaAuditEvent = components['schemas']['AuditEvent'];
 export type SchemaAuditEventPage = components['schemas']['AuditEventPage'];
+export type SchemaTaskTag = components['schemas']['TaskTag'];
+export type SchemaTaskTags = components['schemas']['TaskTags'];
+export type SchemaTaskTagSet = components['schemas']['TaskTagSet'];
 export type ResponseProblem = components['responses']['Problem'];
 export type ParameterLimit = components['parameters']['Limit'];
 export type ParameterCursor = components['parameters']['Cursor'];
@@ -5023,6 +5059,8 @@ export interface operations {
                 name?: components["schemas"]["TaskName"];
                 /** @description 按任务名或用途说明中包含的文字筛选，不区分大小写。 */
                 q?: string;
+                /** @description 只返回带有这个标签的任务，精确匹配并区分大小写。 */
+                tag?: components["schemas"]["TaskTag"];
                 /** @description 为 true 时只返回已归档的任务。 */
                 archived?: boolean;
                 /** @description 每页返回的条数。 */
@@ -5148,6 +5186,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Task"];
+                };
+            };
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    setTaskTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 任务 ID。 */
+                taskId: components["parameters"]["TaskID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskTagSet"];
+            };
+        };
+        responses: {
+            /** @description 保存后的标签。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTagSet"];
                 };
             };
             409: components["responses"]["Problem"];
