@@ -463,7 +463,7 @@ describe("settings navigation", () => {
     expect(router.state.location.pathname).toBe("/settings/account");
     expect(screen.queryByRole("region", { name: "密钥" })).toBeNull();
     const accountMenu = within(screen.getByRole("region", { name: "账号" }));
-    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "通知", "手机"]);
+    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "通知", "手机", "关于"]);
     expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
     expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBeNull();
 
@@ -474,6 +474,13 @@ describe("settings navigation", () => {
     await user.click(accountMenu.getByRole("link", { name: "手机" }));
     await screen.findByRole("main", { name: "手机" });
     expect(router.state.location.pathname).toBe("/settings/pairing");
+
+    await user.click(accountMenu.getByRole("link", { name: "关于" }));
+    const about = within(await screen.findByRole("main", { name: "关于" }));
+    expect(about.getByRole("heading", { name: "Lerryn" })).toBeTruthy();
+    expect(about.getByRole("link", { name: "官网" }).getAttribute("href")).toBe("https://lerryn.niltavi.com/");
+    expect(about.getByRole("link", { name: "GitHub" }).getAttribute("href")).toBe("https://github.com/niltavi/lerryn");
+    expect(about.getByRole("img", { name: "niltavi" })).toBeTruthy();
   });
 
   it.each([
@@ -483,6 +490,7 @@ describe("settings navigation", () => {
     ["/settings/notifications", "账号", "通知", "张林 · 账号"],
     ["/settings/pairing", "账号", "手机", "张林 · 账号"],
     ["/settings/account", "账号", "账号", "张林 · 账号"],
+    ["/settings/about", "账号", "关于", "张林 · 账号"],
   ])("keeps the menu and rail selection on a direct visit to %s", async (path, menu, section, entry) => {
     const { server } = renderApp(path);
     if (path.includes("?new")) {
@@ -761,6 +769,10 @@ describe("task page", () => {
   it("lets a maintainer replace and clear task tags", async () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", task: { tags: ["销售"] } });
     const user = userEvent.setup();
+    const title = await screen.findByRole("heading", { name: TASK.name });
+    const copy = within(title.parentElement!).getByRole("button", { name: "复制任务链接" });
+    await user.click(copy);
+    expect(await navigator.clipboard.readText()).toBe(TASK.links.console);
     const edit = await screen.findByRole("button", { name: "编辑标签" });
     await user.click(edit);
     const dialog = await screen.findByRole("dialog", { name: "编辑标签" });

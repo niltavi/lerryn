@@ -13,3 +13,50 @@
 @import "@fontsource/ibm-plex-mono/latin-500.css";
 
 @source "./";
+
+@layer components {
+  .board > .about-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-12);
+    max-width: none;
+  }
+
+  .about-project {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-3);
+    max-width: 46ch;
+    padding-top: var(--space-8);
+  }
+
+  .about-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  .about-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 44px;
+    color: var(--kraft-strong);
+  }
+
+  .about-links a:hover { text-decoration: underline; }
+
+  .about-signature {
+    align-self: flex-end;
+    width: 128px;
+    max-width: 100%;
+    color: var(--ink-muted);
+  }
+
+  .about-wordmark {
+    font: 600 24px var(--font-display);
+    letter-spacing: -.04em;
+  }
+}
