@@ -564,31 +564,59 @@
   .seg a:hover { color: var(--ink); }
   .seg a[aria-current="page"] { background: var(--liner-3); color: var(--ink); }
 
-  /* ── 运行看板：四列按状态排开，选中的运行在右侧预览；卡片换列时由脚本做“拿起、搬过去、放下”的位移动画 ── */
+  /* Run board columns scroll independently. The preview floats above them. */
   .board--runs { flex: 1 1 0; container-type: inline-size; gap: 8px; padding: 0 clamp(16px, 2vw, 24px) 56px 0; }
   .board--runs > * { max-width: none; }
   .board--runs > :not(.list-head) { margin-left: 20px; }
   .kb { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
   @container (max-width: 980px) { .kb { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @container (max-width: 480px) { .kb { grid-template-columns: minmax(0, 1fr); } }
-  .kb-col { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 8px; border: 1px solid var(--line); border-radius: var(--radius-3xl); background: var(--liner); }
-  .kb-head { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0 6px 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
+  .kb-col { min-width: 0; max-height: max(224px, calc(100dvh - 100px)); display: flex; flex-direction: column; gap: 4px; padding: 12px 8px; border: 1px solid var(--line); border-radius: var(--radius-3xl); background: var(--liner); }
+  .kb-head { flex: none; display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0 6px 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
   .kb-head .n { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  .kb-scroll { min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 3px; }
   .kb-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .kb-item { min-width: 0; }
-  .kb-item--moving { position: relative; z-index: 5; }
+  .kb-item--moving > .kb-card { opacity: 0; }
+  .kb-flying-card { position: absolute; z-index: 5; pointer-events: none; }
   .kb-card { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-2xl); background: var(--paper); color: var(--ink); text-decoration: none; transition: border-color .15s; }
   .kb-card:hover { border-color: var(--line-strong); }
   .kb-card[aria-current="page"] { border-color: var(--kraft); }
-  .kb-item--moving .kb-card { border-color: var(--kraft); cursor: grabbing; }
+  .kb-card.kb-flying-card { border-color: var(--kraft); }
   .kb-empty { padding: 16px 6px; font-size: 13px; line-height: 18px; color: var(--ink-muted); text-align: center; }
-  .kb-more { align-self: center; height: 30px; padding: 0 10px; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--kraft-strong); font: inherit; font-size: 13px; line-height: 18px; font-weight: 600; cursor: pointer; }
+  .kb-more { display: block; min-height: 36px; margin: var(--space-2) auto 0; padding: 0 10px; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--kraft-strong); font: inherit; font-size: 13px; line-height: 18px; font-weight: 600; cursor: pointer; overflow-anchor: none; }
   .kb-more:hover { background: var(--liner-2); }
-  .kb-preview { position: sticky; top: 0; align-self: flex-start; flex: 0 0 clamp(340px, 30vw, 460px); max-height: 100vh; max-height: 100dvh; overflow-y: auto; box-sizing: border-box; gap: 24px; border-left: 1px solid var(--line); background: var(--paper); }
-  .kb-preview-close { position: absolute; top: 24px; right: 16px; z-index: 1; height: 36px; width: 36px; padding: 0; justify-content: center; }
-  .kb-preview > .board-top { padding-right: 44px; }
-  @media (max-width: 960px) {
-    .kb-preview { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; width: min(460px, 100%); max-height: none; }
+  .kb-preview {
+    --kb-preview-edge: var(--space-4);
+    --kb-preview-bottom: var(--kb-preview-edge);
+    position: fixed;
+    right: var(--kb-preview-edge);
+    bottom: var(--kb-preview-bottom);
+    z-index: 35;
+    display: flex;
+    flex-direction: column;
+    width: min(480px, calc(100% - 2 * var(--kb-preview-edge)));
+    max-height: min(380px, max(180px, 48dvh), calc(100dvh - var(--kb-preview-edge) - var(--kb-preview-bottom)));
+    overflow: clip;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-4xl);
+    background: var(--paper);
+  }
+  .kb-preview[data-mode="expanded"] { height: 76dvh; max-height: calc(100dvh - var(--kb-preview-edge) - var(--kb-preview-bottom)); }
+  .kb-preview[data-mode="fullscreen"] { inset: 0; width: auto; max-height: none; border: 0; border-radius: 0; }
+  /* The scroll lock normally reserves space for the page's scrollbar. */
+  html:has(.kb-preview[data-mode="fullscreen"]) { scrollbar-gutter: auto !important; }
+  .kb-preview-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); background: var(--liner); }
+  .kb-preview-menu { z-index: 40; border: 1px solid var(--line); box-shadow: none; }
+  .kb-preview-close { height: 36px; width: 36px; padding: 0; justify-content: center; }
+  .kb-preview-body { min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; overscroll-behavior-y: contain; padding: var(--space-4); overflow-wrap: anywhere; }
+  .kb-preview-body > * { flex-shrink: 0; }
+  .kb-preview-body .board-top .tools { flex-wrap: wrap; }
+  .kb-preview[data-mode="fullscreen"] .kb-preview-body { width: 100%; max-width: 1160px; margin-inline: auto; padding: clamp(16px, 3vw, 40px); }
+  @media (max-width: 720px) {
+    .kb-col { max-height: max(224px, calc(100dvh - 156px - env(safe-area-inset-bottom, 0px))); }
+    .kb-preview { --kb-preview-edge: var(--space-3); --kb-preview-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+    .kb-preview[data-mode="fullscreen"] { padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
   }
 
   .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 12px; }

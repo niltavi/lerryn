@@ -350,8 +350,13 @@ export const en: Messages = {
       window: "Past 2 days through tomorrow",
       plansTruncated: "Some scheduled times may be missing",
       empty: "None",
-      showAll: "Show all {count}",
-      showLess: "Show fewer",
+      showMore: "Show {count} more",
+      previewMode: {
+        label: "Change preview size",
+        compact: "Switch to small window",
+        expanded: "Expand upward",
+        fullscreen: "Switch to full screen",
+      },
       column: {
         scheduled: "Scheduled",
         active: "In progress",
