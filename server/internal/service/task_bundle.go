@@ -348,6 +348,7 @@ func (t *Tasks) Import(ctx context.Context, p *auth.Principal, in ImportTaskInpu
 		ID:          store.NewID(),
 		ProjectID:   in.ProjectID,
 		Name:        name,
+		Title:       latest.Title,
 		Description: latest.Description,
 		LatestSeq:   len(versions),
 		CreatedBy:   p.UserID,

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/niltavi/lerryn/server/internal/runproto"
@@ -19,6 +20,7 @@ import (
 // submitted, without defaults: defaults are applied when a run is handed
 // to a runner (RunSpec).
 type Manifest struct {
+	Title       string         `json:"title,omitempty"`
 	Description string         `json:"description,omitempty"`
 	Runtime     RuntimeSpec    `json:"runtime"`
 	Entrypoint  []string       `json:"entrypoint"`
@@ -132,6 +134,7 @@ const (
 	minMemory        = 64 * mebibyte
 	maxMemory        = 16 * gibibyte
 	maxParamsBytes   = 16 << 10
+	maxTaskTitle     = 120
 	maxDescription   = 500
 	maxEntrypoint    = 32
 	maxArgBytes      = 1024
@@ -150,6 +153,11 @@ var (
 // of submitted file paths, needed for the lock file rule.
 func validateManifest(v *validation, m *Manifest, paths map[string]bool) {
 	const at = "#/manifest"
+	if m.Title != strings.TrimSpace(m.Title) || !utf8.ValidString(m.Title) ||
+		utf8.RuneCountInString(m.Title) > maxTaskTitle ||
+		strings.ContainsFunc(m.Title, func(r rune) bool { return unicode.IsControl(r) || r == '\u2028' || r == '\u2029' }) {
+		v.content(at+"/title", fmt.Sprintf("任务标题最多 %d 个字符，不能有首尾空白、控制字符或换行", maxTaskTitle))
+	}
 	if utf8.RuneCountInString(m.Description) > maxDescription {
 		v.content(at+"/description", fmt.Sprintf("用途说明最多 %d 个字符", maxDescription))
 	}

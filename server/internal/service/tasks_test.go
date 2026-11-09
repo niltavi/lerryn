@@ -130,6 +130,10 @@ func TestApplyValidation(t *testing.T) {
 		want     string
 	}{
 		{"task name", "Bad_Name", nil, nil, "?taskName"},
+		{"title too long", "", func(m *service.Manifest) { m.Title = strings.Repeat("报", 121) }, nil, "#/manifest/title"},
+		{"title padded", "", func(m *service.Manifest) { m.Title = " 日报 " }, nil, "#/manifest/title"},
+		{"title multiline", "", func(m *service.Manifest) { m.Title = "每日\n费用" }, nil, "#/manifest/title"},
+		{"title NUL", "", func(m *service.Manifest) { m.Title = "每日\x00费用" }, nil, "#/manifest/title"},
 		{"language", "", func(m *service.Manifest) { m.Runtime.Language = "ruby" }, nil, "#/manifest/runtime/language"},
 		{"version", "", func(m *service.Manifest) { m.Runtime.Version = "3.11" }, nil, "#/manifest/runtime/version"},
 		{"version of another runtime", "", func(m *service.Manifest) { m.Runtime.Language = "node" }, nil, "#/manifest/runtime/version"},

@@ -236,6 +236,7 @@ func (h *handler) toTask(d service.TaskDetail) (Task, error) {
 		ID:            d.Task.ID,
 		ProjectID:     d.Task.ProjectID,
 		Name:          d.Task.Name,
+		Title:         optional(d.Task.Title),
 		Description:   d.Task.Description,
 		Tags:          append(TaskTags{}, d.Tags...),
 		State:         taskState(d.Task),

@@ -158,15 +158,15 @@ const (
 	TaskInactive = "inactive"
 )
 
-// Task is an automation task. Its versions are immutable; LatestSeq is the
-// highest version number and Description comes from that version's
-// manifest.
+// Task is an automation task. Its versions are immutable. Title and
+// Description come from the manifest of LatestSeq.
 type Task struct {
 	bun.BaseModel `bun:"table:tasks"`
 
 	ID          uuid.UUID `bun:"id,pk,nullzero"`
 	ProjectID   uuid.UUID `bun:"project_id,notnull"`
 	Name        string    `bun:"name,notnull"`
+	Title       string    `bun:"title,notnull"`
 	Description string    `bun:"description,notnull"`
 	LatestSeq   int       `bun:"latest_seq,notnull"`
 	CreatedBy   uuid.UUID `bun:"created_by,notnull"`

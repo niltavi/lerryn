@@ -137,6 +137,7 @@ func TestMCPTaskLifecycle(t *testing.T) {
 
 	project := ok("discover", nil)["principal"].(map[string]any)["personal_project_id"].(string)
 	manifest := map[string]any{
+		"title":      "工作日线索摘要",
 		"runtime":    map[string]any{"language": "python", "version": "3.12"},
 		"entrypoint": []string{"python", "main.py"},
 		"stages":     []map[string]any{{"id": "fetch", "name": "获取"}},
@@ -157,6 +158,9 @@ func TestMCPTaskLifecycle(t *testing.T) {
 	}
 	created, _ := apply("print(cfg['token'])\n", nil)
 	task := created["task"].(map[string]any)
+	if task["title"] != manifest["title"] {
+		t.Fatalf("submitted title = %v, want %v", task["title"], manifest["title"])
+	}
 	taskID := task["id"].(string)
 
 	// The test fails; the agent reads the error, stage and log.

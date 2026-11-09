@@ -41,6 +41,7 @@
 ### task_apply（提交任务）
 
 创建任务或提交新版本：给出完整的清单（manifest）和全部文件（files，UTF-8 文本）。
+新建任务时建议默认填写 manifest.title，用用户的语言写一个简短标题，例如「GitHub 费用日报」。更新任务时沿用已有标题，除非用户要求更改或清除。
 project_id 用 discover 返回的 principal.personal_project_id。运行时只能从 discover 的 runtimes 中选。
 修改已有任务时 if_match 必填，值为读到的 latest_version.seq；收到 version_conflict 时先用 task_get 和差异确认别人的修改，不要直接覆盖。
 先用 dry_run 为 true 查看校验结果和 diff，再正式提交。
@@ -49,7 +50,7 @@ project_id 用 discover 返回的 principal.personal_project_id。运行时只�
 
 ### task_list（列出任务）
 
-查找有权查看的任务及其标签。可按 project_id、任务名 name 或标签 tag 精确筛选，也可用 q 搜索名称和用途说明。
+查找有权查看的任务及其标签。可按 project_id、任务名 name 或标签 tag 精确筛选，也可用 q 搜索标题、任务名和用途说明。
 默认不含已归档任务。建议 limit 为 10；若响应被截断，用更小的 limit 重试。还有结果时，用相同筛选条件和响应中的 next_cursor 继续读取。
 
 ### task_get（读取任务）

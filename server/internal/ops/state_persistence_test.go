@@ -174,8 +174,9 @@ func TestStatePersistenceOldSchemaImport(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs := newLocal(t, t.TempDir())
-	seed(t, src, bs, "archived_at")
-	want := readSnapshot(t, src, "archived_at")
+	missingColumns := map[string][]string{"runs": {"archived_at"}, "tasks": {"title"}}
+	seed(t, src, bs, missingColumns)
+	want := readSnapshot(t, src, missingColumns)
 	archive := filepath.Join(t.TempDir(), "old-export.tar.gz")
 	manifest, err := Export(t.Context(), ExportOptions{DB: src, Blobs: bs, Output: archive})
 	if err != nil || manifest.SchemaVersion != beforeState {

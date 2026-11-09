@@ -110,7 +110,7 @@ function TaskBody({
           </Txt>
         </View>
         <Txt variant="title-2" weight="bold" accessibilityRole="header">
-          {task.name}
+          {task.title || task.name}
         </Txt>
         {task.description ? (
           <Txt variant="body-sm" className="text-ink-muted">
