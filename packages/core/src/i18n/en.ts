@@ -347,7 +347,8 @@ export const en: Messages = {
     },
     board: {
       label: "Runs board",
-      window: "Last 48 hours",
+      window: "Past 2 days through tomorrow",
+      plansTruncated: "Some scheduled times may be missing",
       empty: "None",
       showAll: "Show all {count}",
       showLess: "Show fewer",
