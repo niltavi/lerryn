@@ -510,7 +510,8 @@ export const zhCN = {
   },
   tools: {
     intro: "通过 MCP、HTTP API 或 CLI，让 Agent 创建任务、执行自动化并读取结果。",
-    guide: "下载接入文档",
+    guide: "下载英文文档",
+    guideZh: "下载中文文档",
     interfaces: "接入方式",
     authHelp: "MCP 和 HTTP API 使用访问令牌认证。CLI 登录后保存令牌，Skill 提供任务编写与操作指引。",
     manageTokens: "管理访问令牌",

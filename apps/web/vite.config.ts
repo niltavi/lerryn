@@ -6,21 +6,28 @@ import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
-// The favicon is the circular icon from the design language; it is read from
-// design/ at build time instead of keeping a copy in the app.
-const FAVICON = fileURLToPath(new URL("../../design/brand/logo/svg/lerryn-icon-circle.svg", import.meta.url));
+// Read from the canonical sources and keep guide URLs stable across releases.
+const STATIC_FILES = [
+  ["favicon.svg", "../../design/brand/logo/svg/lerryn-icon-circle.svg", "image/svg+xml"],
+  ["docs/en/tools.md", "../../docs/en/tools.md", "text/markdown; charset=utf-8"],
+  ["docs/zh-CN/tools.md", "../../docs/zh-CN/tools.md", "text/markdown; charset=utf-8"],
+] as const;
 
-function favicon(): Plugin {
+function staticFiles(): Plugin {
   return {
-    name: "lerryn-favicon",
+    name: "lerryn-static-files",
     configureServer(server) {
-      server.middlewares.use("/favicon.svg", (_req, res) => {
-        res.setHeader("Content-Type", "image/svg+xml");
-        res.end(readFileSync(FAVICON));
-      });
+      for (const [fileName, source, contentType] of STATIC_FILES) {
+        server.middlewares.use(`/${fileName}`, (_req, res) => {
+          res.setHeader("Content-Type", contentType);
+          res.end(readFileSync(fileURLToPath(new URL(source, import.meta.url))));
+        });
+      }
     },
     generateBundle() {
-      this.emitFile({ type: "asset", fileName: "favicon.svg", source: readFileSync(FAVICON) });
+      for (const [fileName, source] of STATIC_FILES) {
+        this.emitFile({ type: "asset", fileName, source: readFileSync(fileURLToPath(new URL(source, import.meta.url))) });
+      }
     },
   };
 }
@@ -39,7 +46,7 @@ const proxy = {
 };
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), favicon()],
+  plugins: [react(), tailwindcss(), staticFiles()],
   build: {
     outDir: "dist",
     emptyOutDir: true,
