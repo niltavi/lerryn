@@ -191,6 +191,10 @@ func parseFingerprints(raw string, keyID string) ([]secrets.Fingerprint, bool) {
 // (uuid.Nil for a task that does not exist yet). The rejection is
 // audited, with the credential IDs, so repeated probing shows up.
 func (c *Credentials) CheckPlaintext(ctx context.Context, p *auth.Principal, taskID uuid.UUID, texts []ScanText) error {
+	return c.checkPlaintext(ctx, p, taskID, texts, "task")
+}
+
+func (c *Credentials) checkPlaintext(ctx context.Context, p *auth.Principal, taskID uuid.UUID, texts []ScanText, resourceKind string) error {
 	if c == nil || len(texts) == 0 || p == nil {
 		return nil
 	}
@@ -220,6 +224,10 @@ func (c *Credentials) CheckPlaintext(ctx context.Context, p *auth.Principal, tas
 	if m.Empty() {
 		return nil
 	}
+	detail := "这里含有凭证 %s 的值。凭证不能写进清单、任务文件或参数：在清单的 credentials 中引用它，任务运行时从 /run/secrets 或环境变量读取"
+	if resourceKind == "ai" {
+		detail = "这里含有凭证 %s 的值。请移除凭证明文"
+	}
 	perr := &PlaintextCredentialError{}
 	perr.Content = true
 	var hitIDs []string
@@ -230,8 +238,7 @@ func (c *Credentials) CheckPlaintext(ctx context.Context, p *auth.Principal, tas
 			if slices.ContainsFunc(perr.Fields, func(f FieldError) bool { return f.Pointer == pointer && strings.Contains(f.Detail, " "+name+" ") }) {
 				continue
 			}
-			perr.Fields = append(perr.Fields, FieldError{Pointer: pointer, Detail: fmt.Sprintf(
-				"这里含有凭证 %s 的值。凭证不能写进清单、任务文件或参数：在清单的 credentials 中引用它，任务运行时从 /run/secrets 或环境变量读取", name)})
+			perr.Fields = append(perr.Fields, FieldError{Pointer: pointer, Detail: fmt.Sprintf(detail, name)})
 			if !slices.Contains(perr.Names, name) {
 				perr.Names = append(perr.Names, name)
 			}
@@ -246,7 +253,7 @@ func (c *Credentials) CheckPlaintext(ctx context.Context, p *auth.Principal, tas
 	sort.Strings(perr.Names)
 	sort.Strings(hitIDs)
 	kind, actor := actorOf(p)
-	resourceKind, resourceID := "task", ""
+	resourceID := ""
 	if taskID != uuid.Nil {
 		resourceID = taskID.String()
 	}

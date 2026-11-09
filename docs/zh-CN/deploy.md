@@ -221,6 +221,7 @@ OrbStack 的 Docker 跑在它自己的 Linux 虚拟机里。compose 文件中 `/
 | `metrics.enabled` | `LERRYN_METRICS_ENABLED` | `false` | 是否提供 Prometheus 指标 |
 | `metrics.listen` | `LERRYN_METRICS_LISTEN` | （空） | 指标的单独监听地址，例如 `:9090`；留空时挂在 `server.listen` 的 `/metrics` 上 |
 | `metrics.token_file` | `LERRYN_METRICS_TOKEN_FILE` | （空） | 抓取指标需要的 Bearer 令牌文件；挂在 `server.listen` 上时必填 |
+| `ai.allowed_networks` | `LERRYN_AI_ALLOWED_NETWORKS` | （空） | AI 调用允许访问的内网网段（CIDR）。默认只访问公网 HTTPS 地址 |
 | `notify.allowed_networks` | `LERRYN_NOTIFY_ALLOWED_NETWORKS` | （空） | 通知允许发往的内网网段（CIDR），例如 `10.20.0.0/16`。默认只发往公网地址，回环、私有和链路本地地址一律拒绝 |
 | `scheduler.max_queued_runs` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS` | `1000` | 整个部署排队中的运行上限。超过时定时和 webhook 触发记为已跳过（`queue_full`），API 发起返回 429 `queue_full`；0 表示不限 |
 | `scheduler.max_queued_runs_per_project` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS_PER_PROJECT` | `200` | 单个项目排队中的运行上限，避免一个项目占满队列；0 表示不限 |

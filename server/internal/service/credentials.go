@@ -18,6 +18,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/niltavi/lerryn/server/internal/auth"
+	"github.com/niltavi/lerryn/server/internal/notify"
 	"github.com/niltavi/lerryn/server/internal/runproto"
 	"github.com/niltavi/lerryn/server/internal/secrets"
 	"github.com/niltavi/lerryn/server/internal/store"
@@ -32,9 +33,10 @@ import (
 //
 //   - A credential and its fill requests belong to one user. Nobody else,
 //     platform admins included, sees them; other users get ErrNotFound.
-//   - Values are only ever written through Fill, which accepts browser
-//     sessions only, and only read back by RunSecrets for a run assigned to
-//     the calling runner. No other method returns or logs them.
+//   - Task credentials are written through Fill from a browser session and
+//     read back by RunSecrets only for a run assigned to the calling runner.
+//   - The personal AI credential is isolated from task credentials. Its key
+//     stays on the server and is sent only to the configured model provider.
 //   - Granting needs the owner, who must be able to view the task. Taking
 //     over a reference name another user's credential is bound to also
 //     needs permission to modify the task.
@@ -44,6 +46,7 @@ type Credentials struct {
 	keys  secrets.Keyring
 	log   *slog.Logger
 	now   func() time.Time
+	ai    aiProvider
 }
 
 // NewCredentials returns the credential service. keys encrypts and
@@ -52,7 +55,7 @@ func NewCredentials(db *store.DB, authz *Authorizer, keys secrets.Keyring, log *
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	return &Credentials{db: db, authz: authz, keys: keys, log: log, now: store.Now}
+	return &Credentials{db: db, authz: authz, keys: keys, log: log, now: store.Now, ai: newAIProvider(&notify.Guard{})}
 }
 
 // Credential rules (CreateCredentialRequestBody and the fill page).
@@ -338,7 +341,7 @@ func (c *Credentials) visibleTask(ctx context.Context, p *auth.Principal, id uui
 
 func (c *Credentials) ownCredential(ctx context.Context, idb bun.IDB, p *auth.Principal, id uuid.UUID) (store.Credential, error) {
 	var cred store.Credential
-	err := idb.NewSelect().Model(&cred).Where("id = ? AND owner_user_id = ?", id, p.UserID).Scan(ctx)
+	err := idb.NewSelect().Model(&cred).Where("id = ? AND owner_user_id = ? AND name <> ?", id, p.UserID, aiCredentialName).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return store.Credential{}, ErrNotFound
 	}
@@ -525,7 +528,7 @@ func (c *Credentials) List(ctx context.Context, p *auth.Principal, status string
 	}
 	now := c.now()
 	q := c.db.NewSelect().Model((*store.Credential)(nil)).
-		Where("owner_user_id = ?", p.UserID).
+		Where("owner_user_id = ? AND name <> ?", p.UserID, aiCredentialName).
 		Order("name", "id").Limit(int64(limit) + 1)
 	switch status {
 	case "":

@@ -149,6 +149,9 @@ ErrorCode:
     - title: ManualRunDisabled
       const: manual_run_disabled
       description: 任务关闭了控制台的手动执行，从控制台会话发起的运行被拒绝。访问令牌发起的运行不受影响。下一步：需要从控制台运行时，请 Agent 用 setTaskConsole 打开手动执行。
+    - title: AIProviderError
+      const: ai_provider_error
+      description: 模型服务未返回可用的文本。下一步：检查 AI 配置和服务商状态。
 
 NextAction:
   type: object

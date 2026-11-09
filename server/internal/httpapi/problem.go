@@ -47,6 +47,7 @@ var problemTitles = map[ErrorCode]string{ // #nosec G101 -- error titles; "crede
 	ErrorCodeRequestClosed:           "填写请求已结束",
 	ErrorCodeExpired:                 "已按保留策略清理",
 	ErrorCodeManualRunDisabled:       "手动执行已关闭",
+	ErrorCodeAIProviderError:         "AI 服务调用失败",
 }
 
 // buildProblem builds the problem body for code. detail may be empty.

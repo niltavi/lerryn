@@ -858,7 +858,8 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 - 项目新增 `getProject`、`updateProject`、`listMembers` 和 `searchUsers`（`GET /api/v1/users`，按名字开头查找，用于添加成员）。
 - 个人新增 `listDevices`、`revokeDevice`；`login` 带 `device` 时建立只读的设备会话；`exchangePairingCode` 的请求带 `server` 和 `device`。
 - 管理新增 `adminResetPassword`；runner 的管理接口放在 `/api/v1/admin/runners` 下。
-- 凭证新增 `listCredentialRequests`、`cancelCredentialRequest`、`getCredential`；更新已有凭证也走填写请求（`createCredentialRequest` 带 `credential_id`），明文只经过填写请求的提交。控制台的填写框用 `fillCredentialRequest`（`POST /api/v1/credential-requests/{requestId}/values`）提交，只接受登录会话（第 12.4 节）。
+- 任务凭证新增 `listCredentialRequests`、`cancelCredentialRequest`、`getCredential`；更新已有凭证也走填写请求（`createCredentialRequest` 带 `credential_id`），明文只经过填写请求的提交。控制台的填写框用 `fillCredentialRequest`（`POST /api/v1/credential-requests/{requestId}/values`）提交，只接受登录会话（第 12.4 节）。
+- 个人 AI 配置经 `GET /api/v1/me/ai` 读取、`PUT` 保存、`DELETE` 移除，这三个操作只接受登录会话。Agent 经 `GET /api/v1/ai/models` 读取模型，通过 `POST /api/v1/ai/chat` 调用，见第 10.2 节。
 - 通知渠道属于用户本人，订阅写在渠道里（`subscriptions`），新增 `updateNotificationChannel`、`testNotificationChannel`、`listNotificationDeliveries`；通用 webhook 的载荷 `NotificationEvent` 和签名规则写在契约的 `webhooks` 中。
 - Skill：`listSkills`（`GET /api/v1/skills`）返回版本和每个 Skill 的文件清单，`getSkill`（`GET /api/v1/skills/{name}`）返回全部文件内容。两者允许匿名调用，与 `discover` 相同，Skill 本来就随二进制公开发行；都不作为独立的 MCP 工具暴露（`x-mcp: {expose: false}`），MCP 客户端读 resource，或经 `api_call` 调用。
 - 工具：`listTools`、`registerTool`、`removeTool` 的最小实现见第 7.8 节。
@@ -996,10 +997,14 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | `run_cancel` | 执行 | cancelRun |
 | `run_rerun` | 执行 | rerunRun |
 | `credential_request` | 变更 | createCredentialRequest |
+| `ai_models` | 读取 | listAIModels |
+| `ai_chat` | 执行 | createAIChat |
 | `api_describe` | 读取 | 按 operationId 或关键词返回接口说明和 schema |
 | `api_call` | 视接口而定 | 按 operationId 调用任意公开接口 |
 
-前 12 个覆盖主流程，其余接口通过 `api_describe` 和 `api_call` 按需访问。Agent 首次接入只加载 14 个工具，不会一下子被塞进几十个。
+Agent 首次接入加载这 16 个工具。其他接口通过 `api_describe` 查询，可调用的操作经 `api_call` 访问。
+
+个人 AI 配置只能在 Web 登录会话中修改。配置与密钥复用凭证库的加密和轮换，内部凭证不能通过普通凭证接口读取或授权给任务。`ai_chat` 按令牌所属账号读取配置，检查模型 ID 后从服务端发起请求。AI 配置的地址和模型、聊天请求及返回文本沿用凭证指纹检查。AI 出口沿用通知的连接地址检查，单独由 `ai.allowed_networks` 放行需要访问的内网网段。请求使用 HTTPS，不跟随重定向。
 
 ### 10.3 工具注册与调用路径
 
@@ -1352,7 +1357,7 @@ M4 的实现细节：
 - 填写页 `/c/{requestId}`：Agent 交给用户的链接打开这里。服务端渲染，不依赖前端组件库，在手机浏览器中也能正常填写。
 - 控制台的填写框：用户已经在控制台里时（更新凭证、概览和凭证页的待填写项、任务页缺少的凭证），直接在模态框中填写，不跳出控制台。提交走 `fillCredentialRequest`，契约只声明 `sessionCookie`，服务层也只接受浏览器会话，所以访问令牌（Agent）和移动端的设备会话都不能调用；不暴露为 MCP 工具，不带幂等键，响应只有完成后的请求，校验错误只用 `#/values/{字段名}` 指出哪一项。从控制台发起的更新在填写框未保存就关闭时，撤回这个请求。代价是明文会经过控制台的脚本，填写页没有这一面。
 
-明文只出现在这两个提交请求中，不出现在 URL、任何 API 响应、MCP 返回或任务参数里。
+任务凭证的明文只从这两个入口提交。个人 AI 的 API Key 在凭证页通过 `setAIConfiguration` 单独提交。公开接口响应、MCP 返回和任务参数均不携带这些明文。
 
 ### 12.5 运行时注入
 
@@ -1477,13 +1482,14 @@ Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由�
 - 任务页的“删除任务”复用 `archiveTask`（`DELETE /api/v1/tasks/{taskId}`），确认后停止触发并移出默认任务列表，保留历史，返回概览。归档任务不显示删除或启停操作。运行详情和列表预览提供手动归档／取消归档；默认列表、任务近期运行、概览和日历不展示手动归档的运行，运行列表的“已归档”筛选通过 `listRuns?archived=true` 读取，直接链接仍可查看完整历史。移动端保持只读。
 - 任务页提供“跳过下次”“停用任务”和“启用任务”，不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
 - `skipNextTaskRun`（`POST /api/v1/tasks/{taskId}/skip-next-run`，变更）需要修改任务权限，请求带用户确认的 `scheduled_at`。service 在事务内先锁任务、再锁触发器，核对任务仍激活且当前最早的 `next_fire_at` 等于请求时间并晚于当前时间；不匹配返回 422 `validation_failed`，不会跳过之后的计划。同一时间的启用 cron 触发器各记录一条 `manual` 原因的已跳过运行及触发实例，再推进到下一个 cron 时间；写入 `task.skip_next` 审计。立即生效，不支持撤回，不改触发器配置 revision，不影响 Webhook 和已有运行；调度器、日历与频率预览都尊重推进后的时间。不新增独立 MCP 工具，经 `api_call` 可调用。
-- 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用，保持第 10.2 节的 12 个工具。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
+- 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
 - 构建产物内嵌进服务端二进制，任何 server 副本都能提供。`make web` 把 `apps/web/dist` 复制到 `server/internal/console/webdist/`，由 `go:embed` 嵌入；`make build` 和镜像构建都先构建控制台。只跑 Go 的构建嵌入的是空目录，控制台页面返回 503，API 照常工作。
 - 控制台挂在 `/`，比 `/api/`、`/mcp`、`/healthz`、`/readyz` 的优先级低，这些路径即使对应的处理器没有挂载，也不会返回控制台页面。没有扩展名的路径都返回 `index.html`（`no-cache`），由前端路由选页面；带哈希的静态文件缓存一年。页面带 CSP：脚本、连接、字体都只允许本站，禁止被嵌入框架。
 - 控制台只用会话 cookie，不在浏览器存储里保存访问令牌。新建的访问令牌只在创建结果里出现一次，关闭弹窗即从内存中丢弃。 访问令牌和通知渠道的创建请求等待期间，表单拒绝重复提交并保持弹窗打开，避免重复创建或丢失首次返回的令牌、签名密钥；失败后可以在原表单重试。
 - 控制台页面的链接与 `links.console` 一致：任务 `/tasks/{id}`，运行 `/runs/{id}`。
 - 全部页面接到契约中的接口：概览看板（需要处理、运行中、今天的波纹日历）、运行列表和预览、任务（启用状态、触发频率与时区、引用凭证、版本与差异、所有者、上次结果的 Agent 面板、运行历史）、运行（阶段、事件、平台记录的工具调用、告警、重跑关联、产物、日志）、个人设置和管理设置（账号、登录设置、执行节点和注册令牌、审计）。读取失败时显示错误和重试，没有数据时显示真实的空状态，不显示示例数据。hook 都在 `@lerryn/core`，移动端共用其中的概览、任务和运行查询以及视图模型。
-- 任务启用状态可由维护者和所有者操作，触发器配置仍由 Agent 管理。凭证页只有元信息，更新凭证时以 `credential_id` 发起填写请求并跳到服务端渲染的 `/c/{id}`，撤销凭证和取消授权在控制台完成；只保存了字段名，所以更新时每个字段按机密的单行值重新填写。 待填写请求与已有凭证分别按需分页，待填区首次读 200 条，读完前导航计数带 `+`；继续加载失败时保留已有记录并重试原游标。每 30 秒刷新已加载的待填页，重算后续游标；填写完成后重新读取并移除已完成请求。
+- 任务启用状态可由维护者和所有者操作，触发器配置仍由 Agent 管理。任务凭证列表只展示元信息，更新凭证时以 `credential_id` 发起填写请求并跳到服务端渲染的 `/c/{id}`，撤销凭证和取消授权在控制台完成；只保存了字段名，所以更新时每个字段按机密的单行值重新填写。 待填写请求与已有凭证分别按需分页，待填区首次读 200 条，读完前导航计数带 `+`；继续加载失败时保留已有记录并重试原游标。每 30 秒刷新已加载的待填页，重算后续游标；填写完成后重新读取并移除已完成请求。
+- 「密钥 → 凭证」中的「AI 能力」允许用户保存基础地址、API Key 和可用模型。编辑时保留已存的地址与模型，Key 字段留空。移除配置会清除该账号保存的 AI 凭证版本。
 - 执行节点管理按需分页，每页 200 条，每 10 秒刷新已加载的页面并重算游标。后页读取失败保留已显示节点，重试原游标；未读完时，运行、容量和在线数的标签明确限定为已显示节点，读完后展示完整统计。注册令牌创建中不接受重复提交或关闭，保留只返回一次的令牌；失败后可以重试或关闭，完成后清除页面中的令牌。
 - 实时更新：概览等页面订阅 `streamEvents`，收到 `run` 事件后让相关查询失效，连接不可用时按间隔轮询，每 60 秒重试一次流；运行日志先用 `readRunLogs` 读末尾，再用 `streamRunLogs` 从这一页的游标跟随，浏览器断线后带 `Last-Event-ID` 续读，服务端拒绝时改为按游标轮询。两条路径都按行号合并。
 - 管理员关闭本地密码登录后，`discover` 的 `login_methods` 不再包含 password，`capabilities.admin_password_login` 为 true。登录页读到 `discover` 后直接以企业账号登录为主，只在 `admin_password_login` 为 true 时留一个“管理员登录”的入口；两者都没有时不显示密码表单。不带这个字段的旧服务端仍按一次 `password_login_disabled` 切换版式。移动端没有单点登录，按同样的规则在填好服务器地址后隐藏密码表单，只留扫码配对和管理员入口。

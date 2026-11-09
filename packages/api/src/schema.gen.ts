@@ -1112,6 +1112,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取个人 AI 配置
+         * @description 读取当前用户的 API 基础地址和可用模型，未配置时模型列表为空。
+         */
+        get: operations["getAIConfiguration"];
+        /**
+         * 保存个人 AI 配置
+         * @description 加密保存 AI 配置。首次配置或变更基础地址时需要提交 API Key。
+         */
+        put: operations["setAIConfiguration"];
+        post?: never;
+        /**
+         * 移除个人 AI 配置
+         * @description 删除当前用户的 AI 配置与存储的 API Key。
+         */
+        delete: operations["removeAIConfiguration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列出可用 AI 模型
+         * @description 列出当前用户为内置 AI 工具启用的模型。
+         */
+        get: operations["listAIModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 调用 AI 模型
+         * @description 使用当前用户的 OpenAI 兼容服务和已启用的模型进行一次文本生成，返回模型文本。服务商可能计费。
+         */
+        post: operations["createAIChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/credential-requests": {
         parameters: {
             query?: never;
@@ -1728,7 +1796,7 @@ export interface components {
             current_version?: number;
         };
         /** @description 稳定的错误类别。HTTP 错误的 `Problem.code` 和运行失败的错误类别共用这一组值。 */
-        ErrorCode: string & ("validation_failed" | "version_conflict" | "idempotency_conflict" | "credential_missing" | "credential_unavailable" | "dependency_install_failed" | "runner_unavailable" | "queue_full" | "script_error" | "timeout" | "registration_disabled" | "insufficient_scope" | "not_found" | "unauthenticated" | "username_taken" | "rate_limited" | "run_in_progress" | "out_of_memory" | "run_interrupted" | "origin_not_allowed" | "internal_error" | "permission_denied" | "precondition_required" | "version_not_tested" | "task_archived" | "password_login_disabled" | "last_owner" | "request_closed" | "expired" | "manual_run_disabled");
+        ErrorCode: string & ("validation_failed" | "version_conflict" | "idempotency_conflict" | "credential_missing" | "credential_unavailable" | "dependency_install_failed" | "runner_unavailable" | "queue_full" | "script_error" | "timeout" | "registration_disabled" | "insufficient_scope" | "not_found" | "unauthenticated" | "username_taken" | "rate_limited" | "run_in_progress" | "out_of_memory" | "run_interrupted" | "origin_not_allowed" | "internal_error" | "permission_denied" | "precondition_required" | "version_not_tested" | "task_archived" | "password_login_disabled" | "last_owner" | "request_closed" | "expired" | "manual_run_disabled" | "ai_provider_error");
         /** @description 一条建议的下一步操作。 */
         NextAction: {
             /**
@@ -3527,6 +3595,40 @@ export interface components {
             /** @description 超过 2000 项时只返回最早的 2000 项。 */
             truncated: boolean;
         };
+        /** @description 服务商使用的模型 ID。 */
+        AIModelID: string;
+        AIModelList: {
+            /** @description 当前用户启用的模型，未配置时为空。 */
+            models: components["schemas"]["AIModelID"][];
+        };
+        AIConfiguration: {
+            /** @description 已配置的 HTTPS API 基础地址，未配置时省略。 */
+            base_url?: string;
+            models: components["schemas"]["AIModelID"][];
+        };
+        SetAIConfigurationBody: {
+            /** @description 服务商的 HTTPS API 基础地址，包含服务商要求的版本路径，例如 https://api.openai.com/v1。 */
+            base_url: string;
+            /** @description 服务商的 API Key。地址不变时可省略以保留现有 Key。 */
+            api_key?: string;
+            /** @description 允许内置 AI 工具调用的模型。 */
+            models: components["schemas"]["AIModelID"][];
+        };
+        AIChatMessage: {
+            /** @enum {string} */
+            role: "system" | "user" | "assistant";
+            content: string;
+        };
+        AIChatBody: {
+            model: components["schemas"]["AIModelID"];
+            /** @description 按对话顺序排列的文本消息。 */
+            messages: components["schemas"]["AIChatMessage"][];
+        };
+        AIChatResult: {
+            model: components["schemas"]["AIModelID"];
+            /** @description 模型生成的文本。 */
+            content: string;
+        };
         /**
          * @description 字段名，同时是注入时的环境变量名或文件名。
          * @example PRICE_API_TOKEN
@@ -4231,6 +4333,13 @@ export type SchemaActiveRun = components['schemas']['ActiveRun'];
 export type SchemaUpcomingFire = components['schemas']['UpcomingFire'];
 export type SchemaCalendarItem = components['schemas']['CalendarItem'];
 export type SchemaCalendar = components['schemas']['Calendar'];
+export type SchemaAiModelId = components['schemas']['AIModelID'];
+export type SchemaAiModelList = components['schemas']['AIModelList'];
+export type SchemaAiConfiguration = components['schemas']['AIConfiguration'];
+export type SchemaSetAiConfigurationBody = components['schemas']['SetAIConfigurationBody'];
+export type SchemaAiChatMessage = components['schemas']['AIChatMessage'];
+export type SchemaAiChatBody = components['schemas']['AIChatBody'];
+export type SchemaAiChatResult = components['schemas']['AIChatResult'];
 export type SchemaCredentialFieldName = components['schemas']['CredentialFieldName'];
 export type SchemaCredentialFieldSpec = components['schemas']['CredentialFieldSpec'];
 export type SchemaCreateCredentialRequestBody = components['schemas']['CreateCredentialRequestBody'];
@@ -5917,6 +6026,117 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Calendar"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAIConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 个人 AI 配置。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConfiguration"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setAIConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAIConfigurationBody"];
+            };
+        };
+        responses: {
+            /** @description 已保存的配置，不含 API Key。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIConfiguration"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeAIConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 配置已移除。 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAIModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已启用的模型。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIModelList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createAIChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AIChatBody"];
+            };
+        };
+        responses: {
+            /** @description 生成的文本。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIChatResult"];
                 };
             };
             default: components["responses"]["Problem"];
