@@ -43,6 +43,7 @@ func (h *handler) ListTasks(ctx context.Context, req ListTasksRequestObject) (Li
 			ID:            s.Task.ID,
 			ProjectID:     s.Task.ProjectID,
 			Name:          s.Task.Name,
+			Title:         optional(s.Task.Title),
 			Description:   s.Task.Description,
 			Tags:          append(TaskTags{}, s.Tags...),
 			State:         taskState(s.Task),

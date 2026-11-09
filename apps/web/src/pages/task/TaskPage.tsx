@@ -83,7 +83,8 @@ const LANGUAGES: Record<string, string> = { python: "Python", node: "Node.js", s
 
 function TaskBoard({ task }: { task: Task }) {
   const { t, locale } = useI18n();
-  usePageTitle(task.name);
+  const title = task.title || task.name;
+  usePageTitle(title);
   const now = useNow(30_000);
   const triggers = useTaskTriggers(task.id);
   const runs = useTaskRuns(task.id);
@@ -109,7 +110,7 @@ function TaskBoard({ task }: { task: Task }) {
   const toolMissing = registry.isSuccess && tools.some((v) => !v.tool);
 
   return (
-    <Board label={task.name}>
+    <Board label={title}>
       <div className="board-top">
         <span className="eyebrow" aria-live="polite" aria-atomic="true">
           <GlyphView glyph={status.glyph} label={t(status.label)} />
@@ -124,7 +125,7 @@ function TaskBoard({ task }: { task: Task }) {
 
       <div className="stack" style={{ gap: 6 }}>
         <div className="flex items-start justify-between gap-3">
-          <h1 className="h1 min-w-0">{task.name}</h1>
+          <h1 className="h1 min-w-0">{title}</h1>
           <div className="tools shrink-0">
             <EditTaskTagsButton key={task.id} task={task} />
             <CopyButton value={task.links.console} label={t("task.copyLink")} icon={Link2} />

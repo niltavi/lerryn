@@ -401,7 +401,7 @@ type TaskListInput struct {
 	// State is TaskActive or TaskInactive; empty for both.
 	State string
 	// Name matches the task name exactly; Query is a case-insensitive
-	// substring of the name or description.
+	// substring of the title, name or description.
 	Name     string
 	Query    string
 	Tag      *string
@@ -464,7 +464,8 @@ func (t *Tasks) List(ctx context.Context, p *auth.Principal, in TaskListInput) (
 	}
 	if in.Query != "" {
 		pattern := "%" + likeEscaper.Replace(strings.ToLower(in.Query)) + "%"
-		q = q.Where(`(lower(name) LIKE ? ESCAPE '\' OR lower(description) LIKE ? ESCAPE '\')`, pattern, pattern)
+		q = q.Where(`(lower(name) LIKE ? ESCAPE '\' OR lower(title) LIKE ? ESCAPE '\' OR lower(description) LIKE ? ESCAPE '\')`,
+			pattern, pattern, pattern)
 	}
 	if in.Tag != nil {
 		q = q.Where("id IN (SELECT task_id FROM task_tags WHERE tag = ?)", *in.Tag)

@@ -157,7 +157,7 @@ function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: bo
       <GlyphView glyph={glyph} label={glyphLabel} />
       <span style={{ minWidth: 0 }}>
         <span className="li-name" style={kind === "inactive" ? { color: "var(--ink-muted)" } : undefined}>
-          {task.name}
+          {task.title || task.name}
         </span>
         {sub ? <span className="li-sub">{sub}</span> : null}
         {tags ? <span className="li-sub" title={tags}>{tags}</span> : null}

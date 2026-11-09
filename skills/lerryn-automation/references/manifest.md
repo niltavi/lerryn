@@ -9,6 +9,7 @@
   "project_id": "<discover 返回的 principal.personal_project_id>",
   "task_name": "weekday-digest",
   "manifest": {
+    "title": "工作日 CRM 线索摘要",
     "description": "工作日早上汇总 CRM 新线索",
     "runtime": {"language": "python", "version": "3.12"},
     "entrypoint": ["python", "main.py"]
@@ -18,6 +19,7 @@
 ```
 
 - 任务名：小写字母、数字和连字符，1 到 63 个字符，项目内唯一。同名提交生成新版本。
+- `title` 是控制台的显示标题，可用中文，最多 120 个字符。使用单行文字，去掉首尾空白和控制字符。新建任务时默认用用户的语言填写简短标题。修改任务时带上原有标题，除非用户要求改标题或清除它。省略或留空时，控制台显示任务名。
 - `entrypoint` 是 argv，工作目录为 `/sbx/task`（任务文件，只读）。
 - `files` 是全部文件，UTF-8 文本，最多 100 个，合计不超过 1 MiB。没有列出的文件不会保留。
 - 修改已有任务必须带 `if_match`（读到的 `latest_version.seq`），否则返回 `precondition_required`。

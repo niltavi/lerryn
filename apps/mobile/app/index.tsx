@@ -291,7 +291,7 @@ function TaskSection({ tasks, now }: { tasks: ReturnType<typeof useTaskList>; no
               key={task.id}
               first={i === 0}
               glyph={<Glyph glyph={status.glyph} label={label} />}
-              title={task.name}
+              title={task.title || task.name}
               detail={task.tags?.length ? <Txt variant="caption" numberOfLines={1} className="text-ink-muted">{task.tags.join(' · ')}</Txt> : undefined}
               titleMuted={status.label === 'task.paused' || status.label === 'task.neverActivated'}
               trailing={task.next_run_at ? shortWhen(task.next_run_at, locale, now) : '—'}

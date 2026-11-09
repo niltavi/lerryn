@@ -45,11 +45,13 @@ export function groupTasks(tasks: readonly TaskSummary[]): TaskGroups {
   return groups;
 }
 
-/** Keeps the tasks whose name or description contains the query, ignoring case. */
+/** Keeps the tasks whose title, name or description contains the query, ignoring case. */
 export function filterTasks(tasks: readonly TaskSummary[], query: string): TaskSummary[] {
   const q = query.trim().toLowerCase();
   if (!q) return tasks as TaskSummary[];
-  return tasks.filter((t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+  return tasks.filter((t) =>
+    t.title?.toLowerCase().includes(q) || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
+  );
 }
 
 // ── Agent panels ──

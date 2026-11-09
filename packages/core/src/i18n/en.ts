@@ -265,7 +265,7 @@ export const en: Messages = {
     tagsSaveFailed: "Couldn't save tags. Try again.",
     search: "Search tasks",
     closeSearch: "Close search",
-    searchPlaceholder: "Name or purpose",
+    searchPlaceholder: "Title, name or purpose",
     tools: "Tools",
     runnerLabels: "Runners",
     retry: "Retry",
