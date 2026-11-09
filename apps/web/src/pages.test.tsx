@@ -1081,16 +1081,20 @@ describe("tools", () => {
     expect(within(interfaces).getByText(`lerryn login ${window.location.origin}`)).toBeTruthy();
     await user.click(within(interfaces).getByRole("button", { name: "复制 MCP 地址" }));
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/mcp`);
-    const guide = screen.getByRole("link", { name: "下载接入文档" });
-    expect(guide.getAttribute("href")).toContain("/docs/zh-CN/tools.md");
+    const guide = screen.getByRole("link", { name: "下载英文文档" });
+    expect(guide.getAttribute("href")).toBe("/docs/en/tools.md");
     expect(guide.getAttribute("download")).toBe("lerryn-tools.md");
+    const guideZh = screen.getByRole("link", { name: "下载中文文档" });
+    expect(guideZh.getAttribute("href")).toBe("/docs/zh-CN/tools.md");
+    expect(guideZh.getAttribute("download")).toBe("lerryn-tools-zh-CN.md");
     expect(screen.getByRole("link", { name: "管理访问令牌" }).getAttribute("href")).toBe("/settings/tokens");
   });
 
-  it("offers the English guide with the English interface", async () => {
+  it("offers both guides with the English interface", async () => {
     renderApp("/settings/tools", { locale: "en", toolsResponse: () => json({ items: [] }) });
-    const guide = await screen.findByRole("link", { name: "Download integration guide" });
-    expect(guide.getAttribute("href")).toContain("/docs/en/tools.md");
+    const guide = await screen.findByRole("link", { name: "Download English guide" });
+    expect(guide.getAttribute("href")).toBe("/docs/en/tools.md");
+    expect(screen.getByRole("link", { name: "Download Chinese guide" }).getAttribute("href")).toBe("/docs/zh-CN/tools.md");
     expect(screen.getByRole("list", { name: "Built-in MCP tools" })).toBeTruthy();
   });
 
@@ -1098,7 +1102,7 @@ describe("tools", () => {
     renderApp("/settings/tools", { toolsResponse: () => problem(500, "internal_error") });
     expect(await screen.findByRole("button", { name: "重试" })).toBeTruthy();
     expect(screen.getByRole("list", { name: "内置 MCP 工具" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "下载接入文档" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "下载英文文档" })).toBeTruthy();
   });
 
   it("shows the task's tools with their kind and marks a name the project never registered", async () => {
