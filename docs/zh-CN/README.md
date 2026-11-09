@@ -93,6 +93,17 @@ make check
 
 <br />
 
+![任务运行历史、业务结果与营收趋势](../assets/screenshots/task-history-en.png)
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="../assets/screenshots/runs-board-en.png" />
+  <img src="../assets/screenshots/runs-board-en.gif" alt="运行状态变化后，卡片自动移入对应看板列" />
+</picture>
+
+![凭证填写请求、任务授权与到期管理](../assets/screenshots/credentials-en.png)
+
+<br />
+
 <div>
 <a href="for-agents.md">For agents</a>
 <a href="https://niltavi.com/">
