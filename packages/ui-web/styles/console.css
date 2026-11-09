@@ -535,7 +535,7 @@
 
   /* ── 浮层菜单、标签组 ── */
   .menu { display: flex; flex-direction: column; padding: 6px; min-width: 180px; }
-  .menu button, .menu a { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border: 0; border-radius: var(--radius-xl); background: transparent; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .menu button, .menu a { display: flex; align-items: center; gap: 10px; width: 100%; height: 38px; padding: 0 12px; border: 0; border-radius: var(--radius-xl); background: transparent; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .menu button:hover, .menu a:hover, .menu [aria-current="true"] { background: var(--liner-2); }
   .menu .wl-icon { width: 16px; height: 16px; color: var(--ink-muted); }
   .menu .danger, .menu .danger .wl-icon { color: var(--danger); }
@@ -574,7 +574,7 @@
   .kb-col { min-width: 0; max-height: max(224px, calc(100dvh - 100px)); display: flex; flex-direction: column; gap: 4px; padding: 12px 8px; border: 1px solid var(--line); border-radius: var(--radius-3xl); background: var(--liner); }
   .kb-head { flex: none; display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0 6px 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
   .kb-head .n { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--ink-muted); }
-  .kb-scroll { min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 3px; }
+  .kb-scroll { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; padding: 3px; }
   .kb-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .kb-item { min-width: 0; }
   .kb-item--moving > .kb-card { opacity: 0; }
