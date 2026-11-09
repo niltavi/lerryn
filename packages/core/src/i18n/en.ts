@@ -515,6 +515,7 @@ export const en: Messages = {
     registeredHelp: "HTTP, MCP, and script tools registered in projects for tasks to reference by name. Register or update them through registerTool.",
     builtin: {
       discover: "Discover versions, available runtimes, deployment capabilities, and your identity.",
+      environment_get: "Check the current deployment environment, such as production or test.",
       task_get: "Read a task, its activation state, and its latest version.",
       task_apply: "Create a task or submit a complete new version, with dry_run previews.",
       task_validate: "Check credentials, tools, runners, and test status for a version.",

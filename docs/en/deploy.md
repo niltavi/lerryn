@@ -178,6 +178,7 @@ The Chinese reference is checked against `server/internal/config` by tests. Keep
 | --- | --- | --- | --- |
 | `server.listen` | `LERRYN_SERVER_LISTEN` | `:33333` | Listen address for the API, MCP, and console. |
 | `server.public_url` | `LERRYN_SERVER_PUBLIC_URL` | `http://localhost:33333` | Public address used to generate console links; must be an absolute URL. |
+| `server.environment` | `LERRYN_SERVER_ENVIRONMENT` | Empty | Deployment environment. Use `production`, `test`, `staging`, or `development`. When empty, `environment_get` returns `unspecified`. Use the same value on all server replicas in a deployment. |
 | `server.trusted_proxies` | `LERRYN_SERVER_TRUSTED_PROXIES` | Empty | Reverse-proxy CIDRs. Requests from these addresses use X-Forwarded-For for login rate limits, audit, and sessions. Empty uses the direct peer address. The multi-node reference uses Caddy’s 172.30.10.0/24 network. |
 | `server.extra_origins` | `LERRYN_SERVER_EXTRA_ORIGINS` | Empty | Additional console origins, as scheme://host[:port], such as a tunnel domain alongside LAN access. Sessions from these origins can write; agent links still use server.public_url. |
 | `server.runner_registration_token_file` | `LERRYN_SERVER_RUNNER_REGISTRATION_TOKEN_FILE` | Empty | File containing a runner registration token, accepted alongside administrator-generated tokens. Empty accepts only administrator-generated tokens. |

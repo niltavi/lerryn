@@ -257,6 +257,7 @@ func (s *Server) apiOptions() httpapi.Options {
 	}
 	return httpapi.Options{
 		PublicURL:    s.cfg.Server.PublicURL,
+		Environment:  httpapi.EnvironmentInfoEnvironment(s.cfg.Server.Environment),
 		ExtraOrigins: s.cfg.Server.ExtraOrigins,
 		Version:      buildinfo.Version,
 		Commit:       buildinfo.Commit,

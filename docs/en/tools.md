@@ -52,6 +52,7 @@ Protect the token file as a credential. The MCP client launches the final comman
 | Tool | HTTP operation | Scope | Purpose |
 | --- | --- | --- | --- |
 | `discover` | `discover` | `read` | Versions, runtimes, capabilities, identity |
+| `environment_get` | `getEnvironment` | `read` | Check the current deployment environment |
 | `task_get` | `getTask` | `read` | Task and latest version |
 | `task_apply` | `applyTask` | `write` | Create a task or submit a complete version, with `dry_run` |
 | `task_validate` | `validateTaskVersion` | `read` | Check credentials, tools, runners, and test status |
@@ -67,6 +68,8 @@ Protect the token file as a credential. The MCP client launches the final comman
 | `ai_chat` | `createAIChat` | `execute` | Generate text with the model service configured for the current account |
 | `api_describe` | Descriptions and schemas | `read` | Search by `operation_id` or `query` |
 | `api_call` | A public operation | By operation | Call by `operation_id`, passing parameters in `arguments` |
+
+Call `environment_get` without arguments before an operation that depends on the deployment environment. A production instance returns `{"environment":"production"}`. The value comes from the [deployment configuration](deploy.md#4-configuration-reference). An unconfigured instance returns `unspecified`. The `test` parameter on `run_start` still controls whether an individual run is a test.
 
 The dedicated tools cover common workflows. Describe other operations before calling them. For example, pass this to `api_describe` to inspect the project tool list operation:
 
@@ -113,6 +116,7 @@ The complete contract is in `api/bundled/openapi.yaml` in the repository. Use MC
 
 ```bash
 lerryn discover
+lerryn api getEnvironment
 lerryn api listTools --describe
 lerryn api listTools --project-id <PROJECT_ID>
 lerryn tasks apply ./hello-lerryn --dry-run

@@ -52,6 +52,7 @@ lerryn mcp --stdio
 | 工具 | HTTP 操作 | 范围 | 用途 |
 | --- | --- | --- | --- |
 | `discover` | `discover` | `read` | 版本、运行时、部署能力、当前身份 |
+| `environment_get` | `getEnvironment` | `read` | 查询当前部署的环境 |
 | `task_get` | `getTask` | `read` | 任务和最新版本 |
 | `task_apply` | `applyTask` | `write` | 创建任务或提交完整新版本，支持 `dry_run` |
 | `task_validate` | `validateTaskVersion` | `read` | 检查凭证、工具、runner 和测试状态 |
@@ -67,6 +68,8 @@ lerryn mcp --stdio
 | `ai_chat` | `createAIChat` | `execute` | 使用当前账号配置的模型生成文本 |
 | `api_describe` | 接口说明与 schema | `read` | 按 `operation_id` 或 `query` 查询 |
 | `api_call` | 指定公开操作 | 按接口 | 按 `operation_id` 调用，参数放在 `arguments` 中 |
+
+执行依赖部署环境的操作前，先调用无参数的 `environment_get`。例如生产实例返回 `{"environment":"production"}`。环境由 [部署配置](deploy.md#4-配置参考) 指定，`unspecified` 表示未配置。单次运行是否为测试仍由 `run_start` 的 `test` 参数决定。
 
 MCP 的主流程工具覆盖常用操作。其余接口先查询说明，再调用，例如读取项目工具列表：
 
@@ -113,6 +116,7 @@ curl --fail-with-body \
 
 ```bash
 lerryn discover
+lerryn api getEnvironment
 lerryn api listTools --describe
 lerryn api listTools --project-id <PROJECT_ID>
 lerryn tasks apply ./hello-lerryn --dry-run

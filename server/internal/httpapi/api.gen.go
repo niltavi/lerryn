@@ -331,6 +331,33 @@ func (e DeviceInfoPlatform) Valid() bool {
 	}
 }
 
+// Defines values for EnvironmentInfoEnvironment.
+const (
+	EnvironmentInfoEnvironmentDevelopment EnvironmentInfoEnvironment = "development"
+	EnvironmentInfoEnvironmentProduction  EnvironmentInfoEnvironment = "production"
+	EnvironmentInfoEnvironmentStaging     EnvironmentInfoEnvironment = "staging"
+	EnvironmentInfoEnvironmentTest        EnvironmentInfoEnvironment = "test"
+	EnvironmentInfoEnvironmentUnspecified EnvironmentInfoEnvironment = "unspecified"
+)
+
+// Valid indicates whether the value is a known member of the EnvironmentInfoEnvironment enum.
+func (e EnvironmentInfoEnvironment) Valid() bool {
+	switch e {
+	case EnvironmentInfoEnvironmentDevelopment:
+		return true
+	case EnvironmentInfoEnvironmentProduction:
+		return true
+	case EnvironmentInfoEnvironmentStaging:
+		return true
+	case EnvironmentInfoEnvironmentTest:
+		return true
+	case EnvironmentInfoEnvironmentUnspecified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorCode.
 const (
 	ErrorCodeAIProviderError         ErrorCode = "ai_provider_error"
@@ -1911,6 +1938,19 @@ type Discovery struct {
 	// Skills 与服务端版本匹配的 Skill。
 	Skills SkillCatalog `json:"skills"`
 }
+
+// EnvironmentInfo defines model for EnvironmentInfo.
+type EnvironmentInfo struct {
+	// Environment 部署环境。未配置时为 `unspecified`。
+	//
+	// Examples: production
+	Environment EnvironmentInfoEnvironment `json:"environment"`
+}
+
+// EnvironmentInfoEnvironment 部署环境。未配置时为 `unspecified`。
+//
+// Examples: production
+type EnvironmentInfoEnvironment string
 
 // ErrorCode 稳定的错误类别。HTTP 错误的 `Problem.code` 和运行失败的错误类别共用这一组值。
 type ErrorCode string
@@ -4503,6 +4543,9 @@ type ServerInterface interface {
 	// Discover 发现平台能力
 	// (GET /api/v1/discover)
 	Discover(w http.ResponseWriter, r *http.Request)
+	// GetEnvironment 查询部署环境
+	// (GET /api/v1/environment)
+	GetEnvironment(w http.ResponseWriter, r *http.Request)
 	// StreamEvents 实时事件
 	// (GET /api/v1/events/stream)
 	StreamEvents(w http.ResponseWriter, r *http.Request, params StreamEventsParams)
@@ -5714,6 +5757,20 @@ func (siw *ServerInterfaceWrapper) Discover(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Discover(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEnvironment operation middleware
+func (siw *ServerInterfaceWrapper) GetEnvironment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEnvironment(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8336,6 +8393,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/discover", wrapper.Discover)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/environment", wrapper.GetEnvironment)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/register", wrapper.Register)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/logout", wrapper.Logout)
@@ -9810,6 +9868,44 @@ type DiscoverdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response DiscoverdefaultApplicationProblemPlusJSONResponse) VisitDiscoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEnvironmentRequestObject struct {
+}
+
+type GetEnvironmentResponseObject interface {
+	VisitGetEnvironmentResponse(w http.ResponseWriter) error
+}
+
+type GetEnvironment200JSONResponse EnvironmentInfo
+
+func (response GetEnvironment200JSONResponse) VisitGetEnvironmentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEnvironmentdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetEnvironmentdefaultApplicationProblemPlusJSONResponse) VisitGetEnvironmentResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -12523,6 +12619,9 @@ type StrictServerInterface interface {
 	// Discover 发现平台能力
 	// (GET /api/v1/discover)
 	Discover(ctx context.Context, request DiscoverRequestObject) (DiscoverResponseObject, error)
+	// GetEnvironment 查询部署环境
+	// (GET /api/v1/environment)
+	GetEnvironment(ctx context.Context, request GetEnvironmentRequestObject) (GetEnvironmentResponseObject, error)
 	// StreamEvents 实时事件
 	// (GET /api/v1/events/stream)
 	StreamEvents(ctx context.Context, request StreamEventsRequestObject) (StreamEventsResponseObject, error)
@@ -13625,6 +13724,30 @@ func (sh *strictHandler) Discover(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DiscoverResponseObject); ok {
 		if err := validResponse.VisitDiscoverResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEnvironment operation middleware
+func (sh *strictHandler) GetEnvironment(w http.ResponseWriter, r *http.Request) {
+	var request GetEnvironmentRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEnvironment(ctx, request.(GetEnvironmentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEnvironment")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEnvironmentResponseObject); ok {
+		if err := validResponse.VisitGetEnvironmentResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

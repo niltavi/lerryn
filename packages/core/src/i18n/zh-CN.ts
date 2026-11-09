@@ -515,6 +515,7 @@ export const zhCN = {
     registeredHelp: "项目中登记的 HTTP、MCP 和脚本工具，供任务清单按名称引用。通过 registerTool 接口登记或更新。",
     builtin: {
       discover: "发现版本、可用运行时、部署能力和当前身份。",
+      environment_get: "查询当前部署的环境，例如生产或测试。",
       task_get: "读取任务、激活状态和最新版本。",
       task_apply: "创建任务或提交完整的新版本，支持 dry_run 预览。",
       task_validate: "检查版本的凭证、工具、执行节点和测试状态。",

@@ -175,6 +175,39 @@ func TestDiscover(t *testing.T) {
 	}
 }
 
+func TestGetEnvironmentAccessAndDefault(t *testing.T) {
+	c := newAPIClient(t)
+	const path = "/api/v1/environment"
+	c.want(c.call(http.MethodGet, path, nil), http.StatusUnauthorized, ErrorCodeUnauthenticated)
+
+	rec := c.call(http.MethodPost, "/api/v1/auth/register", map[string]any{"username": "alice", "password": "correct horse"})
+	c.want(rec, http.StatusCreated, "")
+	cookie := sessionCookie(t, rec)
+	for _, tt := range []struct {
+		scope  string
+		status int
+		code   ErrorCode
+	}{
+		{"read", http.StatusOK, ""},
+		{"write", http.StatusForbidden, ErrorCodeInsufficientScope},
+	} {
+		t.Run(tt.scope, func(t *testing.T) {
+			tokenReq := map[string]any{"name": tt.scope, "scopes": []string{tt.scope}}
+			rec := c.call(http.MethodPost, "/api/v1/me/tokens", tokenReq, "Cookie", cookie, "Origin", testOrigin)
+			c.want(rec, http.StatusCreated, "")
+			token := decode[CreatedToken](t, rec).Token
+
+			rec = c.call(http.MethodGet, path, nil, "Authorization", "Bearer "+token)
+			c.want(rec, tt.status, tt.code)
+			if tt.status == http.StatusOK {
+				if got := decode[EnvironmentInfo](t, rec).Environment; got != EnvironmentInfoEnvironmentUnspecified {
+					t.Errorf("environment = %q, want unspecified", got)
+				}
+			}
+		})
+	}
+}
+
 // The handler must not hand out its own slices: a caller mutating one
 // response would otherwise change what later requests see.
 func TestDiscoverDoesNotAliasOptions(t *testing.T) {

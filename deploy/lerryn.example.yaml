@@ -5,6 +5,8 @@
 server:
   listen: ":33333"
   public_url: "https://lerryn.example.com"
+  # 可选。填写 production、test、staging 或 development，留空表示未配置
+  environment: ""
   # 可选。控制台的其他访问地址（例如隧道域名），从这些地址登录后同样可以修改
   extra_origins: []
   # 可选。文件内容可以作为 runner 的注册令牌，与管理员生成的令牌并用
