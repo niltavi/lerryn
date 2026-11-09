@@ -2276,6 +2276,26 @@ paths:
                 $ref: '#/components/schemas/Credential'
         default:
           $ref: '#/components/responses/Problem'
+  /api/v1/credentials/{credentialId}/purge:
+    post:
+      operationId: deleteCredential
+      tags:
+        - credentials
+      summary: 删除已撤销的凭证
+      description: |
+        所有者可以永久删除已撤销的凭证、所有加密版本和任务授权。任务清单保留引用名，原绑定变为缺少凭证。
+        尚未填写且未过期的更新请求被取消，历史请求保留状态并清除凭证 ID。审计记录保留。
+        未撤销的凭证返回 422 `validation_failed`，不存在或属于其他用户的凭证返回 404 `not_found`。
+      x-operation-kind: mutate
+      x-mcp:
+        expose: false
+      parameters:
+        - $ref: '#/components/parameters/CredentialID'
+      responses:
+        '204':
+          description: 已删除凭证。
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/credentials/{credentialId}/grants/{taskId}:
     put:
       operationId: grantCredential
@@ -7042,7 +7062,7 @@ components:
             - string
             - 'null'
           format: uuid
-          description: 填写后得到的凭证；更新请求为被更新的凭证。未填写时为 null。
+          description: 填写后得到的凭证；更新请求为被更新的凭证。尚未创建凭证或凭证已删除时为 null。
         fields:
           type: array
           items:

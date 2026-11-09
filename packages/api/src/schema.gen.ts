@@ -1339,6 +1339,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/credentials/{credentialId}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 删除已撤销的凭证
+         * @description 所有者可以永久删除已撤销的凭证、所有加密版本和任务授权。任务清单保留引用名，原绑定变为缺少凭证。
+         *     尚未填写且未过期的更新请求被取消，历史请求保留状态并清除凭证 ID。审计记录保留。
+         *     未撤销的凭证返回 422 `validation_failed`，不存在或属于其他用户的凭证返回 404 `not_found`。
+         */
+        post: operations["deleteCredential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/credentials/{credentialId}/grants/{taskId}": {
         parameters: {
             query?: never;
@@ -3759,7 +3781,7 @@ export interface components {
             task: components["schemas"]["TaskRef"] | null;
             /**
              * Format: uuid
-             * @description 填写后得到的凭证；更新请求为被更新的凭证。未填写时为 null。
+             * @description 填写后得到的凭证；更新请求为被更新的凭证。尚未创建凭证或凭证已删除时为 null。
              */
             credential_id: string | null;
             fields: components["schemas"]["CredentialFieldSpec"][];
@@ -6469,6 +6491,28 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Credential"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 凭证 ID。 */
+                credentialId: components["parameters"]["CredentialID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已删除凭证。 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };
