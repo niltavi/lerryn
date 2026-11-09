@@ -479,6 +479,78 @@ func TestRevokedCredentialFailsPreparation(t *testing.T) {
 	}
 }
 
+func TestDeleteRevokedCredential(t *testing.T) {
+	f := newFixture(t)
+	creds := f.credentials()
+	alice := f.user("alice")
+	task := f.apply(alice, "digest", credManifest(service.CredentialSpec{Name: "LLM_API_KEY"}))
+	values := map[string]string{"LLM_API_KEY": testSecret}
+	create, err := creds.CreateRequest(f.ctx, alice, llmRequest(task.Task.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cred, err := creds.Fill(f.ctx, alice, create.Request.ID, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	update := llmRequest(task.Task.ID)
+	update.CredentialID = cred.ID
+	if version := f.fill(creds, alice, update, values).CurrentVersion; version != 2 {
+		t.Fatalf("updated credential version = %d", version)
+	}
+	pending, err := creds.CreateRequest(f.ctx, alice, update)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired, err := creds.CreateRequest(f.ctx, alice, update)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.NewUpdate().Model(&expired.Request).Set("expires_at = ?", store.Now().Add(-time.Hour)).WherePK().Exec(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := creds.Revoke(f.ctx, alice, cred.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	fillResult := make(chan error, 1)
+	go func() {
+		_, err := creds.Fill(f.ctx, alice, pending.Request.ID, values)
+		fillResult <- err
+	}()
+	if err := creds.Delete(f.ctx, alice, cred.ID); err != nil {
+		t.Fatal(err)
+	}
+	wantErr(t, <-fillResult, service.ErrRequestClosed)
+
+	for _, tc := range []struct {
+		id     uuid.UUID
+		status string
+	}{
+		{create.Request.ID, store.CredentialRequestFulfilled},
+		{pending.Request.ID, store.CredentialRequestCancelled},
+		{expired.Request.ID, store.CredentialRequestExpired},
+	} {
+		d, err := creds.GetRequest(f.ctx, alice, tc.id)
+		if err != nil || d.Request.Status != tc.status || d.Request.CredentialID != uuid.Nil {
+			t.Fatalf("request %s after delete = %+v, %v", tc.id, d.Request, err)
+		}
+	}
+	for _, model := range []any{(*store.CredentialVersion)(nil), (*store.CredentialGrant)(nil)} {
+		n, err := f.db.NewSelect().Model(model).Where("credential_id = ?", cred.ID).Count(f.ctx)
+		if err != nil || n != 0 {
+			t.Fatalf("remaining %T rows = %d, %v", model, n, err)
+		}
+	}
+	for _, action := range []string{"credential.create", "credential.revoke", "credential.delete"} {
+		var event store.AuditEvent
+		err := f.db.NewSelect().Model(&event).Where("action = ? AND resource_id = ?", action, cred.ID.String()).Scan(f.ctx)
+		if err != nil || event.ActorID != alice.UserID || strings.Contains(mustJSON(t, event.Details), testSecret) {
+			t.Fatalf("invalid audit for %s: %v", action, err)
+		}
+	}
+}
+
 func TestDisabledOwnerMakesCredentialUnavailable(t *testing.T) {
 	f := newFixture(t)
 	creds := f.credentials()

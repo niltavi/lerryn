@@ -31,6 +31,7 @@ type Credentials interface {
 	List(ctx context.Context, p *auth.Principal, status string, limit *int, cursor string) ([]service.CredentialDetail, string, error)
 	Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.CredentialDetail, error)
 	Revoke(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.CredentialDetail, error)
+	Delete(ctx context.Context, p *auth.Principal, id uuid.UUID) error
 	Grant(ctx context.Context, p *auth.Principal, credentialID, taskID uuid.UUID, name string) (service.GrantDetail, error)
 	RevokeGrant(ctx context.Context, p *auth.Principal, credentialID, taskID uuid.UUID) error
 	TaskCredentials(ctx context.Context, p *auth.Principal, taskID uuid.UUID) (int, []service.TaskCredential, error)
@@ -195,6 +196,17 @@ func (h *handler) RevokeCredential(ctx context.Context, req RevokeCredentialRequ
 		return errorResponse[RevokeCredentialdefaultApplicationProblemPlusJSONResponse](ctx, err)
 	}
 	return RevokeCredential200JSONResponse(toCredential(d)), nil
+}
+
+// DeleteCredential permanently removes one of the caller's revoked credentials.
+func (h *handler) DeleteCredential(ctx context.Context, req DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error) {
+	if h.credentials == nil {
+		return nil, errNoCredentials
+	}
+	if err := h.credentials.Delete(ctx, auth.PrincipalFrom(ctx), req.CredentialID); err != nil {
+		return errorResponse[DeleteCredentialdefaultApplicationProblemPlusJSONResponse](ctx, err)
+	}
+	return DeleteCredential204Response{}, nil
 }
 
 // GrantCredential grants a credential to a task under a reference name.

@@ -177,6 +177,8 @@ paths:
     $ref: ./credentials/paths.yaml#/credentials
   /api/v1/credentials/{credentialId}:
     $ref: ./credentials/paths.yaml#/credential
+  /api/v1/credentials/{credentialId}/purge:
+    $ref: ./credentials/paths.yaml#/credentialPurge
   /api/v1/credentials/{credentialId}/grants/{taskId}:
     $ref: ./credentials/paths.yaml#/grant
   /api/v1/notification-channels:

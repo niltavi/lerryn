@@ -151,6 +151,28 @@ export function useRevokeCredential() {
   });
 }
 
+export function useDeleteCredential() {
+  const session = useApiSession();
+  const api = session.client;
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateCredentials();
+  return useMutation({
+    mutationFn: (credentialId: string) =>
+      unwrap(api.POST("/api/v1/credentials/{credentialId}/purge", { params: { path: { credentialId } } })),
+    onMutate: session.capture,
+    onSuccess: (_result, credentialId, isCurrent) => {
+      if (!isCurrent?.()) return;
+      queryClient.setQueryData<InfiniteData<Schemas["CredentialPage"]>>(queryKeys.credentials, (data) =>
+        data && {
+          ...data,
+          pages: data.pages.map((page) => ({ ...page, items: page.items.filter((c) => c.id !== credentialId) })),
+        },
+      );
+      invalidate();
+    },
+  });
+}
+
 export function useRevokeGrant() {
   const api = useApi();
   const invalidate = useInvalidateCredentials();

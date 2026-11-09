@@ -2,6 +2,7 @@ import {
   credentialState,
   formatDateTime,
   useCredentials,
+  useDeleteCredential,
   useI18n,
   usePendingCredentialRequests,
   useRequestCredentialUpdate,
@@ -11,7 +12,7 @@ import {
   type CredentialRequest,
 } from "@lerryn/core";
 import { Button, ConsoleDialog, Disclosure, IconButton, StateCard, ToneGlyph } from "@lerryn/ui-web";
-import { Ban, Check, ChevronRight, Clock, KeyRound, Pencil, Unlink } from "lucide-react";
+import { Ban, Check, ChevronRight, Clock, KeyRound, Pencil, Trash2, Unlink } from "lucide-react";
 import { useState } from "react";
 
 import { useNow } from "../../lib/hooks";
@@ -21,6 +22,8 @@ import { Board, BoardTop, LoadError, LoadMore, usePageTitle } from "../../shell/
 import { FormError } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
 import { AIConfigurationSection } from "./AIConfigurationSection";
+
+type CredentialAction = "revoke" | "delete";
 
 /**
  * The user's own credentials (prototype Settings-Credentials.dc.html):
@@ -33,7 +36,7 @@ export function CredentialsPage() {
   usePageTitle(t("credentials.title"));
   const credentials = useCredentials();
   const requests = usePendingCredentialRequests();
-  const [revoking, setRevoking] = useState<Credential | null>(null);
+  const [confirmation, setConfirmation] = useState<{ credential: Credential; action: CredentialAction } | null>(null);
   const now = useNow(60_000);
   const items = credentials.data?.items ?? [];
   const pending = requests.data?.items ?? [];
@@ -77,7 +80,7 @@ export function CredentialsPage() {
       {items.length > 0 ? (
         <div className="rows" role="list" aria-label={t("credentials.title")}>
           {items.map((c) => (
-            <CredentialRow key={c.id} credential={c} now={now} onRevoke={() => setRevoking(c)} />
+            <CredentialRow key={c.id} credential={c} now={now} onAction={(action) => setConfirmation({ credential: c, action })} />
           ))}
         </div>
       ) : null}
@@ -86,7 +89,7 @@ export function CredentialsPage() {
         pending={credentials.isFetching}
         onPress={() => void credentials.fetchNextPage({ cancelRefetch: false })}
       />
-      <RevokeDialog credential={revoking} onClose={() => setRevoking(null)} />
+      {confirmation ? <CredentialActionDialog {...confirmation} onClose={() => setConfirmation(null)} /> : null}
     </Board>
   );
 }
@@ -111,7 +114,7 @@ function RequestRow({ request: r, now }: { request: CredentialRequest; now: numb
   );
 }
 
-function CredentialRow({ credential: c, now, onRevoke }: { credential: Credential; now: number; onRevoke: () => void }) {
+function CredentialRow({ credential: c, now, onAction }: { credential: Credential; now: number; onAction: (action: CredentialAction) => void }) {
   const { t, locale } = useI18n();
   const { state, days } = credentialState(c, now);
   const update = useRequestCredentialUpdate();
@@ -176,7 +179,15 @@ function CredentialRow({ credential: c, now, onRevoke }: { credential: Credentia
         ) : state === "expired" ? (
           <ToneGlyph tone="bad" icon={Clock} label={t("credentials.expired")} />
         ) : null}
-        {state !== "revoked" ? (
+        {state === "revoked" ? (
+          <IconButton
+            variant="danger-soft"
+            label={t("credentials.deleteNamed", { name: c.name })}
+            tip={t("credentials.delete")}
+            icon={Trash2}
+            onPress={() => onAction("delete")}
+          />
+        ) : (
           <span className="acts">
             <IconButton
               label={t("credentials.updateNamed", { name: c.name })}
@@ -191,45 +202,50 @@ function CredentialRow({ credential: c, now, onRevoke }: { credential: Credentia
               }
             />
             {state !== "expired" ? (
-              <IconButton variant="danger-soft" label={t("credentials.revokeNamed", { name: c.name })} tip={t("credentials.revoke")} icon={Ban} onPress={onRevoke} />
+              <IconButton variant="danger-soft" label={t("credentials.revokeNamed", { name: c.name })} tip={t("credentials.revoke")} icon={Ban} onPress={() => onAction("revoke")} />
             ) : null}
           </span>
-        ) : null}
+        )}
         {update.isError || revokeGrant.isError ? <span className="caption" style={{ color: "var(--danger)" }}>{t(writeErrorMessage(update.error ?? revokeGrant.error))}</span> : null}
       </span>
     </div>
   );
 }
 
-function RevokeDialog({ credential, onClose }: { credential: Credential | null; onClose: () => void }) {
+function CredentialActionDialog({ credential, action, onClose }: { credential: Credential; action: CredentialAction; onClose: () => void }) {
   const { t } = useI18n();
   const revoke = useRevokeCredential();
-  const close = () => {
-    revoke.reset();
-    onClose();
-  };
-  const grants = credential?.grants ?? [];
+  const remove = useDeleteCredential();
+  const deleting = action === "delete";
+  const mutation = deleting ? remove : revoke;
+  const Icon = deleting ? Trash2 : Ban;
+  const label = t(deleting ? "credentials.delete" : "credentials.revoke");
+  const grants = credential.grants;
+  const description = deleting
+    ? t("credentials.deleteBody")
+    : grants.length > 0 ? t("credentials.revokeBody", { count: grants.length }) : t("credentials.revokeBodyNone");
   return (
     <ConsoleDialog
-      isOpen={!!credential}
-      onOpenChange={(open) => (open ? undefined : close())}
+      isOpen
+      isDismissable={!mutation.isPending}
+      onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}
       title={
         <>
           <span className="g g--bad g--lg" aria-hidden="true">
-            <Ban className="wl-icon" />
+            <Icon className="wl-icon" />
           </span>
           <span>
-            {t("credentials.revoke")} <span className="mono" style={{ fontSize: 18 }}>{credential?.name}</span>
+            {label} <span className="mono" style={{ fontSize: 18 }}>{credential.name}</span>
           </span>
         </>
       }
       footer={
         <>
-          <Button variant="ghost" onPress={close}>
+          <Button variant="ghost" isDisabled={mutation.isPending} onPress={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button variant="danger" isPending={revoke.isPending} onPress={() => credential && revoke.mutate(credential.id, { onSuccess: close })}>
-            {t("credentials.revoke")}
+          <Button variant="danger" isPending={mutation.isPending} onPress={() => mutation.mutate(credential.id, { onSuccess: onClose })}>
+            {label}
           </Button>
         </>
       }
@@ -243,8 +259,8 @@ function RevokeDialog({ credential, onClose }: { credential: Credential | null; 
           ))}
         </div>
       ) : null}
-      <p className="body-sm muted">{grants.length > 0 ? t("credentials.revokeBody", { count: grants.length }) : t("credentials.revokeBodyNone")}</p>
-      {revoke.error ? <FormError>{t(writeErrorMessage(revoke.error))}</FormError> : null}
+      <p className="body-sm muted">{description}</p>
+      {mutation.error ? <FormError>{t(writeErrorMessage(mutation.error))}</FormError> : null}
     </ConsoleDialog>
   );
 }
