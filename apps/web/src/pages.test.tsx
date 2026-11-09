@@ -153,6 +153,14 @@ const TRIGGERS: Schemas["TriggerSet"] = {
     },
   ],
 };
+const MORNING_TRIGGER = { ...TRIGGERS.triggers[0]!, params: { inbox: "morning" } };
+const AFTERNOON_TRIGGER = {
+  ...MORNING_TRIGGER,
+  id: "tr2",
+  name: "weekday-afternoon",
+  params: { inbox: "afternoon" },
+  cron: { ...MORNING_TRIGGER.cron!, schedule: "0 15 * * 1-5", schedule_text: "每个工作日 15:00" },
+};
 const TOOL = {
   id: "0192f3a1-0000-7000-8000-0000000000u1",
   project_id: ME.personal_project_id,
@@ -979,16 +987,37 @@ describe("task page", () => {
     }
   });
 
-  it("starts a run with a fresh idempotency key and opens it", async () => {
-    const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer" });
+  it.each([
+    { scenario: "no enabled schedule", triggerItems: [{ ...MORNING_TRIGGER, enabled: false }], body: undefined },
+    { scenario: "one enabled schedule", triggerItems: [MORNING_TRIGGER, { ...AFTERNOON_TRIGGER, enabled: false }], body: { params: MORNING_TRIGGER.params, test: false } },
+  ])("starts a run directly with $scenario and opens it", async ({ triggerItems, body }) => {
+    const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", triggerItems });
     const button = await screen.findByRole("button", { name: "立即重新触发" });
     expect(button.textContent).toContain("立即重新触发");
     fireEvent.click(button);
     await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${NEW_RUN.id}`));
     const post = server.requests.find((r) => r.method === "POST")!;
     expect(post.path).toBe(`/api/v1/tasks/${TASK.id}/runs`);
+    expect(post.body).toEqual(body);
     expect(post.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
     expect(await screen.findByText("控制台发起")).toBeTruthy();
+  });
+
+  it("waits for a schedule choice and starts only the selected one", async () => {
+    const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", triggerItems: [MORNING_TRIGGER, AFTERNOON_TRIGGER] });
+    const user = userEvent.setup();
+    const button = await screen.findByRole("button", { name: "立即重新触发" });
+    button.focus();
+    await user.keyboard("{ArrowDown}");
+    const menu = within(await screen.findByRole("menu", { name: "立即重新触发" }));
+    expect(menu.getByRole("menuitem", { name: /weekday-morning/ }).textContent).toContain("08:00");
+    expect(menu.getByRole("menuitem", { name: /weekday-afternoon/ }).textContent).toContain("15:00");
+    expect(server.requests.filter((r) => r.method === "POST")).toEqual([]);
+    await user.keyboard("{ArrowDown}{Enter}");
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${NEW_RUN.id}`));
+    const posts = server.requests.filter((r) => r.method === "POST");
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toMatchObject({ path: `/api/v1/tasks/${TASK.id}/runs`, body: { params: AFTERNOON_TRIGGER.params } });
   });
 
   it("stays on the task when the run is refused", async () => {

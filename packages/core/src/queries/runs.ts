@@ -177,7 +177,7 @@ export function useCanControlRuns(projectId: string | undefined): boolean {
 /** Refreshes what a new run changes: the task's runs, run lists and the overview. */
 function useRunStarted() {
   const queryClient = useQueryClient();
-  return (run: Run, _variables: string, isCurrent: (() => boolean) | undefined) => {
+  return (run: Run, _variables: unknown, isCurrent: (() => boolean) | undefined) => {
     if (!isCurrent?.()) return;
     queryClient.setQueryData(queryKeys.run(run.id), run);
     void queryClient.invalidateQueries({ queryKey: queryKeys.task(run.task_id) });
@@ -200,21 +200,23 @@ function runIdempotencyKey(): string {
 }
 
 /**
- * Starts a run of a task's latest version with its default params. Each press
- * carries a fresh idempotency key, so a request the network retries does not
- * start a second run.
+ * Starts the task's latest version with default or supplied params. Each
+ * request carries a fresh idempotency key so network retries are safe.
  */
 export function useStartRun() {
   const session = useApiSession();
   const api = session.client;
   const started = useRunStarted();
   return useMutation({
-    mutationFn: (taskId: string) =>
-      unwrap(
+    mutationFn: (input: string | { taskId: string; params: NonNullable<Schemas["StartRunRequest"]["params"]> }) => {
+      const taskId = typeof input === "string" ? input : input.taskId;
+      return unwrap(
         api.POST("/api/v1/tasks/{taskId}/runs", {
           params: { path: { taskId }, header: { "Idempotency-Key": runIdempotencyKey() } },
+          body: typeof input === "string" ? undefined : { params: input.params, test: false },
         }),
-      ),
+      );
+    },
     onMutate: session.capture,
     onSuccess: started,
   });
