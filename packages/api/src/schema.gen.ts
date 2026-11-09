@@ -5679,6 +5679,8 @@ export interface operations {
                 project_id?: components["parameters"]["ProjectFilter"];
                 /** @description true 只返回手动归档的运行，false 或省略时只返回未归档的运行。 */
                 archived?: boolean;
+                /** @description true 隐藏已删除任务的运行，false 或省略时保留这些记录。 */
+                exclude_archived_tasks?: boolean;
                 /** @description 只返回这个任务的运行。 */
                 task_id?: string;
                 /** @description 只返回这些状态的运行，可以重复给出，例如 `status=failed&status=timed_out`。 */

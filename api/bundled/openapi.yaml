@@ -1404,6 +1404,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: exclude_archived_tasks
+          in: query
+          description: true 隐藏已删除任务的运行，false 或省略时保留这些记录。
+          schema:
+            type: boolean
+            default: false
         - name: task_id
           in: query
           description: 只返回这个任务的运行。
