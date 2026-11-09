@@ -118,6 +118,18 @@
   .button .wl-icon { width: 18px; height: 18px; }
   .button--sm .wl-icon { width: 16px; height: 16px; }
   .li[aria-current="page"] .li-ic { color: var(--kraft-strong); }
+  /* Runs grouped under their task: a folding header above a tree line. */
+  .rg-head { display: grid; grid-template-columns: 16px 22px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; width: calc(100% - 16px); margin: 0 8px; padding: 10px 12px 10px 8px; border: 1px solid transparent; border-radius: var(--radius-2xl); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .rg-head:hover { background: var(--liner-2); }
+  .rg-head:focus-visible { outline: 2px solid var(--kraft); outline-offset: -2px; }
+  .rg-head[data-current] { background: var(--liner); border-color: var(--line); }
+  .rg-chevron { width: 16px; height: 16px; color: var(--ink-muted); transition: transform 120ms ease; }
+  .rg[data-open="true"] .rg-chevron { transform: rotate(90deg); }
+  .rg-body { margin: 0 0 6px 25px; padding: 2px 0; border-left: 1px solid var(--line); }
+  .rg-body .li { margin: 0 8px 0 10px; }
+  .li--leaf { padding-top: 7px; padding-bottom: 7px; }
+  .li--leaf .li-name { font-weight: 500; }
+  @media (prefers-reduced-motion: reduce) { .rg-chevron { transition: none; } }
 
   .board { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 32px; padding: 24px clamp(16px, 3vw, 40px) 56px; }
   .board > * { max-width: 1160px; }
@@ -560,6 +572,7 @@
   /* 标题右侧紧跟的工具（如运行页的 列表 / 看板），两种视图里位置一致 */
   .list-head--inline { justify-content: flex-start; gap: 12px; }
   .list-head--inline .list-title { flex: none; }
+  .list-head--inline .list-tools { flex-wrap: wrap; }
   .seg a { height: 30px; padding: 0 10px; border-radius: var(--radius-lg); color: var(--ink-muted); font-size: 13px; line-height: 18px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
   .seg a:hover { color: var(--ink); }
   .seg a[aria-current="page"] { background: var(--liner-3); color: var(--ink); }

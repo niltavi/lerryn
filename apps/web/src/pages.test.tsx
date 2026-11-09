@@ -1049,6 +1049,88 @@ describe("task page", () => {
   });
 });
 
+describe("runs list", () => {
+  afterEach(() => localStorage.removeItem("lerryn.runs.view"));
+
+  const runAt = (n: number, taskId: string, name: string, over: Partial<Schemas["RunSummary"]> = {}): Schemas["RunSummary"] => ({
+    id: `0192f3a1-0000-7000-8000-00000000${String(n).padStart(4, "0")}`,
+    task: { id: taskId, name, project_id: PROJECT.id },
+    version: n,
+    status: "completed",
+    test: false,
+    trigger: { kind: "cron", trigger_id: null, scheduled_at: null, user_id: null, client: null },
+    attempt: 1,
+    retry_of: null,
+    rerun_of: null,
+    skip_reason: null,
+    queued_at: iso(-n),
+    started_at: iso(-n),
+    finished_at: iso(-n),
+    error: null,
+    result_status: null,
+    result_summary: null,
+    current_stage: null,
+    archived_at: null,
+    links: { console: "http://lerryn.test/" },
+    ...over,
+  });
+  const runs = [runAt(3, "ta", "linear-digest"), runAt(2, "tb", "dataset-backup", { status: "failed" }), runAt(1, "ta", "linear-digest")];
+
+  it("searches the loaded runs", async () => {
+    renderApp("/runs?view=list", { runs });
+    const list = await screen.findByRole("region", { name: "运行列表" });
+    await within(list).findAllByText("linear-digest");
+    fireEvent.click(screen.getByRole("button", { name: "搜索运行" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "搜索运行" }), { target: { value: "backup" } });
+    expect(within(list).queryByText("linear-digest")).toBeNull();
+    expect(within(list).getByText("dataset-backup")).toBeTruthy();
+    fireEvent.change(screen.getByRole("searchbox", { name: "搜索运行" }), { target: { value: "nothing" } });
+    expect(within(list).getByText("已加载的运行中没有匹配项")).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("searchbox", { name: "搜索运行" }), { key: "Escape" });
+    expect(within(list).queryByRole("searchbox")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "搜索运行" }));
+    expect(within(list).getAllByText("linear-digest")).toHaveLength(2);
+  });
+
+  it("groups runs under their task and folds one task away", async () => {
+    const { router } = renderApp("/runs?view=list", { runs });
+    const list = await screen.findByRole("region", { name: "运行列表" });
+    await within(list).findAllByText("linear-digest");
+    fireEvent.click(screen.getByRole("button", { name: "按任务分组" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ view: "tasks" }));
+    const head = within(list).getByRole("button", { name: /linear-digest/ });
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+    expect(within(head).getByText("2 次")).toBeTruthy();
+    expect(within(within(list).getByRole("group", { name: "linear-digest" })).getAllByRole("link")).toHaveLength(2);
+    fireEvent.click(head);
+    expect(head.getAttribute("aria-expanded")).toBe("false");
+    expect(within(list).queryByRole("group", { name: "linear-digest" })).toBeNull();
+    expect(within(list).getByRole("group", { name: "dataset-backup" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "全部折叠" }));
+    expect(within(list).queryByRole("group", { name: "dataset-backup" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "全部展开" }));
+    expect(within(list).getByRole("group", { name: "linear-digest" })).toBeTruthy();
+  });
+
+  it("preserves grouping across archive filters and can switch to the board", async () => {
+    const archived = runAt(4, "tc", "archived-report", { archived_at: iso(-1) });
+    const { router } = renderApp("/runs?view=tasks", { runs: [...runs, archived] });
+    const list = within(await screen.findByRole("region", { name: "运行列表" }));
+    await list.findByRole("group", { name: "linear-digest" });
+    expect(list.queryByRole("group", { name: "archived-report" })).toBeNull();
+    expect(list.getByRole("link", { name: "列表" }).getAttribute("aria-current")).toBe("page");
+
+    await userEvent.click(list.getByRole("button", { name: "已归档" }));
+    await list.findByRole("group", { name: "archived-report" });
+    expect(router.state.location.search).toEqual({ view: "tasks", filter: "archived" });
+    expect(list.queryByRole("group", { name: "linear-digest" })).toBeNull();
+
+    await userEvent.click(list.getByRole("link", { name: "看板" }));
+    await screen.findByRole("main", { name: "运行看板" });
+    expect(router.state.location.search).toEqual({ view: "board" });
+  });
+});
+
 describe("run page", () => {
   const archivePreferenceKey = `lerryn.runs.skipArchiveConfirmation.${ME.id}`;
   afterEach(() => {
