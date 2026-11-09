@@ -117,7 +117,7 @@ function TaskBoard({ task }: { task: Task }) {
           {active && task.active_version ? <span className="mono-sm">v{task.active_version}</span> : null}
         </span>
         <div className="tools ml-auto flex-wrap justify-end">
-          <RunNowButton task={task} />
+          <RunNowButton key={task.id} task={task} triggers={triggers.data?.triggers} />
           <TaskActions key={task.id} task={task} nextFire={nextFire} />
         </div>
       </div>
