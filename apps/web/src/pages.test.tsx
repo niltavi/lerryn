@@ -399,10 +399,15 @@ function fakeServer(opts: FakeOptions = {}) {
         return json({ ...UPDATE_REQUEST, status: "fulfilled", fulfilled_at: iso(0) });
       case "DELETE /api/v1/credential-requests/req2":
         return json({ ...UPDATE_REQUEST, status: "cancelled" });
-      case "GET /api/v1/runs":
-        return json({ items: (opts.showRunInList
+      case "GET /api/v1/runs": {
+        const archiveOnly = url.searchParams.get("archived") === "true";
+        const excludeArchivedTasks = url.searchParams.get("exclude_archived_tasks") === "true";
+        const items = (opts.showRunInList
           ? [{ ...failedRun, task: TASK_REF, current_stage: null, result_status: null, result_summary: null }]
-          : opts.runs ?? []).filter((r) => !!r.archived_at === (url.searchParams.get("archived") === "true")), next_cursor: null });
+          : opts.runs ?? []).filter((r) =>
+          !!r.archived_at === archiveOnly && !(excludeArchivedTasks && r.task.id === task.id && task.archived_at));
+        return json({ items, next_cursor: null });
+      }
       case "GET /api/v1/tools":
         return opts.toolsResponse?.() ?? json({ items: [TOOL, SCRIPT_TOOL, BARE_TOOL] });
       default:
@@ -740,8 +745,8 @@ describe("compact list navigation", () => {
 });
 
 describe("task page", () => {
-  it("confirms deletion, preserves history and returns to the overview", async () => {
-    const { server, router } = renderApp(`/tasks/${TASK.id}`, { role: "owner" });
+  it("confirms deletion, hides runs by default and preserves task history", async () => {
+    const { server, router } = renderApp(`/tasks/${TASK.id}`, { role: "owner", showRunInList: true });
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "删除任务" }));
     let dialog = await screen.findByRole("dialog");
@@ -753,6 +758,14 @@ describe("task page", () => {
     await user.click(within(dialog).getByRole("button", { name: "删除任务" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
     expect(server.requests.filter((r) => r.method === "DELETE")).toEqual([expect.objectContaining({ path: `/api/v1/tasks/${TASK.id}` })]);
+
+    await act(() => router.navigate({ to: "/runs", search: { view: "list" } }));
+    const list = within(await screen.findByRole("region", { name: "运行列表" }));
+    expect(await list.findByText("尚无运行记录")).toBeTruthy();
+    expect(list.queryByRole("link", { name: /weekday-digest/ })).toBeNull();
+
+    await act(() => router.navigate({ to: "/runs", search: { view: "list", task: TASK.id } }));
+    expect(await list.findByRole("link", { name: /weekday-digest/ })).toBeTruthy();
   });
 
   it.each(["queued", "preparing", "running", "cancelling"] as const)("shows %s for an inactive task with an active test run", async (status) => {
@@ -1272,6 +1285,7 @@ describe("runs board", () => {
     expect(within(board).queryByText("stale-run")).toBeNull();
 
     const listCall = server.fetch.mock.calls.map(([req]) => new URL(req.url)).find((u) => u.pathname === "/api/v1/runs");
+    expect(listCall?.searchParams.get("exclude_archived_tasks")).toBe("true");
     const since = Date.parse(listCall!.searchParams.get("since")!);
     expect(Math.abs(Date.now() - 48 * 3_600_000 - since)).toBeLessThan(60_000);
   });

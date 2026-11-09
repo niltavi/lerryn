@@ -84,7 +84,7 @@ export interface RunListFilter {
 
 const RUN_PAGE = 50;
 
-/** Runs across the user's tasks, newest first, a page at a time. */
+/** Console run history, newest first. Deleted tasks are hidden in the default views. */
 export function useRunList(filter: RunListFilter, options: { enabled?: boolean } = {}) {
   const api = useApi();
   const poll = usePollInterval(10_000);
@@ -106,6 +106,7 @@ export function useRunList(filter: RunListFilter, options: { enabled?: boolean }
             query: {
               limit: RUN_PAGE,
               ...(key.archived ? { archived: true } : {}),
+              ...(!key.archived && !key.taskId ? { exclude_archived_tasks: true } : {}),
               ...(key.projectId ? { project_id: key.projectId } : {}),
               ...(key.taskId ? { task_id: key.taskId } : {}),
               ...(key.status.length ? { status: key.status } : {}),
