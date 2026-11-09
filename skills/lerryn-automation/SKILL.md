@@ -36,7 +36,7 @@ Lerryn 是企业自部署的自动化沙箱。你提交任务清单和文件，�
 - `task_apply` 每次提交完整的文件列表，没有列出的文件不会保留到新版本。修改时先取回现有文件（`api_call` 调用 `getTaskFile`）。
 - 提交新版本不会改变激活的版本。改完代码要重新测试、再激活新版本，触发器才会用它。
 - 把任务复制到另一个项目或另一个部署：`api_call` 导出（`{"operation_id": "exportTask", "arguments": {"task_id": "<id>", "history": true}}`），再在目标处导入（`{"operation_id": "importTask", "arguments": {"project_id": "<目标项目>", "bundle": <导出的结果>}}`）。任务包较大时 MCP 结果会被截断，这时改用 CLI 的 `lerryn tasks export` 和 `lerryn tasks import`。导入的任务未激活，版本没有测试过，凭证都没有绑定，按第 4、5、7 步重新走一遍；webhook 令牌是新的，交给调用方。
-- 控制台的任务页默认有“手动执行”按钮，维护者和所有者点一下就会用默认参数跑一次。`side_effects: true` 的任务（发消息、扣费、写生产数据）激活前问用户要不要关掉：`api_call` 调用 `{"operation_id": "setTaskConsole", "arguments": {"task_id": "<id>", "manual_run": false}}`。关掉后不影响你用 `run_start`，也不影响触发器和控制台的“重试”。
+- 新建任务默认允许手动执行，维护者和所有者可以在控制台点“立即重新触发”，用默认参数运行一次。修改已有任务时沿用原设置。只有任务明确要求禁止从控制台手动触发时，才调用 `api_call`，传入 `{"operation_id": "setTaskConsole", "arguments": {"task_id": "<id>", "manual_run": false}}`。关闭后，Agent 仍可用 `run_start`，触发器和控制台的“重试”仍可用。
 - Shell 任务里不要用 `$(sbx ...)` 捕获 `sbx` 的输出：它会把阶段标记行一起捕获进来。直接调用 `sbx`。
 - 容器的根文件系统只读，以 uid 65532 运行。临时文件写 `/sbx/work` 或 `/tmp`，产物写 `/sbx/out`，跨运行的游标等状态写 `/sbx/state`。状态按 TaskID 跨版本共享，测试运行同样读写；只有退出码 0 的完成运行提交完整状态，并发以最后成功提交覆盖，失败保留旧状态。状态上限为 10 MiB、1000 项、路径 255 个 UTF-8 字节，不放符号链接或特殊文件；需要更强的并发一致性时使用外部存储。
 - 参数不放凭证。`params` 会出现在运行记录和控制台里。清单、文件、参数、触发器参数或工具里出现已登记凭证的值时，平台拒绝提交（422 `validation_failed`，`errors` 指出位置和凭证名）：改成在 `credentials` 中引用，并提醒用户更换已经出现在对话里的凭证。

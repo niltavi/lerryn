@@ -368,7 +368,12 @@ export const en: Messages = {
     notifications: "Notifications",
     pairing: "Phone",
     account: "Account",
+    about: "About",
     tools: "Tools",
+  },
+  about: {
+    description: "A self-hosted automation sandbox where agents create and run tasks and you can review the results.",
+    website: "Website",
   },
   tokens: {
     title: "Access tokens",
@@ -511,7 +516,8 @@ export const en: Messages = {
   },
   tools: {
     intro: "Connect an agent through MCP, HTTP API, or CLI to create tasks, run automations, and read results.",
-    guide: "Download integration guide",
+    guide: "Download English guide",
+    guideZh: "Download Chinese guide",
     interfaces: "Connect to Lerryn",
     authHelp: "MCP and HTTP API use access tokens. The CLI stores a token after login; Skills provide task authoring and operating guidance.",
     manageTokens: "Manage access tokens",
