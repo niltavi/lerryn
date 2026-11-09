@@ -3,8 +3,12 @@
 .claude
 node_modules
 **/node_modules
-# Only the Tools integration guides are needed by the console build.
+# Only the console's integration guides and About wordmarks are needed.
 docs/*
+!docs/assets
+docs/assets/*
+!docs/assets/niltavi-logo-light.svg
+!docs/assets/niltavi-logo-dark.svg
 !docs/en
 docs/en/*
 !docs/en/tools.md

@@ -19,40 +19,117 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: var(--space-12);
+    gap: var(--space-8);
     max-width: none;
   }
 
-  .about-project {
-    display: grid;
-    justify-items: start;
-    gap: var(--space-3);
-    padding-top: var(--space-8);
+  .about-content {
+    container-type: inline-size;
+    width: min(100%, 880px);
+    margin: auto;
   }
 
-  .about-links {
+  .about-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+    align-items: center;
+    gap: var(--space-12);
+  }
+
+  @container (width < 640px) {
+    .about-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-8);
+    }
+  }
+
+  .about-project.card { gap: 0; padding: 0; }
+
+  .about-project .about-project-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+  }
+
+  .about-project-mark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--space-12);
+    aspect-ratio: 1;
+    border-radius: var(--radius-2xl);
+    background: var(--kraft-soft);
+  }
+
+  .about-project-details { min-width: 0; }
+
+  .about-version {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-4);
+    gap: 0 var(--space-2);
+    margin: var(--space-1) 0 0;
+  }
+
+  .about-version dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+
+  .about-project .about-links {
+    display: grid;
+    gap: 0;
+    padding: var(--space-1) var(--space-2);
+    border-top: 1px solid var(--line);
   }
 
   .about-links a {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    border-radius: var(--radius-xl);
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .about-links .wl-icon { color: var(--ink-muted); }
+  .about-links a:hover { background: var(--liner-2); }
+
+  .about-philosophy {
+    border-inline-start: 1px solid var(--line-strong);
+    padding-inline-start: var(--space-6);
+  }
+
+  .about-philosophy h2 a {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    min-height: 44px;
     color: var(--kraft-strong);
   }
 
-  .about-links a:hover { text-decoration: underline; }
+  .about-philosophy h2 a:hover { text-decoration: underline; }
+  .about-philosophy blockquote { margin: var(--space-3) 0 0; }
+  .about-philosophy p {
+    margin: 0;
+    font-size: var(--text-title-3);
+    line-height: 1.75;
+    text-wrap: pretty;
+  }
+
+  .about-footer { display: flex; justify-content: flex-end; }
 
   .about-signature {
-    align-self: flex-end;
-    width: 72px;
-    max-width: 100%;
-    color: var(--ink-muted);
-    font: 600 24px var(--font-display);
-    letter-spacing: -.04em;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    border-radius: var(--radius-lg);
+  }
+
+  .about-links a:focus-visible,
+  .about-philosophy a:focus-visible,
+  .about-signature:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 }

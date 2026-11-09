@@ -373,6 +373,9 @@ export const en: Messages = {
   },
   about: {
     website: "Website",
+    version: "Version",
+    philosophy: "Philosophy",
+    philosophyText: "As artificial intelligence carries human possibility ever further, we hope to bring our attention home: to nature, to the senses, to the quiet fact of being here. Technology makes the world more efficient, more precise, more abundant. Nature reminds us how much still asks to be felt firsthand: sunlight sifting through leaves, a passing breeze, a bird alighting on a branch, the small, unbidden moments no calculation can foretell.",
   },
   tokens: {
     title: "Access tokens",
