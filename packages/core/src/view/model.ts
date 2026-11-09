@@ -17,6 +17,19 @@ export type PanelSpec = Schemas["PanelSpec"];
 export type Trigger = Schemas["Trigger"];
 export type TaskCredential = Schemas["TaskCredential"];
 
+/** Filter options come from the complete task list for the current project. */
+export function taskTagOptions(tasks: readonly TaskSummary[], locale: string): string[] {
+  const tags = new Set<string>();
+  for (const task of tasks) {
+    for (const tag of task.tags ?? []) tags.add(tag);
+  }
+  return [...tags].sort((a, b) => a.localeCompare(b, locale));
+}
+
+export function tasksWithTag(tasks: readonly TaskSummary[], tag: string): readonly TaskSummary[] {
+  return tag ? tasks.filter((task) => task.tags?.includes(tag)) : tasks;
+}
+
 /** Status tones plus `key`, the kraft tone the prototype gives credential items. */
 export type Tone = StatusTone | "key";
 export type GlyphIcon = StatusIcon | "key" | "server" | "calendar" | "pause" | "pending" | "archive";

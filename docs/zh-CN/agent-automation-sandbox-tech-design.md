@@ -360,6 +360,7 @@ Agent 面板只渲染五种声明式类型，平台不执行任务给出的 HTML
 | `role_bindings` | project_id、user_id、role | （project_id，user_id）唯一 |
 | `tasks` | project_id、name、state（active／inactive）、active_version_id、active_seq、latest_seq、archived_at、triggers_revision、console_hide_manual_run | 部分唯一索引：未归档时（project_id，name）唯一。`If-Match` 对任务取 latest_seq，对触发器集合取 triggers_revision，不另设 row_version |
 | `task_versions` | task_id、seq、manifest、tree_hash、client（提交时的令牌名）、tested_at、created_by | （task_id，seq）唯一 |
+| `task_tags` | task_id、tag | （task_id，tag）主键；（tag，task_id）索引用于按标签筛选；任务物理删除时级联删除 |
 | `task_files` | version_id、path、blob_hash、size、mode | （version_id，path）唯一 |
 | `environments` | runtime、image_digest、lockfile_hash | 主键即环境 ID（内容哈希） |
 | `triggers` | task_id、name、type、enabled、schedule、timezone、catch_up、params、max_body_bytes、token_hash、token_prefix、next_fire_at、last_fired_at | （task_id，name）唯一；token_hash 唯一 |
@@ -823,6 +824,7 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 | 任务 | `GET /api/v1/tasks` | listTasks | 读取 |
 | 任务 | `PUT /api/v1/projects/{projectId}/tasks/{taskName}` | applyTask | 变更 |
 | 任务 | `GET /api/v1/tasks/{taskId}` | getTask | 读取 |
+| 任务 | `PUT /api/v1/tasks/{taskId}/tags` | setTaskTags | 变更 |
 | 任务 | `GET /api/v1/tasks/{taskId}/versions`、`GET /api/v1/tasks/{taskId}/versions/{seq}` | listTaskVersions、getTaskVersion | 读取 |
 | 任务 | `GET /api/v1/tasks/{taskId}/versions/{seq}/diff` | diffTaskVersion | 读取 |
 | 任务 | `POST /api/v1/tasks/{taskId}/versions/{seq}/validate` | validateTaskVersion | 读取 |
@@ -853,6 +855,7 @@ api/openapi/ (OpenAPI 3.1 源文件，按资源拆分)
 上表是草案。0.5 版写出了 M2 至 M6 和控制台需要的完整契约，与上表的差异以 `api/openapi/` 为准，主要有：
 
 - 任务：`listTasks` 带 `project_id`、`name`（精确匹配，供 CLI 按名字找任务）、`state`、`q`、`archived` 筛选；新增 `getTaskFile`（`GET /tasks/{taskId}/versions/{seq}/file?path=`）、`listTaskCredentials`、`archiveTask`（`DELETE /tasks/{taskId}`，归档而不删除）。`applyTask` 返回 `ApplyTaskResult`（`dry_run`、`created`、`version`、`task`、`diff`、`warnings`），预览用查询参数 `dry_run`，并发保护用请求头 `If-Match`（值为读到的 `latest_version.seq`）。
+- 任务标签：`listTasks` 支持按 `tag` 精确筛选，在游标分页前生效，可以和其他筛选组合。任务详情和列表返回 `tags`，无标签时为空数组。`setTaskTags` 由有任务修改权限的调用者整体替换标签，空数组清空；最多 20 个不重复的标签，每个 1 至 40 个字符，支持中文，区分大小写。归档后仍可读取标签，不能修改。写入和 `task.tags` 审计在同一个事务中完成；审计只记数量，不记标签内容。标签属于项目内的分类元数据，不随任务版本或任务包迁移。
 - 运行：`listRuns` 带项目、任务、状态（可多选）、来源、测试、`rerun_of`、`runner_id` 和时间筛选；`listRunEvents` 用游标分页；新增 `streamRunLogs`、`downloadRunLogs`、`streamEvents` 的 SSE 和下载约定（`api/README.md`）。
 - 新增控制台概览 `getOverview`（需要处理的事、未结束的运行、接下来的触发）和 `getRunCalendar`。
 - 项目新增 `getProject`、`updateProject`、`listMembers` 和 `searchUsers`（`GET /api/v1/users`，按名字开头查找，用于添加成员）。
@@ -988,6 +991,8 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | `discover` | 读取 | discover |
 | `environment_get` | 读取 | getEnvironment |
 | `task_get` | 读取 | getTask |
+| `task_list` | 读取 | listTasks，可按标签筛选 |
+| `task_set_tags` | 变更 | setTaskTags，整体替换任务标签 |
 | `task_apply` | 变更 | applyTask，带 `expected_version`，支持 `dry_run` |
 | `task_validate` | 读取 | validateTaskVersion |
 | `trigger_set` | 变更 | setTriggers |

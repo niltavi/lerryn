@@ -47,8 +47,8 @@ type Tasks struct {
 	plaintext *Credentials
 }
 
-// WithPlaintextCheck rejects submissions whose manifest or files contain
-// the value of a credential the caller owns or one bound to the task
+// WithPlaintextCheck rejects manifests, files and tags containing the
+// value of a credential the caller owns or one bound to the task
 // (tech design 11.7). It returns t for chaining.
 func (t *Tasks) WithPlaintextCheck(c *Credentials) *Tasks {
 	t.plaintext = c
@@ -117,6 +117,7 @@ type ApplyResult struct {
 type TaskDetail struct {
 	Task    store.Task
 	Version VersionDetail
+	Tags    []string
 }
 
 // VersionDetail is a task version with its decoded manifest and its
@@ -361,6 +362,13 @@ func (t *Tasks) applyOnce(ctx context.Context, sub submission) (TaskDetail, []st
 			return err
 		}
 		detail = TaskDetail{Task: task, Version: VersionDetail{Version: version, Files: files}}
+		if !created {
+			tags, err := store.TaskTags(ctx, tx, []uuid.UUID{task.ID})
+			if err != nil {
+				return err
+			}
+			detail.Tags = tags[task.ID]
+		}
 		var err error
 		restore, err = claimBlobs(ctx, tx, fileHashes(files))
 		return err
@@ -388,7 +396,11 @@ func (t *Tasks) detail(ctx context.Context, task store.Task) (TaskDetail, error)
 	if err != nil {
 		return TaskDetail{}, err
 	}
-	return TaskDetail{Task: task, Version: version}, nil
+	tags, err := store.TaskTags(ctx, t.db, []uuid.UUID{task.ID})
+	if err != nil {
+		return TaskDetail{}, err
+	}
+	return TaskDetail{Task: task, Version: version, Tags: tags[task.ID]}, nil
 }
 
 // version loads a version of a task with its files. A missing version is

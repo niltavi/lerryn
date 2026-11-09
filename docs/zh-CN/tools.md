@@ -53,7 +53,9 @@ lerryn mcp --stdio
 | --- | --- | --- | --- |
 | `discover` | `discover` | `read` | 版本、运行时、部署能力、当前身份 |
 | `environment_get` | `getEnvironment` | `read` | 查询当前部署的环境 |
-| `task_get` | `getTask` | `read` | 任务和最新版本 |
+| `task_get` | `getTask` | `read` | 任务、标签和最新版本 |
+| `task_list` | `listTasks` | `read` | 查询可见任务，支持按项目、名称或标签筛选 |
+| `task_set_tags` | `setTaskTags` | `write` | 整体替换标签，空数组清空，不创建新版本 |
 | `task_apply` | `applyTask` | `write` | 创建任务或提交完整新版本，支持 `dry_run` |
 | `task_validate` | `validateTaskVersion` | `read` | 检查凭证、工具、runner 和测试状态 |
 | `trigger_set` | `setTriggers` | `write` | 整体替换定时或 Webhook 触发器，支持预览 |
@@ -84,6 +86,8 @@ MCP 的主流程工具覆盖常用操作。其余接口先查询说明，再调�
 ```
 
 以 `api_describe` 返回的 `input_schema`、令牌范围和认证要求为准。部分接口只接受控制台会话，访问令牌无法调用；文件下载等操作可能需要直接使用 HTTP 或 CLI。
+
+整理任务时，可用 `task_list` 传入 `{"tag":"日报","limit":10}`。要更新标签，先用 `task_get` 读取当前标签，再用 `task_set_tags` 传入 `{"task_id":"<TASK_ID>","tags":["日报","CRM"]}`，保留仍需使用的标签。
 
 建立任务时按这个顺序操作：先 `discover`，再用 `task_apply` 的 `dry_run` 预览并正式提交；需要凭证时用 `credential_request` 请用户填写；用 `run_start` 的 `test: true` 测试，并检查日志和业务结果；预览触发器后再设置，最后激活已测试的版本。修改任务时先读取 `latest_version.seq`，通过 `if_match` 提交，遇到版本冲突先合并。定时器要指定 IANA 时区。测试会真实执行代码，有副作用的任务先向用户确认。
 

@@ -404,6 +404,7 @@ type TaskListInput struct {
 	// substring of the name or description.
 	Name     string
 	Query    string
+	Tag      *string
 	Archived bool
 	Limit    *int
 	Cursor   string
@@ -412,6 +413,7 @@ type TaskListInput struct {
 // TaskSummary is a task in a list.
 type TaskSummary struct {
 	Task store.Task
+	Tags []string
 	// LastRun is the latest run that is not a test run, nil if none.
 	LastRun *store.Run
 	// NextRunAt is the next cron fire of an active task, zero if none.
@@ -437,6 +439,9 @@ func (t *Tasks) List(ctx context.Context, p *auth.Principal, in TaskListInput) (
 	default:
 		v.param("state", "只能是 active 或 inactive")
 	}
+	if in.Tag != nil && !validTaskTag(*in.Tag) {
+		v.param("tag", "标签须为 1 至 40 个字符，不能有首尾空白、控制字符或换行")
+	}
 	if err := v.err(); err != nil {
 		return TaskPage{}, err
 	}
@@ -461,6 +466,9 @@ func (t *Tasks) List(ctx context.Context, p *auth.Principal, in TaskListInput) (
 		pattern := "%" + likeEscaper.Replace(strings.ToLower(in.Query)) + "%"
 		q = q.Where(`(lower(name) LIKE ? ESCAPE '\' OR lower(description) LIKE ? ESCAPE '\')`, pattern, pattern)
 	}
+	if in.Tag != nil {
+		q = q.Where("id IN (SELECT task_id FROM task_tags WHERE tag = ?)", *in.Tag)
+	}
 	if after != nil {
 		q = q.Where("(updated_at < ? OR (updated_at = ? AND id < ?))", after.at, after.at, after.id)
 	}
@@ -479,7 +487,7 @@ func (t *Tasks) List(ctx context.Context, p *auth.Principal, in TaskListInput) (
 
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
-// summaries adds the last run, the next fire and the active run count to
+// summaries adds tags, the last run, the next fire and the active run count to
 // each task, with one query each for the whole page.
 func (t *Tasks) summaries(ctx context.Context, tasks []store.Task) ([]TaskSummary, error) {
 	out := make([]TaskSummary, len(tasks))
@@ -493,9 +501,16 @@ func (t *Tasks) summaries(ctx context.Context, tasks []store.Task) ([]TaskSummar
 		index[task.ID] = i
 		out[i].Task = task
 	}
+	tags, err := store.TaskTags(ctx, t.db, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].Tags = tags[out[i].Task.ID]
+	}
 
 	var last []store.Run
-	err := t.db.NewSelect().Model(&last).
+	err = t.db.NewSelect().Model(&last).
 		Where("run.task_id IN (?) AND run.is_test = ?", bun.List(ids), false).
 		Where("run.archived_at IS NULL").
 		Where("run.queued_at = (SELECT MAX(r2.queued_at) FROM runs AS r2 WHERE r2.task_id = run.task_id AND r2.is_test = ?)", false).

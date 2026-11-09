@@ -117,6 +117,15 @@ function TaskBody({
             {task.description}
           </Txt>
         ) : null}
+        {task.tags?.length ? (
+          <View className="flex-row flex-wrap gap-2" accessibilityLabel={t('task.tags')}>
+            {task.tags.map((tag) => (
+              <Txt key={tag} variant="caption" numberOfLines={1} className="max-w-full rounded-full bg-liner-2 px-2 py-1">
+                {tag}
+              </Txt>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {cron?.next_fire_at || items.length > 0 ? (

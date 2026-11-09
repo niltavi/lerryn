@@ -395,6 +395,7 @@ describe("task list", () => {
     project_id: "p",
     name,
     description: "",
+    tags: [],
     state: "active",
     active_version: 1,
     latest_version: 1,

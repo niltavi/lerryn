@@ -56,6 +56,7 @@ const TASK = {
   project_id: ME.personal_project_id,
   name: "weekday-digest",
   description: "工作日早上汇总新线索",
+  tags: [] as string[],
   state: "active",
   active_version: 2,
   latest_version: {
@@ -331,6 +332,11 @@ function fakeServer(opts: FakeOptions = {}) {
       }
       case `GET /api/v1/tasks/${TASK.id}`:
         return json(task);
+      case `PUT /api/v1/tasks/${TASK.id}/tags`: {
+        const { tags } = body as Schemas["TaskTagSet"];
+        task = { ...task, tags };
+        return json({ tags });
+      }
       case `DELETE /api/v1/tasks/${TASK.id}`:
         if (opts.taskControlSubmit) return opts.taskControlSubmit(pathname, body);
         task = { ...task, archived_at: iso(0), state: "inactive" };
@@ -605,18 +611,25 @@ describe("notification channel form", () => {
 });
 
 describe("overview", () => {
-  it("finds tasks beyond the first page in the task search", async () => {
+  it("combines tag and text filters across all task pages", async () => {
     const tasks: Schemas["TaskSummary"][] = Array.from({ length: 101 }, (_, i) => ({
       id: `task-${i}`, project_id: PROJECT.id, name: `task-${String(i).padStart(3, "0")}`, description: "",
+      tags: i >= 99 ? ["日报", i === 100 ? "财务" : "销售"] : [],
       state: "inactive", active_version: null, latest_version: 1, last_run: null, next_run_at: null,
       active_runs: 0, updated_at: iso(0), links: { console: "http://lerryn.test/" },
     }));
     renderApp("/", { tasks });
     await screen.findByText("task-099");
+    const filter = screen.getByRole("combobox", { name: "按标签筛选" });
+    fireEvent.change(filter, { target: { value: "财务" } });
+    expect(screen.queryByText("task-099")).toBeNull();
+    expect(screen.getByText("task-100")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "搜索任务" }));
-    fireEvent.change(screen.getByRole("searchbox", { name: "搜索任务" }), { target: { value: "task-100" } });
-    expect(await screen.findByText("task-100")).toBeTruthy();
-    expect(screen.queryByText("没有匹配的任务")).toBeNull();
+    fireEvent.change(screen.getByRole("searchbox", { name: "搜索任务" }), { target: { value: "task-099" } });
+    expect(screen.getByText("没有匹配的任务")).toBeTruthy();
+    fireEvent.change(filter, { target: { value: "" } });
+    expect(screen.getByText("task-099")).toBeTruthy();
+    expect(screen.queryByText("task-100")).toBeNull();
   });
 
   it("shows what needs attention, what is running and today's strip", async () => {
@@ -714,7 +727,7 @@ describe("compact list navigation", () => {
   it("toggles the compact task list by keyboard and closes it after selecting the current task", async () => {
     const user = userEvent.setup();
     renderApp(`/tasks/${TASK.id}`, { tasks: [{
-      id: TASK.id, project_id: PROJECT.id, name: TASK.name, description: TASK.description,
+      id: TASK.id, project_id: PROJECT.id, name: TASK.name, description: TASK.description, tags: [],
       state: "inactive", active_version: null, latest_version: 2, last_run: null, next_run_at: null,
       active_runs: 0, updated_at: iso(0), links: TASK.links,
     }] });
@@ -745,6 +758,28 @@ describe("compact list navigation", () => {
 });
 
 describe("task page", () => {
+  it("lets a maintainer replace and clear task tags", async () => {
+    const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", task: { tags: ["销售"] } });
+    const user = userEvent.setup();
+    const edit = await screen.findByRole("button", { name: "编辑标签" });
+    await user.click(edit);
+    const dialog = await screen.findByRole("dialog", { name: "编辑标签" });
+    const input = within(dialog).getByRole("textbox", { name: "任务标签" });
+    expect((input as HTMLTextAreaElement).value).toBe("销售");
+    fireEvent.change(input, { target: { value: "  日报  \n\nCRM" } });
+    await user.click(within(dialog).getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const group = screen.getByRole("group", { name: "任务标签" });
+    expect(within(group).getByText("日报")).toBeTruthy();
+    expect(within(group).queryByText("销售")).toBeNull();
+    await user.click(within(group).getByRole("button", { name: "编辑标签" }));
+    await user.clear(screen.getByRole("textbox", { name: "任务标签" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(within(group).queryByText("日报")).toBeNull());
+    expect(server.requests.filter((r) => r.method === "PUT" && r.path.endsWith("/tags")).map((r) => r.body))
+      .toEqual([{ tags: ["日报", "CRM"] }, { tags: [] }]);
+  });
+
   it("confirms deletion, hides runs by default and preserves task history", async () => {
     const { server, router } = renderApp(`/tasks/${TASK.id}`, { role: "owner", showRunInList: true });
     const user = userEvent.setup();

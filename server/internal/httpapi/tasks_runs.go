@@ -26,6 +26,7 @@ type Tasks interface {
 	Archive(ctx context.Context, p *auth.Principal, id uuid.UUID) (service.TaskDetail, error)
 	SetActivation(ctx context.Context, p *auth.Principal, id uuid.UUID, active bool, seq *int) (service.TaskDetail, error)
 	SetConsole(ctx context.Context, p *auth.Principal, id uuid.UUID, in service.ConsoleOptions) (service.TaskDetail, error)
+	SetTags(ctx context.Context, p *auth.Principal, id uuid.UUID, tags []string) ([]string, error)
 	Versions(ctx context.Context, p *auth.Principal, id uuid.UUID, limit *int, cursor string) (service.VersionPage, error)
 	Version(ctx context.Context, p *auth.Principal, id uuid.UUID, seq int) (service.VersionDetail, error)
 	File(ctx context.Context, p *auth.Principal, id uuid.UUID, seq int, path string) (service.FileContent, error)
@@ -236,6 +237,7 @@ func (h *handler) toTask(d service.TaskDetail) (Task, error) {
 		ProjectID:     d.Task.ProjectID,
 		Name:          d.Task.Name,
 		Description:   d.Task.Description,
+		Tags:          append(TaskTags{}, d.Tags...),
 		State:         taskState(d.Task),
 		ActiveVersion: activeVersion(d.Task),
 		LatestVersion: latest,

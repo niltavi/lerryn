@@ -109,6 +109,8 @@ paths:
     $ref: ./tasks/paths.yaml#/activation
   /api/v1/tasks/{taskId}/console:
     $ref: ./tasks/paths.yaml#/console
+  /api/v1/tasks/{taskId}/tags:
+    $ref: ./tasks/paths.yaml#/tags
   /api/v1/tasks/{taskId}/versions:
     $ref: ./tasks/paths.yaml#/versions
   /api/v1/tasks/{taskId}/versions/{seq}:

@@ -15,6 +15,24 @@ export type TaskVersionSummary = Schemas["TaskVersionSummary"];
 export type TaskDiff = Schemas["TaskDiff"];
 export type FileDiff = Schemas["FileDiff"];
 
+export function useSetTaskTags(taskId: string) {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tags: string[]) => unwrap(session.client.PUT("/api/v1/tasks/{taskId}/tags", {
+      params: { path: { taskId } }, body: { tags },
+    })),
+    onMutate: session.capture,
+    onSettled: (_data, _error, _input, isCurrent) => {
+      if (!isCurrent?.()) return;
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId), exact: true }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.taskListAll }),
+      ]);
+    },
+  });
+}
+
 export type TaskControl =
   | { action: "delete" }
   | { action: "pause" }
