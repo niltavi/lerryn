@@ -989,6 +989,7 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | 工具 | 类型 | 对应接口 |
 | --- | --- | --- |
 | `discover` | 读取 | discover |
+| `environment_get` | 读取 | getEnvironment |
 | `task_get` | 读取 | getTask |
 | `task_list` | 读取 | listTasks，可按标签筛选 |
 | `task_set_tags` | 变更 | setTaskTags，整体替换任务标签 |
@@ -1007,7 +1008,9 @@ MCP 是 OpenAPI 的一层外壳，不包含业务逻辑。它和 HTTP API 共享
 | `api_describe` | 读取 | 按 operationId 或关键词返回接口说明和 schema |
 | `api_call` | 视接口而定 | 按 operationId 调用任意公开接口 |
 
-专用工具覆盖常用操作，其余接口通过 `api_describe` 和 `api_call` 按需访问。
+Agent 首次接入加载表中的工具。其他接口通过 `api_describe` 查询，可调用的操作经 `api_call` 访问。
+
+`getEnvironment` 读取 `server.environment`，未配置时返回 `unspecified`，访问令牌需要 `read` 范围。部署环境与单次运行的 `test` 标记独立。
 
 个人 AI 配置只能在 Web 登录会话中修改。配置与密钥复用凭证库的加密和轮换，内部凭证不能通过普通凭证接口读取或授权给任务。`ai_chat` 按令牌所属账号读取配置，检查模型 ID 后从服务端发起请求。AI 配置的地址和模型、聊天请求及返回文本沿用凭证指纹检查。AI 出口沿用通知的连接地址检查，单独由 `ai.allowed_networks` 放行需要访问的内网网段。请求使用 HTTPS，不跟随重定向。
 

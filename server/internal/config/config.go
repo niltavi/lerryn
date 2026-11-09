@@ -76,6 +76,8 @@ type Server struct {
 	// PublicURL is the externally reachable base URL, used to build console
 	// links returned to agents and in notifications.
 	PublicURL string `yaml:"public_url" env:"PUBLIC_URL"`
+	// Environment identifies the deployment to clients. Empty means unspecified.
+	Environment string `yaml:"environment" env:"ENVIRONMENT"`
 	// ExtraOrigins are other addresses the console is opened at, such as a
 	// tunnel's domain in front of a LAN deployment. Session writes from them
 	// are accepted like those from public_url; links returned to agents
@@ -349,6 +351,11 @@ func (c Config) Validate() error {
 	}
 	if u, err := url.Parse(c.Server.PublicURL); err != nil || u.Scheme == "" || u.Host == "" {
 		errs = append(errs, fmt.Errorf("server.public_url must be an absolute URL, got %q", c.Server.PublicURL))
+	}
+	switch c.Server.Environment {
+	case "", "production", "test", "staging", "development":
+	default:
+		errs = append(errs, errors.New("server.environment must be empty or one of production, test, staging, development"))
 	}
 	for _, n := range c.Server.TrustedProxies {
 		if _, err := netip.ParsePrefix(strings.TrimSpace(n)); err != nil {

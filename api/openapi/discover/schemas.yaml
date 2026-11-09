@@ -27,6 +27,16 @@ Discovery:
       $ref: "../common/schemas.yaml#/Links"
       description: "`console` 指向控制台首页。"
 
+EnvironmentInfo:
+  type: object
+  required: [environment]
+  properties:
+    environment:
+      type: string
+      description: 部署环境。未配置时为 `unspecified`。
+      enum: [production, test, staging, development, unspecified]
+      examples: [production]
+
 ServerInfo:
   type: object
   description: 服务端的构建信息。

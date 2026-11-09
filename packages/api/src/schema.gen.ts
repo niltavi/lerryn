@@ -24,6 +24,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/environment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询部署环境
+         * @description 返回当前 Lerryn 部署配置的环境。未配置时返回 `unspecified`。
+         *     环境标识适用于整个部署，任务运行的 `test` 标记单独设置。
+         */
+        get: operations["getEnvironment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/register": {
         parameters: {
             query?: never;
@@ -1919,6 +1940,14 @@ export interface components {
             principal: components["schemas"]["Principal"] | null;
             /** @description `console` 指向控制台首页。 */
             links: components["schemas"]["Links"];
+        };
+        EnvironmentInfo: {
+            /**
+             * @description 部署环境。未配置时为 `unspecified`。
+             * @example production
+             * @enum {string}
+             */
+            environment: "production" | "test" | "staging" | "development" | "unspecified";
         };
         /** @description 服务端的构建信息。 */
         ServerInfo: {
@@ -4241,6 +4270,7 @@ export type SchemaProjectRef = components['schemas']['ProjectRef'];
 export type SchemaUserRef = components['schemas']['UserRef'];
 export type SchemaProjectRole = components['schemas']['ProjectRole'];
 export type SchemaDiscovery = components['schemas']['Discovery'];
+export type SchemaEnvironmentInfo = components['schemas']['EnvironmentInfo'];
 export type SchemaServerInfo = components['schemas']['ServerInfo'];
 export type SchemaApiInfo = components['schemas']['ApiInfo'];
 export type SchemaCapabilities = components['schemas']['Capabilities'];
@@ -4496,6 +4526,27 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["Discovery"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前部署的环境。 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentInfo"];
                 };
             };
             default: components["responses"]["Problem"];

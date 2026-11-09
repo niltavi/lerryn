@@ -59,6 +59,8 @@ tags:
 paths:
   /api/v1/discover:
     $ref: ./discover/paths.yaml#/discover
+  /api/v1/environment:
+    $ref: ./discover/paths.yaml#/environment
   /api/v1/auth/register:
     $ref: ./auth/paths.yaml#/register
   /api/v1/auth/login:
@@ -341,6 +343,8 @@ components:
       $ref: ./common/schemas.yaml#/ProjectRole
     Discovery:
       $ref: ./discover/schemas.yaml#/Discovery
+    EnvironmentInfo:
+      $ref: ./discover/schemas.yaml#/EnvironmentInfo
     ServerInfo:
       $ref: ./discover/schemas.yaml#/ServerInfo
     ApiInfo:

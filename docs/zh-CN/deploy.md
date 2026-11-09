@@ -180,6 +180,7 @@ OrbStack 的 Docker 跑在它自己的 Linux 虚拟机里。compose 文件中 `/
 | --- | --- | --- | --- |
 | `server.listen` | `LERRYN_SERVER_LISTEN` | `:33333` | API、MCP 和控制台的监听地址 |
 | `server.public_url` | `LERRYN_SERVER_PUBLIC_URL` | `http://localhost:33333` | 对外访问地址，用来生成控制台链接，必须是绝对 URL |
+| `server.environment` | `LERRYN_SERVER_ENVIRONMENT` | （空） | 部署环境，可填 `production`、`test`、`staging` 或 `development`。留空时 `environment_get` 返回 `unspecified`。同一部署的所有 server 副本须使用相同值 |
 | `server.trusted_proxies` | `LERRYN_SERVER_TRUSTED_PROXIES` | （空） | 反向代理所在的网段（CIDR 列表）。来自这些地址的请求按 `X-Forwarded-For` 取客户端地址，用于登录限速、审计和会话记录；留空时一律用直接连接的地址。参考部署的多节点拓扑填了 Caddy 所在的 `172.30.10.0/24` |
 | `server.extra_origins` | `LERRYN_SERVER_EXTRA_ORIGINS` | （空） | 控制台的其他访问地址，只写 `协议://主机[:端口]`，例如局域网部署前面再接一个隧道域名。从这些地址登录后同样可以修改；返回给 Agent 的链接仍用 `server.public_url` |
 | `server.runner_registration_token_file` | `LERRYN_SERVER_RUNNER_REGISTRATION_TOKEN_FILE` | （空） | 文件内容可作为 runner 注册令牌，与管理员生成的令牌并用；留空时只接受管理员生成的令牌 |
