@@ -32,18 +32,19 @@ const (
 
 // RunListInput selects a page of runs. Zero fields do not filter.
 type RunListInput struct {
-	Archived  bool
-	ProjectID *uuid.UUID
-	TaskID    *uuid.UUID
-	Statuses  []string
-	Trigger   string
-	Test      *bool
-	RerunOf   *uuid.UUID
-	RunnerID  string
-	Since     *time.Time
-	Until     *time.Time
-	Limit     *int
-	Cursor    string
+	Archived             bool
+	ExcludeArchivedTasks bool
+	ProjectID            *uuid.UUID
+	TaskID               *uuid.UUID
+	Statuses             []string
+	Trigger              string
+	Test                 *bool
+	RerunOf              *uuid.UUID
+	RunnerID             string
+	Since                *time.Time
+	Until                *time.Time
+	Limit                *int
+	Cursor               string
 }
 
 // RunListItem is a run in a list.
@@ -100,6 +101,9 @@ func (r *Runs) List(ctx context.Context, p *auth.Principal, in RunListInput) (Ru
 		q = q.Where("archived_at IS NOT NULL")
 	} else {
 		q = q.Where("archived_at IS NULL")
+	}
+	if in.ExcludeArchivedTasks {
+		q = q.Where("EXISTS (SELECT 1 FROM tasks WHERE tasks.id = run.task_id AND tasks.archived_at IS NULL)")
 	}
 	if in.TaskID != nil {
 		q = q.Where("task_id = ?", *in.TaskID)

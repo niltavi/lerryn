@@ -4118,6 +4118,9 @@ type ListRunsParams struct {
 	// Archived true 只返回手动归档的运行，false 或省略时只返回未归档的运行。
 	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
 
+	// ExcludeArchivedTasks true 隐藏已删除任务的运行，false 或省略时保留这些记录。
+	ExcludeArchivedTasks *bool `form:"exclude_archived_tasks,omitempty" json:"exclude_archived_tasks,omitempty"`
+
 	// TaskID 只返回这个任务的运行。
 	TaskID *openapi_types.UUID `form:"task_id,omitempty" json:"task_id,omitempty"`
 
@@ -6682,6 +6685,19 @@ func (siw *ServerInterfaceWrapper) ListRuns(w http.ResponseWriter, r *http.Reque
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "archived"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "archived", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "exclude_archived_tasks" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "exclude_archived_tasks", r.URL.Query(), &params.ExcludeArchivedTasks, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "exclude_archived_tasks"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "exclude_archived_tasks", Err: err})
 		}
 		return
 	}

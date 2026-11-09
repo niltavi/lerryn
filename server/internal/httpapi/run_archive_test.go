@@ -64,3 +64,35 @@ func TestRunArchiveEndpoint(t *testing.T) {
 		t.Fatal("run was not restored")
 	}
 }
+
+func TestListRunsExcludesArchivedTasksBeforePaging(t *testing.T) {
+	c := newTriggerClient(t)
+	agent, project := c.agent("alice")
+	start := func(name string) (string, Run) {
+		task := decode[ApplyTaskResult](t, c.apply(agent, project, name, digestRequest(), "", "")).Task
+		base := "/api/v1/tasks/" + task.ID.String()
+		return base, decode[Run](t, c.as(agent, http.MethodPost, base+"/runs", nil))
+	}
+	_, visible := start("visible")
+	deletedTask, deleted := start("deleted")
+	c.want(c.as(agent, http.MethodDelete, deletedTask, nil), http.StatusOK, "")
+
+	for _, tc := range []struct {
+		query string
+		want  Run
+		more  bool
+	}{
+		{"", deleted, true},
+		{"&exclude_archived_tasks=false", deleted, true},
+		{"&exclude_archived_tasks=true", visible, false},
+		{"&task_id=" + deleted.TaskID.String(), deleted, false},
+	} {
+		rec := c.as(agent, http.MethodGet, "/api/v1/runs?limit=1"+tc.query, nil)
+		c.want(rec, http.StatusOK, "")
+		page := decode[RunPage](t, rec)
+		if len(page.Items) != 1 || page.Items[0].ID != tc.want.ID || (page.NextCursor != nil) != tc.more {
+			t.Errorf("query %q: unexpected page %+v", tc.query, page)
+		}
+	}
+	c.want(c.as(agent, http.MethodGet, "/api/v1/runs/"+deleted.ID.String(), nil), http.StatusOK, "")
+}
