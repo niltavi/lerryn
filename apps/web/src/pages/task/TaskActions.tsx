@@ -1,6 +1,6 @@
 import { formatDateTime, isApiError, useCanControlRuns, useI18n, useTaskControl, type Task, type TaskControl } from "@lerryn/core";
-import { Button, ConsoleDialog, IconButton } from "@lerryn/ui-web";
-import { Pause, Play, SkipForward, Trash2 } from "lucide-react";
+import { ActionMenu, Button, ConsoleDialog, type MenuItem } from "@lerryn/ui-web";
+import { Ellipsis, Pause, Play, SkipForward, Trash2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 
@@ -17,6 +17,11 @@ export function TaskActions({ task, nextFire }: { task: Task; nextFire: string |
   const active = task.state === "active";
   const title = choice?.action === "delete" ? t("task.delete") : choice?.action === "skip" ? t("task.skipNext") : choice?.action === "pause" ? t("task.stop") : t("task.enable");
   const open = (input: TaskControl) => { control.reset(); setChoice(input); };
+  const menuItems: MenuItem[] = [];
+  if (active && nextFire) {
+    menuItems.push({ label: t("task.skipNext"), icon: SkipForward, onSelect: () => open({ action: "skip", scheduledAt: nextFire }) });
+  }
+  menuItems.push({ label: t("task.delete"), icon: Trash2, danger: true, onSelect: () => open({ action: "delete" }) });
   const close = () => { if (!submitting.current) setChoice(null); };
   const submit = async () => {
     if (!choice || submitting.current) return;
@@ -39,14 +44,12 @@ export function TaskActions({ task, nextFire }: { task: Task; nextFire: string |
 
   return (
     <>
-      {active && nextFire ? <IconButton label={t("task.skipNext")} icon={SkipForward} isDisabled={control.isPending}
-        onPress={() => open({ action: "skip", scheduledAt: nextFire })} /> : null}
       <Button variant="secondary" size="sm" isDisabled={control.isPending}
         onPress={() => open(active ? { action: "pause" } : { action: "resume", version: task.active_version ?? task.latest_version.seq })}>
         {active ? <Pause className="wl-icon" aria-hidden="true" /> : <Play className="wl-icon" aria-hidden="true" />}
         {active ? t("task.stop") : t("task.enable")}
       </Button>
-      <IconButton label={t("task.delete")} icon={Trash2} isDisabled={control.isPending} onPress={() => open({ action: "delete" })} />
+      <ActionMenu label={t("task.moreActions")} icon={Ellipsis} items={menuItems} />
       <ConsoleDialog isOpen={choice !== null} onOpenChange={(isOpen) => { if (!isOpen) close(); }} title={title}
         isDismissable={!control.isPending}
         footer={<>

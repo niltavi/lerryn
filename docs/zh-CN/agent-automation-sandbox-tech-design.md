@@ -1483,12 +1483,12 @@ Web 控制台的栈：Vite 8、React 19、TanStack Router（代码定义路由�
 
 - 页面按 PRD 第 4 节：登录与注册、概览、任务详情、运行详情、个人设置（访问令牌、自己的凭证、通知订阅、移动端配对）、管理设置（账号、开放注册和本地登录开关、runner）。凭证填写页首版由服务端渲染（第 12.4 节）。
 - 不提供任务内容编辑。运行与任务控制只对项目的维护者和所有者显示（按 `listProjects` 的 `role` 判断，服务端照常检查权限）：
-  - 任务页的“手动执行”调用 `startRun`，用最新版本和清单默认参数，成功后打开新运行。任务归档或 `console.manual_run` 为 false 时不显示。
+  - 任务页顶部的主按钮“立即重新触发”调用 `startRun`，用最新版本和清单默认参数，成功后打开新运行。任务归档或 `console.manual_run` 为 false 时不显示。
   - 运行页和运行列表预览里已结束的运行有“重试”，调用 `rerunRun`，用最新版本和原运行的参数。不受 `manual_run` 影响：重跑的是已经跑过的运行，Agent 关掉手动执行是不想让人凭空发起一次。
-  - 每次按下“手动执行”或“重试”带一个新的 `Idempotency-Key`，请求被网络层重发不会多出运行；请求进行中按钮禁用，失败时按钮的提示写出原因（上一次运行未结束、队列已满、手动执行已关闭等）。
+  - 每次按下“立即重新触发”或“重试”带一个新的 `Idempotency-Key`，请求被网络层重发不会多出运行；请求进行中按钮禁用，失败时按钮的提示写出原因（上一次运行未结束、队列已满、手动执行已关闭等）。
   - 会话发起的运行 `trigger.client` 为空，控制台据此把来源写成“控制台发起”，和 Agent 用令牌发起的区分开。
 - 任务页的“删除任务”复用 `archiveTask`（`DELETE /api/v1/tasks/{taskId}`），确认后停止触发并移出默认任务列表，保留历史，返回概览。归档任务不显示删除或启停操作。运行详情和列表预览提供手动归档／取消归档；默认列表、任务近期运行、概览和日历不展示手动归档的运行，运行列表的“已归档”筛选通过 `listRuns?archived=true` 读取，直接链接仍可查看完整历史。移动端保持只读。
-- 任务页提供“跳过下次”“停用任务”和“启用任务”，不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
+- 任务页顶部保留“停用任务”或“启用任务”，“跳过下次”和“删除任务”位于右上角的更多操作菜单中。这些操作不受 `manual_run` 影响，归档任务不显示。停用／启用调用 `setTaskActivation`；重新启用显式带原 `active_version`，从未启用时用最新版本，保留激活前测试校验。停用不取消已有运行。
 - `skipNextTaskRun`（`POST /api/v1/tasks/{taskId}/skip-next-run`，变更）需要修改任务权限，请求带用户确认的 `scheduled_at`。service 在事务内先锁任务、再锁触发器，核对任务仍激活且当前最早的 `next_fire_at` 等于请求时间并晚于当前时间；不匹配返回 422 `validation_failed`，不会跳过之后的计划。同一时间的启用 cron 触发器各记录一条 `manual` 原因的已跳过运行及触发实例，再推进到下一个 cron 时间；写入 `task.skip_next` 审计。立即生效，不支持撤回，不改触发器配置 revision，不影响 Webhook 和已有运行；调度器、日历与频率预览都尊重推进后的时间。不新增独立 MCP 工具，经 `api_call` 可调用。
 - 任务的控制台选项 `Task.console` 不跟版本走：存在 `tasks.console_hide_manual_run`（存“隐藏”，零值就是默认的显示，插入任务时不用特别处理），由 `setTaskConsole`（`PUT /api/v1/tasks/{taskId}/console`，变更）修改，写审计 `task.console`。开关关闭时，service 层拒绝用会话发起的 `startRun`，返回 409 `manual_run_disabled`；只隐藏按钮的话，复制请求就能绕过。访问令牌不受影响。`setTaskConsole` 不作为独立的 MCP 工具，经 `api_call` 调用。任务包带上这个选项，较早的任务包没有这个字段，按默认值导入。
 - 构建产物内嵌进服务端二进制，任何 server 副本都能提供。`make web` 把 `apps/web/dist` 复制到 `server/internal/console/webdist/`，由 `go:embed` 嵌入；`make build` 和镜像构建都先构建控制台。只跑 Go 的构建嵌入的是空目录，控制台页面返回 503，API 照常工作。

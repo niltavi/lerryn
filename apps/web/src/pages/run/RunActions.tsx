@@ -1,4 +1,4 @@
-import { IconButton } from "@lerryn/ui-web";
+import { Button, IconButton, Tooltip } from "@lerryn/ui-web";
 import { isApiError, useCanControlRuns, useI18n, useRerunRun, useStartRun, type Run, type Translate } from "@lerryn/core";
 import { useNavigate } from "@tanstack/react-router";
 import { Play, RotateCcw } from "lucide-react";
@@ -35,13 +35,14 @@ export function RunNowButton({ task }: { task: { id: string; project_id: string;
   if (!canControl || task.archived_at || !task.console.manual_run) return null;
   const label = t("task.runNow");
   return (
-    <IconButton
-      label={label}
-      tip={start.isError ? runActionError(start.error, t) : label}
-      icon={Play}
-      isDisabled={start.isPending}
-      onPress={() => start.mutate(task.id, { onSuccess: (run) => void navigate({ to: "/runs/$runId", params: { runId: run.id } }) })}
-    />
+    <Tooltip delay={300} isDisabled={!start.isError}>
+      <Button variant="primary" size="sm" isPending={start.isPending}
+        onPress={() => start.mutate(task.id, { onSuccess: (run) => void navigate({ to: "/runs/$runId", params: { runId: run.id } }) })}>
+        <Play className="wl-icon" aria-hidden="true" />
+        {label}
+      </Button>
+      <Tooltip.Content>{runActionError(start.error, t)}</Tooltip.Content>
+    </Tooltip>
   );
 }
 
