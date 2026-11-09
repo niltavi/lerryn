@@ -7,6 +7,7 @@
 | 工具 | 操作 | 类型 | 令牌范围 | CLI |
 | --- | --- | --- | --- | --- |
 | `discover` | `discover` `GET /api/v1/discover` | read | `read` | `lerryn discover`，`lerryn api discover` |
+| `environment_get` | `getEnvironment` `GET /api/v1/environment` | read | `read` | `lerryn api getEnvironment` |
 | `task_apply` | `applyTask` `PUT /api/v1/projects/{projectId}/tasks/{taskName}` | mutate | `write` | `lerryn tasks apply <目录>`，`lerryn api applyTask` |
 | `task_get` | `getTask` `GET /api/v1/tasks/{taskId}` | read | `read` | `lerryn tasks get <任务>`，`lerryn api getTask` |
 | `task_set_active` | `setTaskActivation` `POST /api/v1/tasks/{taskId}/activation` | execute | `execute` | `lerryn api setTaskActivation` |
@@ -29,6 +30,11 @@
 
 读取 Lerryn 服务端的版本、可用运行时、部署能力、匹配的 Skill 版本和当前身份。
 开始建立或修改任务前先调用一次；Skill 版本与本地不一致时，从服务端获取匹配的版本。
+
+### environment_get（查询部署环境）
+
+查询当前连接的 Lerryn 部署是生产、测试、预发布还是开发环境。
+对环境敏感的操作先调用此工具。`unspecified` 表示环境未知。
 
 ### task_apply（提交任务）
 

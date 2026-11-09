@@ -26,11 +26,11 @@ func TestLoadContract(t *testing.T) {
 		t.Error("discover must be read-only")
 	}
 
-	// The main-flow tools of tech design 10.2: an agent builds, tests,
-	// schedules, activates and repairs a task with these alone.
-	for _, want := range []struct {
+	// The dedicated tools of tech design 10.2, in addition to discover.
+	expected := []struct {
 		name, operationID, method, path string
 	}{
+		{"environment_get", "getEnvironment", "GET", "/api/v1/environment"},
 		{"task_get", "getTask", "GET", "/api/v1/tasks/{taskId}"},
 		{"task_apply", "applyTask", "PUT", "/api/v1/projects/{projectId}/tasks/{taskName}"},
 		{"task_validate", "validateTaskVersion", "POST", "/api/v1/tasks/{taskId}/versions/{seq}/validate"},
@@ -44,7 +44,8 @@ func TestLoadContract(t *testing.T) {
 		{"ai_models", "listAIModels", "GET", "/api/v1/ai/models"},
 		{"ai_chat", "createAIChat", "POST", "/api/v1/ai/chat"},
 		{"credential_request", "createCredentialRequest", "POST", "/api/v1/credential-requests"},
-	} {
+	}
+	for _, want := range expected {
 		tool, ok := reg.Tool(want.name)
 		if !ok {
 			t.Errorf("%s is not registered", want.name)
@@ -56,12 +57,12 @@ func TestLoadContract(t *testing.T) {
 	}
 	// Everything else stays behind api_describe and api_call, so a new
 	// client loads a short tool list (tech design 10.2).
-	if n := len(reg.Tools()); n != 14 {
+	if n, want := len(reg.Tools()), len(expected)+1; n != want {
 		names := make([]string, 0, n)
 		for _, tool := range reg.Tools() {
 			names = append(names, tool.Name)
 		}
-		t.Errorf("%d tools are exposed, want the 14 of tech design 10.2: %v", n, names)
+		t.Errorf("%d tools are exposed, want the %d of tech design 10.2: %v", n, want, names)
 	}
 	// trigger_set replaces the whole set, so it must be marked destructive.
 	if tool, ok := reg.Tool("trigger_set"); ok && (tool.Annotations.DestructiveHint == nil || !*tool.Annotations.DestructiveHint) {

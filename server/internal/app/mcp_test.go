@@ -12,6 +12,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/niltavi/lerryn/api"
+	"github.com/niltavi/lerryn/server/internal/config"
 	"github.com/niltavi/lerryn/server/internal/mcp"
 	"github.com/niltavi/lerryn/server/internal/secrets"
 	"github.com/niltavi/lerryn/server/internal/service"
@@ -66,7 +67,9 @@ func newMCPServer(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(New(discardLogger()).WithAccounts(accounts).WithCredentials(creds, nil).WithMCP(tools).Handler())
+	cfg := config.Default()
+	cfg.Server.Environment = "test"
+	srv := httptest.NewServer(New(discardLogger()).WithConfig(cfg).WithAccounts(accounts).WithCredentials(creds, nil).WithMCP(tools).Handler())
 	t.Cleanup(srv.Close)
 	return srv.URL, token
 }
@@ -133,6 +136,14 @@ func TestMCPCallsTheAPIAsTheTokenOwner(t *testing.T) {
 	})
 	if err != nil || !res.IsError {
 		t.Fatalf("ai_chat accepted a disabled model: %+v, %v", res, err)
+	}
+
+	res, err = cs.CallTool(ctx, &mcpsdk.CallToolParams{Name: "environment_get"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, ok := res.StructuredContent.(map[string]any); res.IsError || !ok || data["environment"] != "test" {
+		t.Fatalf("environment_get = %+v, want environment test", res)
 	}
 }
 

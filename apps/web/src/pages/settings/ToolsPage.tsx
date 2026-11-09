@@ -11,6 +11,7 @@ import { Board, LoadError, usePageTitle } from "../../shell/layout";
 // These are Lerryn's own MCP tools, separate from the project registry.
 const BUILTIN_TOOLS = [
   ["discover", "read"],
+  ["environment_get", "read"],
   ["task_get", "read"],
   ["task_apply", "write"],
   ["task_validate", "read"],

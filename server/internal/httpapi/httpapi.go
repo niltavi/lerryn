@@ -33,6 +33,8 @@ type Options struct {
 	// PublicURL is the externally reachable base URL of the deployment
 	// (server.public_url). Console links in responses are built from it.
 	PublicURL string
+	// Environment identifies the deployment (server.environment).
+	Environment EnvironmentInfoEnvironment
 	// ExtraOrigins are other origins the console is opened at
 	// (server.extra_origins). Session writes from them are accepted, and
 	// discover's console link follows the one a request came in at.
@@ -124,6 +126,7 @@ func newHandler(opts Options) (*handler, *http.ServeMux) {
 			Commit:    opts.Commit,
 			BuildDate: parseBuildDate(opts.BuildDate),
 		},
+		environment:   opts.Environment,
 		capabilities:  opts.Capabilities,
 		accounts:      opts.Accounts,
 		tasks:         opts.Tasks,
@@ -161,6 +164,7 @@ type handler struct {
 	// extra ones.
 	origins      []*url.URL
 	server       ServerInfo
+	environment  EnvironmentInfoEnvironment
 	capabilities Capabilities
 	accounts     Accounts
 	tasks        Tasks
