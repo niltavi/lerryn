@@ -3,9 +3,9 @@
 // recorded tool calls. Pure functions, tested without React.
 import type { Schemas } from "@lerryn/api";
 
-import { daysUntil, formatDuration } from "../format";
+import { daysUntil, formatDuration, shortId } from "../format";
 import { isRunActive, runStatusMeta } from "../status";
-import { resolvePointer, sortTasksBySchedule, type PanelSpec, type TaskSummary } from "./model";
+import { resolvePointer, sortTasksBySchedule, type PanelSpec, type RunSummary, type TaskSummary } from "./model";
 
 type RunEvent = Schemas["RunEvent"];
 type Credential = Schemas["Credential"];
@@ -302,6 +302,44 @@ export const RUN_FILTER_STATUSES: Record<RunFilter, Schemas["RunStatus"][]> = {
   failed: ["failed", "timed_out", "interrupted"],
   active: ["queued", "preparing", "running", "cancelling"],
 };
+
+/**
+ * Runs whose task name, ID, version ("v12"), current stage or result
+ * summary contains the query, ignoring case. The list API has no text search,
+ * so this narrows the pages already loaded.
+ */
+export function filterRuns(runs: readonly RunSummary[], query: string): readonly RunSummary[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return runs;
+  return runs.filter((r) =>
+    [r.task.name, r.id, shortId(r.id), `v${r.version}`, r.current_stage ?? "", r.result_summary ?? ""].some((s) =>
+      s.toLowerCase().includes(q),
+    ),
+  );
+}
+
+export interface RunTaskGroup {
+  task: RunSummary["task"];
+  runs: RunSummary[];
+}
+
+/**
+ * Runs gathered under their task. Groups keep the order in which their first
+ * run appears, so a list sorted newest first puts the most recently run task
+ * on top, and each group keeps that order too.
+ */
+export function groupRunsByTask(runs: readonly RunSummary[]): RunTaskGroup[] {
+  const groups = new Map<string, RunTaskGroup>();
+  for (const run of runs) {
+    let g = groups.get(run.task.id);
+    if (!g) {
+      g = { task: run.task, runs: [] };
+      groups.set(run.task.id, g);
+    }
+    g.runs.push(run);
+  }
+  return [...groups.values()];
+}
 
 /**
  * Kanban columns of the runs board, left to right: waiting to start, running,
