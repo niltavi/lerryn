@@ -367,7 +367,12 @@ export const zhCN = {
     notifications: "通知",
     pairing: "手机",
     account: "账号",
+    about: "关于",
     tools: "工具",
+  },
+  about: {
+    description: "自部署的自动化沙箱。Agent 创建并执行任务，结果可在控制台查看。",
+    website: "官网",
   },
   tokens: {
     title: "访问令牌",

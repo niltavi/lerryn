@@ -117,14 +117,18 @@ function TaskBoard({ task }: { task: Task }) {
           {active && task.active_version ? <span className="mono-sm">v{task.active_version}</span> : null}
         </span>
         <div className="tools ml-auto flex-wrap justify-end">
-          <CopyButton value={task.links.console} label={t("task.copyLink")} icon={Link2} />
           <RunNowButton task={task} />
           <TaskActions key={task.id} task={task} nextFire={nextFire} />
         </div>
       </div>
 
       <div className="stack" style={{ gap: 6 }}>
-        <h1 className="h1">{task.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="h1 min-w-0">{task.name}</h1>
+          <div className="shrink-0">
+            <CopyButton value={task.links.console} label={t("task.copyLink")} icon={Link2} />
+          </div>
+        </div>
         {task.description ? <p className="muted">{task.description}</p> : null}
         <TaskTags key={task.id} task={task} />
       </div>
