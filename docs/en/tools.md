@@ -14,7 +14,7 @@ Sign in to the console and create a token under Settings → Access tokens. The 
 | --- | --- |
 | `read` | Discover capabilities and read tasks, runs, logs, and operation descriptions |
 | `write` | Submit tasks, configure triggers, request credentials, and register project tools |
-| `execute` | Start, cancel, rerun, activate, or pause |
+| `execute` | Start, cancel, rerun, activate, or pause tasks, and call AI models |
 
 An agent maintaining tasks usually needs all three scopes; a client querying results may only need `read`. Tokens inherit their owner's project permissions. Scopes do not elevate a project role. Replace expired or revoked tokens in your client. Keep tokens out of URLs, task files, and task parameters.
 
@@ -65,6 +65,8 @@ Protect the token file as a credential. The MCP client launches the final comman
 | `run_cancel` | `cancelRun` | `execute` | Request cancellation, then read status to confirm |
 | `run_rerun` | `rerunRun` | `execute` | Create a new run linked to the original |
 | `credential_request` | `createCredentialRequest` | `write` | Create a credential form link for the user |
+| `ai_models` | `listAIModels` | `read` | List the models enabled for the current account |
+| `ai_chat` | `createAIChat` | `execute` | Generate text with the model service configured for the current account |
 | `api_describe` | Descriptions and schemas | `read` | Search by `operation_id` or `query` |
 | `api_call` | A public operation | By operation | Call by `operation_id`, passing parameters in `arguments` |
 
@@ -85,6 +87,21 @@ Follow the returned `input_schema`, token scopes, and authentication requirement
 To find tagged tasks, call `task_list` with `{"tag":"Reporting","limit":10}`. To edit tags, read the current tags with `task_get`, then pass the complete desired set to `task_set_tags`, for example `{"task_id":"<TASK_ID>","tags":["Reporting","CRM"]}`.
 
 To build a task, call `discover`, preview `task_apply` with `dry_run`, and submit. Request credentials with `credential_request` when needed. Test with `run_start` and `test: true`, and inspect logs and business results. Preview triggers before setting them, then activate the tested version. Before an update, read `latest_version.seq` and pass it as `if_match`; merge changes on a version conflict. Cron triggers require an IANA timezone. Tests execute real code: confirm tasks with side effects with the user first.
+
+## Configure AI capabilities
+
+Open Settings → Credentials → AI capabilities in the web console. Enter the provider’s HTTPS API base URL, API key, and one model ID per line. Include the provider’s version path, as in `https://api.openai.com/v1`. Lerryn appends `/chat/completions`.
+
+An agent with a token from the same account can call `ai_models` and pass one of the returned IDs to `ai_chat`. This tool generates text in a single response. Messages are sent to the configured provider, and calls may incur charges. Lerryn blocks requests and responses that contain a stored credential value from the current account.
+
+```json
+{
+  "model": "your-model-id",
+  "messages": [{"role": "user", "content": "Summarize the following in one sentence."}]
+}
+```
+
+The API key is encrypted in the account’s credential store. Leave the key blank when changing only the model list, and re-enter it if you change the base URL. For an internal HTTPS model gateway, the deployment operator must configure `ai.allowed_networks`.
 
 ## HTTP API and CLI
 

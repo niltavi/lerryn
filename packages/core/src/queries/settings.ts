@@ -1,6 +1,5 @@
 // Personal settings: profile, password, credentials, notification channels
-// and paired phones. Credential values only ever go out, in
-// useFillCredentialRequest; the API has none to give back.
+// and paired phones. Credential values are submitted but never returned.
 import type { Schemas } from "@lerryn/api";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 
@@ -9,6 +8,7 @@ import { shouldRetry } from "../errors";
 import { RESOURCE_POLL_MS } from "../live/live";
 import { queryKeys } from "./keys";
 
+export type AIConfiguration = Schemas["AIConfiguration"];
 export type Credential = Schemas["Credential"];
 export type CredentialRequest = Schemas["CredentialRequest"];
 export type CredentialGrant = Schemas["CredentialGrant"];
@@ -47,6 +47,46 @@ export function useChangePassword() {
 }
 
 // ── Credentials ──
+
+export function useAIConfiguration() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.aiConfiguration,
+    queryFn: ({ signal }) => unwrap(api.GET("/api/v1/me/ai", { signal })),
+    retry: shouldRetry,
+  });
+}
+
+export function useSetAIConfiguration() {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Schemas["SetAIConfigurationBody"]) => unwrap(session.client.PUT("/api/v1/me/ai", { body })),
+    onMutate: session.capture,
+    onSuccess: (config, _body, isCurrent) => {
+      if (isCurrent?.()) {
+        queryClient.setQueryData(queryKeys.aiConfiguration, config);
+        void queryClient.invalidateQueries({ queryKey: queryKeys.aiConfiguration });
+      }
+    },
+    gcTime: 0,
+  });
+}
+
+export function useRemoveAIConfiguration() {
+  const session = useApiSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unwrap(session.client.DELETE("/api/v1/me/ai")),
+    onMutate: session.capture,
+    onSuccess: (_data, _vars, isCurrent) => {
+      if (isCurrent?.()) {
+        queryClient.setQueryData<AIConfiguration>(queryKeys.aiConfiguration, { models: [] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.aiConfiguration });
+      }
+    },
+  });
+}
 
 /** The user's own credentials, metadata only. */
 export function useCredentials() {

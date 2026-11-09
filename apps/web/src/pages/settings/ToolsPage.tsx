@@ -24,6 +24,8 @@ const BUILTIN_TOOLS = [
   ["run_cancel", "execute"],
   ["run_rerun", "execute"],
   ["credential_request", "write"],
+  ["ai_models", "read"],
+  ["ai_chat", "execute"],
   ["api_describe", "read"],
   ["api_call", "perOperation"],
 ] as const;

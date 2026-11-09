@@ -219,6 +219,7 @@ The Chinese reference is checked against `server/internal/config` by tests. Keep
 | `metrics.enabled` | `LERRYN_METRICS_ENABLED` | `false` | Enable Prometheus metrics. |
 | `metrics.listen` | `LERRYN_METRICS_LISTEN` | Empty | Separate metrics listen address, such as :9090. Empty mounts /metrics on server.listen. |
 | `metrics.token_file` | `LERRYN_METRICS_TOKEN_FILE` | Empty | Bearer token file for scraping. Required when metrics share server.listen. |
+| `ai.allowed_networks` | `LERRYN_AI_ALLOWED_NETWORKS` | Empty | Internal CIDRs that AI calls may reach. The default permits public HTTPS destinations only. |
 | `notify.allowed_networks` | `LERRYN_NOTIFY_ALLOWED_NETWORKS` | Empty | Allowed internal notification CIDRs, such as 10.20.0.0/16. Default permits public addresses only, rejecting loopback, private, and link-local destinations. |
 | `scheduler.max_queued_runs` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS` | `1000` | Deployment-wide queued-run limit. Cron and webhook triggers exceeding it are skipped with queue_full; API starts return 429 queue_full. 0 is unlimited. |
 | `scheduler.max_queued_runs_per_project` | `LERRYN_SCHEDULER_MAX_QUEUED_RUNS_PER_PROJECT` | `200` | Per-project queued-run limit to prevent queue monopolization. 0 is unlimited. |

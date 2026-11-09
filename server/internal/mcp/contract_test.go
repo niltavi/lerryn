@@ -43,6 +43,8 @@ func TestLoadContract(t *testing.T) {
 		{"run_logs", "readRunLogs", "GET", "/api/v1/runs/{runId}/logs"},
 		{"run_cancel", "cancelRun", "POST", "/api/v1/runs/{runId}/cancel"},
 		{"run_rerun", "rerunRun", "POST", "/api/v1/runs/{runId}/rerun"},
+		{"ai_models", "listAIModels", "GET", "/api/v1/ai/models"},
+		{"ai_chat", "createAIChat", "POST", "/api/v1/ai/chat"},
 		{"credential_request", "createCredentialRequest", "POST", "/api/v1/credential-requests"},
 	} {
 		tool, ok := reg.Tool(want.name)
@@ -56,12 +58,12 @@ func TestLoadContract(t *testing.T) {
 	}
 	// Everything else stays behind api_describe and api_call, so a new
 	// client loads a short tool list (tech design 10.2).
-	if n := len(reg.Tools()); n != 14 {
+	if n := len(reg.Tools()); n != 16 {
 		names := make([]string, 0, n)
 		for _, tool := range reg.Tools() {
 			names = append(names, tool.Name)
 		}
-		t.Errorf("%d tools are exposed, want the 14 of tech design 10.2: %v", n, names)
+		t.Errorf("%d tools are exposed, want the 16 of tech design 10.2: %v", n, names)
 	}
 	// These tools replace whole sets, so they must be marked destructive.
 	for _, name := range []string{"trigger_set", "task_set_tags"} {
@@ -114,7 +116,10 @@ func TestSessionOnlyContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"createToken", "createRunnerToken", "adminCreateUser", "adminUpdateUser", "adminResetPassword"} {
+	for _, id := range []string{
+		"createToken", "createRunnerToken", "adminCreateUser", "adminUpdateUser", "adminResetPassword",
+		"getAIConfiguration", "setAIConfiguration", "removeAIConfiguration",
+	} {
 		o, ok := reg.Operation(id)
 		if !ok {
 			t.Fatalf("%s is not indexed", id)

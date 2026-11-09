@@ -19,6 +19,27 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AIChatMessageRole.
+const (
+	AIChatMessageRoleAssistant AIChatMessageRole = "assistant"
+	AIChatMessageRoleSystem    AIChatMessageRole = "system"
+	AIChatMessageRoleUser      AIChatMessageRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the AIChatMessageRole enum.
+func (e AIChatMessageRole) Valid() bool {
+	switch e {
+	case AIChatMessageRoleAssistant:
+		return true
+	case AIChatMessageRoleSystem:
+		return true
+	case AIChatMessageRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ArtifactPreview.
 const (
 	ArtifactPreviewJSON ArtifactPreview = "json"
@@ -312,6 +333,7 @@ func (e DeviceInfoPlatform) Valid() bool {
 
 // Defines values for ErrorCode.
 const (
+	ErrorCodeAIProviderError         ErrorCode = "ai_provider_error"
 	ErrorCodeCredentialMissing       ErrorCode = "credential_missing"
 	ErrorCodeCredentialUnavailable   ErrorCode = "credential_unavailable"
 	ErrorCodeDependencyInstallFailed ErrorCode = "dependency_install_failed"
@@ -347,6 +369,8 @@ const (
 // Valid indicates whether the value is a known member of the ErrorCode enum.
 func (e ErrorCode) Valid() bool {
 	switch e {
+	case ErrorCodeAIProviderError:
+		return true
 	case ErrorCodeCredentialMissing:
 		return true
 	case ErrorCodeCredentialUnavailable:
@@ -1178,6 +1202,49 @@ func (e AdminListUsersParamsStatus) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// AIChatBody defines model for AIChatBody.
+type AIChatBody struct {
+	// Messages 按对话顺序排列的文本消息。
+	Messages []AIChatMessage `json:"messages"`
+
+	// Model 服务商使用的模型 ID。
+	Model AIModelID `json:"model"`
+}
+
+// AIChatMessage defines model for AIChatMessage.
+type AIChatMessage struct {
+	Content string            `json:"content"`
+	Role    AIChatMessageRole `json:"role"`
+}
+
+// AIChatMessageRole defines model for AIChatMessage.Role.
+type AIChatMessageRole string
+
+// AIChatResult defines model for AIChatResult.
+type AIChatResult struct {
+	// Content 模型生成的文本。
+	Content string `json:"content"`
+
+	// Model 服务商使用的模型 ID。
+	Model AIModelID `json:"model"`
+}
+
+// AIConfiguration defines model for AIConfiguration.
+type AIConfiguration struct {
+	// BaseURL 已配置的 HTTPS API 基础地址，未配置时省略。
+	BaseURL *string     `json:"base_url,omitempty"`
+	Models  []AIModelID `json:"models"`
+}
+
+// AIModelID 服务商使用的模型 ID。
+type AIModelID = string
+
+// AIModelList defines model for AIModelList.
+type AIModelList struct {
+	// Models 当前用户启用的模型，未配置时为空。
+	Models []AIModelID `json:"models"`
 }
 
 // AccessToken 一个访问令牌的元信息。令牌本身只在创建时返回一次。
@@ -3037,6 +3104,18 @@ type ServerInfo struct {
 	Version string `json:"version"`
 }
 
+// SetAIConfigurationBody defines model for SetAIConfigurationBody.
+type SetAIConfigurationBody struct {
+	// APIKey 服务商的 API Key。地址不变时可省略以保留现有 Key。
+	APIKey *string `json:"api_key,omitempty"`
+
+	// BaseURL 服务商的 HTTPS API 基础地址，包含服务商要求的版本路径，例如 https://api.openai.com/v1。
+	BaseURL string `json:"base_url"`
+
+	// Models 允许内置 AI 工具调用的模型。
+	Models []AIModelID `json:"models"`
+}
+
 // SetMemberRequest defines model for SetMemberRequest.
 type SetMemberRequest struct {
 	// Role 项目角色（技术设计第 12.2 节）。viewer 查看任务、运行、日志和产物；maintainer 另外可以运行控制、
@@ -4268,6 +4347,9 @@ type AdminUpdateUserJSONRequestBody = AdminUpdateUserRequest
 // AdminResetPasswordJSONRequestBody defines body for AdminResetPassword for application/json ContentType.
 type AdminResetPasswordJSONRequestBody = AdminResetPasswordRequest
 
+// CreateAIChatJSONRequestBody defines body for CreateAIChat for application/json ContentType.
+type CreateAIChatJSONRequestBody = AIChatBody
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -4288,6 +4370,9 @@ type GrantCredentialJSONRequestBody = GrantCredentialRequest
 
 // UpdateMeJSONRequestBody defines body for UpdateMe for application/json ContentType.
 type UpdateMeJSONRequestBody = UpdateMeRequest
+
+// SetAIConfigurationJSONRequestBody defines body for SetAIConfiguration for application/json ContentType.
+type SetAIConfigurationJSONRequestBody = SetAIConfigurationBody
 
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody = ChangePasswordRequest
@@ -4378,6 +4463,12 @@ type ServerInterface interface {
 	// AdminResetPassword 重置密码
 	// (POST /api/v1/admin/users/{userId}/password)
 	AdminResetPassword(w http.ResponseWriter, r *http.Request, userID UserID)
+	// CreateAIChat 调用 AI 模型
+	// (POST /api/v1/ai/chat)
+	CreateAIChat(w http.ResponseWriter, r *http.Request)
+	// ListAIModels 列出可用 AI 模型
+	// (GET /api/v1/ai/models)
+	ListAIModels(w http.ResponseWriter, r *http.Request)
 	// DownloadArtifact 下载产物
 	// (GET /api/v1/artifacts/{artifactId}/download)
 	DownloadArtifact(w http.ResponseWriter, r *http.Request, artifactID ArtifactID, params DownloadArtifactParams)
@@ -4444,6 +4535,15 @@ type ServerInterface interface {
 	// UpdateMe 修改个人信息
 	// (PATCH /api/v1/me)
 	UpdateMe(w http.ResponseWriter, r *http.Request)
+	// RemoveAIConfiguration 移除个人 AI 配置
+	// (DELETE /api/v1/me/ai)
+	RemoveAIConfiguration(w http.ResponseWriter, r *http.Request)
+	// GetAIConfiguration 读取个人 AI 配置
+	// (GET /api/v1/me/ai)
+	GetAIConfiguration(w http.ResponseWriter, r *http.Request)
+	// SetAIConfiguration 保存个人 AI 配置
+	// (PUT /api/v1/me/ai)
+	SetAIConfiguration(w http.ResponseWriter, r *http.Request)
 	// ListDevices 列出移动设备
 	// (GET /api/v1/me/devices)
 	ListDevices(w http.ResponseWriter, r *http.Request)
@@ -5035,6 +5135,34 @@ func (siw *ServerInterfaceWrapper) AdminResetPassword(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminResetPassword(w, r, userID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAIChat operation middleware
+func (siw *ServerInterfaceWrapper) CreateAIChat(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAIChat(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAIModels operation middleware
+func (siw *ServerInterfaceWrapper) ListAIModels(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAIModels(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5686,6 +5814,48 @@ func (siw *ServerInterfaceWrapper) UpdateMe(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAIConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAIConfiguration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAIConfiguration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAIConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) GetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAIConfiguration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAIConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) SetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAIConfiguration(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8275,6 +8445,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/events/stream", wrapper.StreamEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/overview", wrapper.GetOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/overview/calendar", wrapper.GetRunCalendar)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/me/ai", wrapper.RemoveAIConfiguration)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/me/ai", wrapper.GetAIConfiguration)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/me/ai", wrapper.SetAIConfiguration)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/ai/models", wrapper.ListAIModels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/ai/chat", wrapper.CreateAIChat)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/credential-requests", wrapper.ListCredentialRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/credential-requests", wrapper.CreateCredentialRequest)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/credential-requests/{requestId}", wrapper.CancelCredentialRequest)
@@ -8723,6 +8898,83 @@ type AdminResetPassworddefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response AdminResetPassworddefaultApplicationProblemPlusJSONResponse) VisitAdminResetPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAIChatRequestObject struct {
+	Body *CreateAIChatJSONRequestBody
+}
+
+type CreateAIChatResponseObject interface {
+	VisitCreateAIChatResponse(w http.ResponseWriter) error
+}
+
+type CreateAIChat200JSONResponse AIChatResult
+
+func (response CreateAIChat200JSONResponse) VisitCreateAIChatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAIChatdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateAIChatdefaultApplicationProblemPlusJSONResponse) VisitCreateAIChatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAIModelsRequestObject struct {
+}
+
+type ListAIModelsResponseObject interface {
+	VisitListAIModelsResponse(w http.ResponseWriter) error
+}
+
+type ListAIModels200JSONResponse AIModelList
+
+func (response ListAIModels200JSONResponse) VisitListAIModelsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAIModelsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListAIModelsdefaultApplicationProblemPlusJSONResponse) VisitListAIModelsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -9756,6 +10008,115 @@ type UpdateMedefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdateMedefaultApplicationProblemPlusJSONResponse) VisitUpdateMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAIConfigurationRequestObject struct {
+}
+
+type RemoveAIConfigurationResponseObject interface {
+	VisitRemoveAIConfigurationResponse(w http.ResponseWriter) error
+}
+
+type RemoveAIConfiguration204Response struct {
+}
+
+func (response RemoveAIConfiguration204Response) VisitRemoveAIConfigurationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveAIConfigurationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RemoveAIConfigurationdefaultApplicationProblemPlusJSONResponse) VisitRemoveAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAIConfigurationRequestObject struct {
+}
+
+type GetAIConfigurationResponseObject interface {
+	VisitGetAIConfigurationResponse(w http.ResponseWriter) error
+}
+
+type GetAIConfiguration200JSONResponse AIConfiguration
+
+func (response GetAIConfiguration200JSONResponse) VisitGetAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAIConfigurationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetAIConfigurationdefaultApplicationProblemPlusJSONResponse) VisitGetAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAIConfigurationRequestObject struct {
+	Body *SetAIConfigurationJSONRequestBody
+}
+
+type SetAIConfigurationResponseObject interface {
+	VisitSetAIConfigurationResponse(w http.ResponseWriter) error
+}
+
+type SetAIConfiguration200JSONResponse AIConfiguration
+
+func (response SetAIConfiguration200JSONResponse) VisitSetAIConfigurationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAIConfigurationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetAIConfigurationdefaultApplicationProblemPlusJSONResponse) VisitSetAIConfigurationResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -12208,6 +12569,12 @@ type StrictServerInterface interface {
 	// AdminResetPassword 重置密码
 	// (POST /api/v1/admin/users/{userId}/password)
 	AdminResetPassword(ctx context.Context, request AdminResetPasswordRequestObject) (AdminResetPasswordResponseObject, error)
+	// CreateAIChat 调用 AI 模型
+	// (POST /api/v1/ai/chat)
+	CreateAIChat(ctx context.Context, request CreateAIChatRequestObject) (CreateAIChatResponseObject, error)
+	// ListAIModels 列出可用 AI 模型
+	// (GET /api/v1/ai/models)
+	ListAIModels(ctx context.Context, request ListAIModelsRequestObject) (ListAIModelsResponseObject, error)
 	// DownloadArtifact 下载产物
 	// (GET /api/v1/artifacts/{artifactId}/download)
 	DownloadArtifact(ctx context.Context, request DownloadArtifactRequestObject) (DownloadArtifactResponseObject, error)
@@ -12274,6 +12641,15 @@ type StrictServerInterface interface {
 	// UpdateMe 修改个人信息
 	// (PATCH /api/v1/me)
 	UpdateMe(ctx context.Context, request UpdateMeRequestObject) (UpdateMeResponseObject, error)
+	// RemoveAIConfiguration 移除个人 AI 配置
+	// (DELETE /api/v1/me/ai)
+	RemoveAIConfiguration(ctx context.Context, request RemoveAIConfigurationRequestObject) (RemoveAIConfigurationResponseObject, error)
+	// GetAIConfiguration 读取个人 AI 配置
+	// (GET /api/v1/me/ai)
+	GetAIConfiguration(ctx context.Context, request GetAIConfigurationRequestObject) (GetAIConfigurationResponseObject, error)
+	// SetAIConfiguration 保存个人 AI 配置
+	// (PUT /api/v1/me/ai)
+	SetAIConfiguration(ctx context.Context, request SetAIConfigurationRequestObject) (SetAIConfigurationResponseObject, error)
 	// ListDevices 列出移动设备
 	// (GET /api/v1/me/devices)
 	ListDevices(ctx context.Context, request ListDevicesRequestObject) (ListDevicesResponseObject, error)
@@ -12779,6 +13155,61 @@ func (sh *strictHandler) AdminResetPassword(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AdminResetPasswordResponseObject); ok {
 		if err := validResponse.VisitAdminResetPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAIChat operation middleware
+func (sh *strictHandler) CreateAIChat(w http.ResponseWriter, r *http.Request) {
+	var request CreateAIChatRequestObject
+
+	var body CreateAIChatJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAIChat(ctx, request.(CreateAIChatRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAIChat")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAIChatResponseObject); ok {
+		if err := validResponse.VisitCreateAIChatResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAIModels operation middleware
+func (sh *strictHandler) ListAIModels(w http.ResponseWriter, r *http.Request) {
+	var request ListAIModelsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAIModels(ctx, request.(ListAIModelsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAIModels")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAIModelsResponseObject); ok {
+		if err := validResponse.VisitListAIModelsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -13387,6 +13818,85 @@ func (sh *strictHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateMeResponseObject); ok {
 		if err := validResponse.VisitUpdateMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveAIConfiguration operation middleware
+func (sh *strictHandler) RemoveAIConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request RemoveAIConfigurationRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveAIConfiguration(ctx, request.(RemoveAIConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveAIConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveAIConfigurationResponseObject); ok {
+		if err := validResponse.VisitRemoveAIConfigurationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAIConfiguration operation middleware
+func (sh *strictHandler) GetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request GetAIConfigurationRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAIConfiguration(ctx, request.(GetAIConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAIConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAIConfigurationResponseObject); ok {
+		if err := validResponse.VisitGetAIConfigurationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetAIConfiguration operation middleware
+func (sh *strictHandler) SetAIConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request SetAIConfigurationRequestObject
+
+	var body SetAIConfigurationJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetAIConfiguration(ctx, request.(SetAIConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetAIConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetAIConfigurationResponseObject); ok {
+		if err := validResponse.VisitSetAIConfigurationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

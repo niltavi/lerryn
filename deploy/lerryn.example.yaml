@@ -72,6 +72,9 @@ metrics:                            # Prometheus 指标，默认关闭
   listen: ""                        # 单独的监听地址，例如 ":9090"；留空时挂在 server.listen 的 /metrics 上
   token_file: ""                    # 抓取时需要的 Bearer 令牌文件；挂在 server.listen 上时必填
 
+ai:                                 # AI 模型调用出口
+  allowed_networks: []              # 允许访问的内网模型网关网段，默认只访问公网 HTTPS 地址
+
 notify:                             # 通知出口（技术设计第 14 节）
   allowed_networks: []              # 允许发往的内网网段，例如 ["10.20.0.0/16"]；默认只发往公网地址
 

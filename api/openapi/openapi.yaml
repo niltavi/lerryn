@@ -47,7 +47,7 @@ tags:
   - name: overview
     description: 控制台概览看板。
   - name: credentials
-    description: 凭证、填写请求和授权。凭证明文只出现在 fillCredentialRequest 的请求体中，不出现在任何响应里。
+    description: 凭证、填写请求和授权。凭证明文只出现在填写或配置凭证的请求体中。
   - name: notifications
     description: 通知渠道和订阅。
   - name: admin
@@ -55,7 +55,7 @@ tags:
   - name: skills
     description: 随服务端发行的 Agent Skill。
   - name: tools
-    description: 项目中登记的工具，供任务清单引用。
+    description: 项目登记工具与平台内置工具。
 paths:
   /api/v1/discover:
     $ref: ./discover/paths.yaml#/discover
@@ -159,6 +159,12 @@ paths:
     $ref: ./overview/paths.yaml#/overview
   /api/v1/overview/calendar:
     $ref: ./overview/paths.yaml#/calendar
+  /api/v1/me/ai:
+    $ref: ./ai/paths.yaml#/configuration
+  /api/v1/ai/models:
+    $ref: ./ai/paths.yaml#/models
+  /api/v1/ai/chat:
+    $ref: ./ai/paths.yaml#/chat
   /api/v1/credential-requests:
     $ref: ./credentials/paths.yaml#/credentialRequests
   /api/v1/credential-requests/{requestId}:
@@ -585,6 +591,20 @@ components:
       $ref: ./overview/schemas.yaml#/CalendarItem
     Calendar:
       $ref: ./overview/schemas.yaml#/Calendar
+    AIModelID:
+      $ref: ./ai/schemas.yaml#/AIModelID
+    AIModelList:
+      $ref: ./ai/schemas.yaml#/AIModelList
+    AIConfiguration:
+      $ref: ./ai/schemas.yaml#/AIConfiguration
+    SetAIConfigurationBody:
+      $ref: ./ai/schemas.yaml#/SetAIConfigurationBody
+    AIChatMessage:
+      $ref: ./ai/schemas.yaml#/AIChatMessage
+    AIChatBody:
+      $ref: ./ai/schemas.yaml#/AIChatBody
+    AIChatResult:
+      $ref: ./ai/schemas.yaml#/AIChatResult
     CredentialFieldName:
       $ref: ./credentials/schemas.yaml#/CredentialFieldName
     CredentialFieldSpec:

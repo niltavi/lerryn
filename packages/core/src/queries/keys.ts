@@ -38,6 +38,7 @@ export const queryKeys = {
   reruns: (runId: string) => ["runs", runId, "reruns"] as const,
 
   credentials: ["credentials"] as const,
+  aiConfiguration: ["aiConfiguration"] as const,
   credentialRequests: ["credentialRequests"] as const,
   credentialRequest: (requestId: string) => ["credentialRequests", requestId] as const,
   channels: ["notificationChannels"] as const,

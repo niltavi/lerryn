@@ -269,6 +269,7 @@ function fakeServer(opts: FakeOptions = {}) {
   let task = { ...TASK, ...opts.task, console: { manual_run: opts.manualRun ?? true } };
   let triggerItems = opts.triggerItems ?? TRIGGERS.triggers;
   const credentials = [...(opts.credentials ?? [CREDENTIAL])];
+  let aiConfig: Schemas["AIConfiguration"] = { models: [] };
   const channels: Schemas["NotificationChannel"][] = [];
   const requests: { method: string; path: string; body?: unknown; idempotencyKey?: string | null }[] = [];
   const fetch = vi.fn(async (req: Request) => {
@@ -306,6 +307,16 @@ function fakeServer(opts: FakeOptions = {}) {
         return opts.adminSubmit ? opts.adminSubmit(body) : json({ ...ME, id: "bob", username: "bob" });
       case "GET /api/v1/projects":
         return json({ items: opts.role ? [{ ...PROJECT, role: opts.role }] : [], next_cursor: null });
+      case "GET /api/v1/me/ai":
+        return json(aiConfig);
+      case "PUT /api/v1/me/ai": {
+        const { base_url, models } = body as Schemas["SetAIConfigurationBody"];
+        aiConfig = { base_url, models };
+        return json(aiConfig);
+      }
+      case "DELETE /api/v1/me/ai":
+        aiConfig = { models: [] };
+        return new Response(null, { status: 204 });
       case "GET /api/v1/credential-requests":
         return json({ items: opts.pendingCredentialRequests ?? [], next_cursor: null });
       case "GET /api/v1/me/tokens":
@@ -1099,6 +1110,33 @@ describe("credentials page", () => {
   const manyCredentials = (): Schemas["Credential"][] => Array.from({ length: 201 }, (_, i) => ({
     ...CREDENTIAL, id: `credential-${i}`, name: `CRED_${String(i).padStart(3, "0")}`, grants: [], expires_at: null,
   }));
+
+  it("configures AI, keeps the key blank when editing, and removes the configuration", async () => {
+    const { server } = renderApp("/settings/credentials");
+    fireEvent.click(await screen.findByRole("button", { name: "配置 AI" }));
+    let dialog = within(await screen.findByRole("dialog"));
+    const url = "https://provider.example/v1";
+    fireEvent.change(dialog.getByLabelText(/API 基础地址/), { target: { value: url } });
+    fireEvent.change(dialog.getByLabelText(/API Key/), { target: { value: "sk-provider-test" } });
+    fireEvent.change(dialog.getByLabelText(/可用模型/), { target: { value: "provider/model-a\n\nprovider/model-b" } });
+    fireEvent.click(dialog.getByRole("button", { name: "保存" }));
+    fireEvent.click(await screen.findByRole("button", { name: "编辑配置" }));
+    expect(server.requests.filter((r) => r.method === "PUT" && r.path === "/api/v1/me/ai")).toMatchObject([
+      { body: { base_url: url, api_key: "sk-provider-test", models: ["provider/model-a", "provider/model-b"] } },
+    ]);
+    dialog = within(await screen.findByRole("dialog"));
+    expect((dialog.getByLabelText(/API Key/) as HTMLInputElement).value).toBe("");
+    fireEvent.change(dialog.getByLabelText(/可用模型/), { target: { value: "provider/model-b" } });
+    fireEvent.click(dialog.getByRole("button", { name: "保存" }));
+    await screen.findByText("1 个模型");
+    expect(server.requests.filter((r) => r.method === "PUT" && r.path === "/api/v1/me/ai").at(-1)?.body).toEqual({
+      base_url: url, models: ["provider/model-b"],
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "编辑配置" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "移除配置" }));
+    fireEvent.click(within(await screen.findByRole("dialog", { name: "移除 AI 配置" })).getByRole("button", { name: "移除配置" }));
+    expect(await screen.findByRole("button", { name: "配置 AI" })).toBeTruthy();
+  });
 
   it("loads later credentials with revoke controls while retaining requests and historical records", async () => {
     const credentials = manyCredentials();

@@ -20,6 +20,7 @@ import { useOpenCredentialFill } from "../../shell/CredentialFill";
 import { Board, BoardTop, LoadError, LoadMore, usePageTitle } from "../../shell/layout";
 import { FormError } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
+import { AIConfigurationSection } from "./AIConfigurationSection";
 
 /**
  * The user's own credentials (prototype Settings-Credentials.dc.html):
@@ -40,6 +41,7 @@ export function CredentialsPage() {
   return (
     <Board label={t("credentials.title")}>
       <BoardTop title={t("credentials.title")} />
+      <AIConfigurationSection />
       {pending.length > 0 || requests.isError || requests.hasNextPage ? (
         <section className="stack" aria-label={t("credentials.pending")}>
           {pending.length > 0 ? (
