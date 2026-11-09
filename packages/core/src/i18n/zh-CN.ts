@@ -347,7 +347,8 @@ export const zhCN = {
     },
     board: {
       label: "运行看板",
-      window: "近 48 小时",
+      window: "前天至明天",
+      plansTruncated: "记录较多，排期可能显示不全",
       empty: "暂无",
       showAll: "显示全部 {count} 条",
       showLess: "收起",
