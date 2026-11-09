@@ -240,7 +240,7 @@ interface FakeOptions {
   overview?: unknown;
   methods?: string[];
   adminPasswordLogin?: boolean;
-  calendar?: unknown[];
+  calendar?: Schemas["CalendarItem"][];
   /** The user's role in the task's project; none lists no projects. */
   role?: "viewer" | "maintainer" | "owner";
   /** The task's console.manual_run. */
@@ -292,8 +292,14 @@ function fakeServer(opts: FakeOptions = {}) {
         return opts.signedIn === false ? problem(401, "unauthenticated") : json({ ...ME, is_admin: opts.admin ?? false });
       case "GET /api/v1/overview":
         return json(opts.overview ?? OVERVIEW);
-      case "GET /api/v1/overview/calendar":
-        return json({ from: iso(-600), to: iso(600), items: opts.calendar ?? [{ kind: "run", task: TASK_REF, run_id: "r1", status: "failed", start: iso(-60), end: iso(-59) }], truncated: false });
+      case "GET /api/v1/overview/calendar": {
+        const from = url.searchParams.get("from")!;
+        const to = url.searchParams.get("to")!;
+        const taskId = url.searchParams.get("task_id");
+        const items = opts.calendar ?? [{ kind: "run", task: TASK_REF, run_id: "r1", status: "failed", start: iso(-60), end: iso(-59) }];
+        return json({ from, to, items: items.filter((item) =>
+          Date.parse(item.start) >= Date.parse(from) && Date.parse(item.start) < Date.parse(to) && (!taskId || item.task.id === taskId)), truncated: false });
+      }
       case "GET /api/v1/tasks": {
         const tasks = opts.tasks ?? [];
         const after = Number(url.searchParams.get("cursor") ?? 0);
@@ -682,7 +688,7 @@ describe("overview", () => {
   it("names planned fires in today's strip with the server's schedule text", async () => {
     // Planned for the current half hour, so the test does not depend on the time of day.
     const at = new Date(Math.floor(NOW.getTime() / 1_800_000) * 1_800_000).toISOString();
-    const planned = (id: string, name: string, text: string | null) => ({ kind: "planned", task: { ...TASK_REF, name }, run_id: null, status: null, start: at, end: null, trigger_id: id, schedule_text: text });
+    const planned = (id: string, name: string, text: string | null): Schemas["CalendarItem"] => ({ kind: "planned", task: { ...TASK_REF, name }, run_id: null, status: null, start: at, end: null, trigger_id: id, schedule_text: text });
     renderApp("/", { calendar: [planned("tr1", "weekday-digest", "每个工作日 08:00（Asia/Shanghai）"), planned("tr2", "lead-sync", null)] });
     const strip = await screen.findByRole("region", { name: "今天的运行" });
     const ridge = within(strip).getByTitle(/计划 2 次/);
@@ -1310,43 +1316,73 @@ describe("helpers", () => {
 });
 
 describe("runs board", () => {
+  afterEach(() => vi.useRealTimers());
+
+  const relative = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString();
   const summary = (n: number, name: string, status: Schemas["RunStatus"], queuedMin: number): Schemas["RunSummary"] => ({
     ...NEW_RUN,
     id: `0192f3a1-0000-7000-8000-0000000b${String(n).padStart(4, "0")}`,
     task: { ...TASK_REF, name },
     trigger: { ...NEW_RUN.trigger, kind: "manual" },
     status,
-    queued_at: iso(queuedMin),
-    started_at: status === "queued" ? null : iso(queuedMin + 1),
+    queued_at: relative(queuedMin),
+    started_at: status === "queued" ? null : relative(queuedMin + 1),
     finished_at: null,
     result_status: null,
     result_summary: null,
     current_stage: null,
   });
 
-  it("sorts the last 48 hours of runs into four columns by status", async () => {
-    const runs = [
-      summary(1, "scheduled-run", "queued", -1),
+  it("groups runs since midnight two days ago and shows planned fires through tomorrow", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 2, 8, 12));
+    const from = new Date(2026, 2, 6).toISOString();
+    const today = new Date(2026, 2, 8).toISOString();
+    const tomorrow = new Date(2026, 2, 9).toISOString();
+    const to = new Date(2026, 2, 10).toISOString();
+    const alreadyQueued = relative(10);
+    const runs: Schemas["RunSummary"][] = [
+      { ...summary(1, "queued-run", "queued", -1), trigger: { ...NEW_RUN.trigger, kind: "cron", trigger_id: "queued", scheduled_at: alreadyQueued } },
       summary(2, "preparing-run", "preparing", -2),
       summary(3, "running-run", "running", -3),
-      summary(4, "completed-run", "completed", -60),
+      { ...summary(4, "completed-run", "completed", -60), queued_at: from, started_at: from },
       summary(5, "failed-run", "failed", -120),
       summary(6, "cancelled-run", "cancelled", -180),
-      summary(7, "stale-run", "completed", -49 * 60),
+      { ...summary(7, "stale-run", "completed", -60), queued_at: new Date(Date.parse(from) - 1).toISOString() },
     ];
-    const { server } = renderApp("/runs?view=board", { runs });
+    const plan = (name: string, start: string, trigger_id = name): Schemas["CalendarItem"] => ({
+      kind: "planned", task: { ...TASK_REF, name }, run_id: null, status: null, start, end: null, trigger_id,
+    });
+    const calendar = [
+      plan("past-plan", relative(-10)),
+      plan("stale-queued-plan", alreadyQueued, "queued"),
+      plan("today-plan", relative(60)),
+      plan("tomorrow-first", tomorrow),
+      plan("tomorrow-last", new Date(Date.parse(to) - 1).toISOString()),
+      plan("day-after-plan", to),
+    ];
+    const { server } = renderApp("/runs?view=board", { runs, calendar });
     const board = await screen.findByRole("main", { name: "运行看板" });
     const column = (name: string) => within(within(board).getByRole("region", { name }));
-    await waitFor(() => expect(column("已排期").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["scheduled-run"]));
+    const scheduled = column("已排期");
+    const tomorrowCard = await scheduled.findByRole("link", { name: /tomorrow-first/ });
+    expect(tomorrowCard.getAttribute("href")).toBe(`/tasks/${TASK_REF.id}`);
+    expect(within(tomorrowCard).getByText("明天 00:00").getAttribute("datetime")).toBe(tomorrow);
+    await waitFor(() => expect(scheduled.getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual([
+      "queued-run", "today-plan", "tomorrow-first", "tomorrow-last",
+    ]));
+    expect(within(board).getByText("前天至明天")).toBeTruthy();
     expect(column("进行中").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["preparing-run", "running-run"]);
     expect(column("已完成").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["completed-run"]);
     expect(column("待处理").getAllByRole("link").map((a) => a.querySelector(".li-name")?.textContent)).toEqual(["failed-run", "cancelled-run"]);
     expect(within(board).queryByText("stale-run")).toBeNull();
 
-    const listCall = server.fetch.mock.calls.map(([req]) => new URL(req.url)).find((u) => u.pathname === "/api/v1/runs");
+    const calls = server.fetch.mock.calls.map(([req]) => new URL(req.url));
+    const listCall = calls.find((u) => u.pathname === "/api/v1/runs");
     expect(listCall?.searchParams.get("exclude_archived_tasks")).toBe("true");
-    const since = Date.parse(listCall!.searchParams.get("since")!);
-    expect(Math.abs(Date.now() - 48 * 3_600_000 - since)).toBeLessThan(60_000);
+    expect(listCall?.searchParams.get("since")).toBe(from);
+    expect(calls.filter((u) => u.pathname === "/api/v1/overview/calendar").map((u) => [u.searchParams.get("from"), u.searchParams.get("to")]))
+      .toEqual([[today, tomorrow], [tomorrow, to]]);
   });
 
   it("carries a card to its new column when the run's status changes", async () => {

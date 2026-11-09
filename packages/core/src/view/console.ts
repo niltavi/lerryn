@@ -308,9 +308,6 @@ export const RUN_FILTER_STATUSES: Record<RunFilter, Schemas["RunStatus"][]> = {
 export const RUN_BOARD_COLUMNS = ["scheduled", "active", "done", "attention"] as const;
 export type RunBoardColumn = (typeof RUN_BOARD_COLUMNS)[number];
 
-/** How far back the runs board looks. */
-export const RUN_BOARD_WINDOW_MS = 48 * 60 * 60 * 1000;
-
 /** The board column a run belongs to. An unknown status from a newer server waits in "attention". */
 export function runBoardColumn(status: string): RunBoardColumn {
   switch (status) {
