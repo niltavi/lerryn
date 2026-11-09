@@ -371,7 +371,6 @@ export const en: Messages = {
     tools: "Tools",
   },
   about: {
-    description: "A self-hosted automation sandbox where agents create and run tasks and you can review the results.",
     website: "Website",
   },
   tokens: {
