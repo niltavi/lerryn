@@ -137,14 +137,33 @@ func TestCredentialRequestAPI(t *testing.T) {
 	rec = c.as(token, http.MethodPost, "/api/v1/tasks/"+task.ID.String()+"/runs", map[string]any{"test": true})
 	c.want(rec, http.StatusAccepted, "")
 
+	credentialPath := "/api/v1/credentials/" + cred.ID.String()
+	c.want(c.as(token, http.MethodPost, credentialPath+"/purge", nil), http.StatusUnprocessableEntity, ErrorCodeValidationFailed)
+
 	// Revoke: the next run is refused with credential_unavailable.
-	rec = c.as(token, http.MethodDelete, "/api/v1/credentials/"+cred.ID.String(), nil)
+	rec = c.as(token, http.MethodDelete, credentialPath, nil)
 	c.want(rec, http.StatusOK, "")
 	if r := decode[Credential](t, rec); r.Status != "revoked" || r.RevokedAt == nil {
 		t.Fatalf("revoked = %+v", r)
 	}
 	rec = c.as(token, http.MethodPost, "/api/v1/tasks/"+task.ID.String()+"/runs", map[string]any{"test": true})
 	c.want(rec, http.StatusUnprocessableEntity, ErrorCodeCredentialUnavailable)
+
+	rec = c.call(http.MethodPost, "/api/v1/auth/login", map[string]any{"username": "alice", "password": "correct horse"})
+	c.want(rec, http.StatusOK, "")
+	cookie := sessionCookie(t, rec)
+	c.want(c.call(http.MethodPost, credentialPath+"/purge", nil, "Cookie", cookie, "Origin", "https://other.example"),
+		http.StatusForbidden, ErrorCodeOriginNotAllowed)
+	c.want(c.call(http.MethodPost, credentialPath+"/purge", nil, "Cookie", cookie, "Origin", testOrigin), http.StatusNoContent, "")
+	c.want(c.as(token, http.MethodPost, credentialPath+"/purge", nil), http.StatusNotFound, ErrorCodeNotFound)
+	c.want(c.as(token, http.MethodGet, credentialPath, nil), http.StatusNotFound, ErrorCodeNotFound)
+	rec = c.as(token, http.MethodGet, "/api/v1/credentials", nil)
+	c.want(rec, http.StatusOK, "")
+	if page := decode[CredentialPage](t, rec); len(page.Items) != 0 {
+		t.Fatalf("deleted credential still listed: %+v", page.Items)
+	}
+	rec = c.as(token, http.MethodPost, "/api/v1/tasks/"+task.ID.String()+"/runs", map[string]any{"test": true})
+	c.want(rec, http.StatusUnprocessableEntity, ErrorCodeCredentialMissing)
 }
 
 func (c *credClient) session(username string) *auth.Principal {
@@ -184,6 +203,9 @@ func TestCredentialAPIAuthorization(t *testing.T) {
 		c.want(c.as(bob, http.MethodGet, path, nil), http.StatusNotFound, ErrorCodeNotFound)
 	}
 	c.want(c.as(bob, http.MethodDelete, "/api/v1/credentials/"+cred.ID.String(), nil), http.StatusNotFound, ErrorCodeNotFound)
+	purgePath := "/api/v1/credentials/" + cred.ID.String() + "/purge"
+	c.want(c.as(bob, http.MethodPost, purgePath, nil), http.StatusNotFound, ErrorCodeNotFound)
+	c.want(c.as(readOnly, http.MethodPost, purgePath, nil), http.StatusForbidden, ErrorCodeInsufficientScope)
 	c.want(c.as(bob, http.MethodPut, "/api/v1/credentials/"+cred.ID.String()+"/grants/"+task.ID.String(), map[string]any{"name": "X"}),
 		http.StatusNotFound, ErrorCodeNotFound)
 	c.want(c.as(bob, http.MethodPost, "/api/v1/credential-requests", map[string]any{

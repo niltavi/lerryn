@@ -1828,7 +1828,7 @@ type CredentialRequest struct {
 	Client    *string   `json:"client"`
 	CreatedAt time.Time `json:"created_at"`
 
-	// CredentialID 填写后得到的凭证；更新请求为被更新的凭证。未填写时为 null。
+	// CredentialID 填写后得到的凭证；更新请求为被更新的凭证。尚未创建凭证或凭证已删除时为 null。
 	CredentialID *openapi_types.UUID   `json:"credential_id"`
 	ExpiresAt    time.Time             `json:"expires_at"`
 	Fields       []CredentialFieldSpec `json:"fields"`
@@ -4566,6 +4566,9 @@ type ServerInterface interface {
 	// GrantCredential 授权凭证给任务
 	// (PUT /api/v1/credentials/{credentialId}/grants/{taskId})
 	GrantCredential(w http.ResponseWriter, r *http.Request, credentialID CredentialID, taskID TaskID)
+	// DeleteCredential 删除已撤销的凭证
+	// (POST /api/v1/credentials/{credentialId}/purge)
+	DeleteCredential(w http.ResponseWriter, r *http.Request, credentialID CredentialID)
 	// Discover 发现平台能力
 	// (GET /api/v1/discover)
 	Discover(w http.ResponseWriter, r *http.Request)
@@ -5772,6 +5775,32 @@ func (siw *ServerInterfaceWrapper) GrantCredential(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GrantCredential(w, r, credentialID, taskID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCredential operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "credentialId" -------------
+	var credentialID CredentialID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "credentialId", r.PathValue("credentialId"), &credentialID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "credentialId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCredential(w, r, credentialID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8532,6 +8561,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/credentials", wrapper.ListCredentials)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/credentials/{credentialId}", wrapper.RevokeCredential)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/credentials/{credentialId}", wrapper.GetCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/credentials/{credentialId}/purge", wrapper.DeleteCredential)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/credentials/{credentialId}/grants/{taskId}", wrapper.RevokeGrant)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/credentials/{credentialId}/grants/{taskId}", wrapper.GrantCredential)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/notification-channels", wrapper.ListNotificationChannels)
@@ -9899,6 +9929,39 @@ type GrantCredentialdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GrantCredentialdefaultApplicationProblemPlusJSONResponse) VisitGrantCredentialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteCredentialRequestObject struct {
+	CredentialID CredentialID `json:"credentialId"`
+}
+
+type DeleteCredentialResponseObject interface {
+	VisitDeleteCredentialResponse(w http.ResponseWriter) error
+}
+
+type DeleteCredential204Response struct {
+}
+
+func (response DeleteCredential204Response) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteCredentialdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteCredentialdefaultApplicationProblemPlusJSONResponse) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -12741,6 +12804,9 @@ type StrictServerInterface interface {
 	// GrantCredential 授权凭证给任务
 	// (PUT /api/v1/credentials/{credentialId}/grants/{taskId})
 	GrantCredential(ctx context.Context, request GrantCredentialRequestObject) (GrantCredentialResponseObject, error)
+	// DeleteCredential 删除已撤销的凭证
+	// (POST /api/v1/credentials/{credentialId}/purge)
+	DeleteCredential(ctx context.Context, request DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error)
 	// Discover 发现平台能力
 	// (GET /api/v1/discover)
 	Discover(ctx context.Context, request DiscoverRequestObject) (DiscoverResponseObject, error)
@@ -13828,6 +13894,32 @@ func (sh *strictHandler) GrantCredential(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GrantCredentialResponseObject); ok {
 		if err := validResponse.VisitGrantCredentialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteCredential operation middleware
+func (sh *strictHandler) DeleteCredential(w http.ResponseWriter, r *http.Request, credentialID CredentialID) {
+	var request DeleteCredentialRequestObject
+
+	request.CredentialID = credentialID
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteCredential(ctx, request.(DeleteCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteCredential")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteCredentialResponseObject); ok {
+		if err := validResponse.VisitDeleteCredentialResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
