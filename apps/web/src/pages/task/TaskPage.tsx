@@ -56,7 +56,7 @@ import { Board, LoadError, usePageTitle } from "../../shell/layout";
 import { NotFoundBody } from "../NotFoundPage";
 import { RunNowButton } from "../run/RunActions";
 import { TaskListColumn } from "../TaskListColumn";
-import { TaskTags } from "./TaskTags";
+import { EditTaskTagsButton, TaskTags } from "./TaskTags";
 import { VersionDiffDialog } from "./VersionDiffDialog";
 import { TaskActions } from "./TaskActions";
 
@@ -125,12 +125,13 @@ function TaskBoard({ task }: { task: Task }) {
       <div className="stack" style={{ gap: 6 }}>
         <div className="flex items-start justify-between gap-3">
           <h1 className="h1 min-w-0">{task.name}</h1>
-          <div className="shrink-0">
+          <div className="tools shrink-0">
+            <EditTaskTagsButton key={task.id} task={task} />
             <CopyButton value={task.links.console} label={t("task.copyLink")} icon={Link2} />
           </div>
         </div>
         {task.description ? <p className="muted">{task.description}</p> : null}
-        <TaskTags key={task.id} task={task} />
+        <TaskTags tags={task.tags} />
       </div>
 
       <div className="hero">

@@ -3,14 +3,25 @@ import { Button, ConsoleDialog, IconButton } from "@lerryn/ui-web";
 import { Tags } from "lucide-react";
 import { useId, useState } from "react";
 
-export function TaskTags({ task }: { task: Task }) {
+export function TaskTags({ tags }: { tags: Task["tags"] }) {
+  const { t } = useI18n();
+  if (!tags?.length) return null;
+
+  return (
+    <div className="chips" role="group" aria-label={t("task.tags")}>
+      {tags.map((tag) => <span className="tag max-w-full" key={tag} title={tag}><span className="truncate">{tag}</span></span>)}
+    </div>
+  );
+}
+
+export function EditTaskTagsButton({ task }: { task: Task }) {
   const { t } = useI18n();
   const canEdit = useCanControlRuns(task.project_id) && !task.archived_at;
   const update = useSetTaskTags(task.id);
   const [draft, setDraft] = useState<string | null>(null);
   const fieldId = useId();
   const tags = task.tags ?? [];
-  if (!canEdit && tags.length === 0) return null;
+  if (!canEdit) return null;
 
   const close = () => { if (!update.isPending) setDraft(null); };
   const save = async () => {
@@ -28,13 +39,10 @@ export function TaskTags({ task }: { task: Task }) {
     : t("task.tagsSaveFailed");
 
   return (
-    <div className="chips" role="group" aria-label={t("task.tags")}>
-      {tags.map((tag) => <span className="tag max-w-full" key={tag} title={tag}><span className="truncate">{tag}</span></span>)}
-      {canEdit ? (
-        <IconButton label={t("task.editTags")} icon={Tags} onPress={() => { update.reset(); setDraft(tags.join("\n")); }} />
-      ) : null}
+    <>
+      <IconButton label={t("task.editTags")} icon={Tags} onPress={() => { update.reset(); setDraft(tags.join("\n")); }} />
       <ConsoleDialog
-        isOpen={draft !== null && canEdit}
+        isOpen={draft !== null}
         onOpenChange={(open) => { if (!open) close(); }}
         title={t("task.editTags")}
         isDismissable={!update.isPending}
@@ -58,6 +66,6 @@ export function TaskTags({ task }: { task: Task }) {
         <p className="caption muted" id={`${fieldId}-help`}>{t("task.tagsInputHelp")}</p>
         {update.isError ? <p className="danger" role="alert">{message}</p> : null}
       </ConsoleDialog>
-    </div>
+    </>
   );
 }
