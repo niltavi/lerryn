@@ -802,7 +802,9 @@ describe("task page", () => {
     const copy = within(title.parentElement!).getByRole("button", { name: "复制任务链接" });
     await user.click(copy);
     expect(await navigator.clipboard.readText()).toBe(TASK.links.console);
-    const edit = await screen.findByRole("button", { name: "编辑标签" });
+    const actions = within(copy.parentElement!);
+    const edit = actions.getByRole("button", { name: "编辑标签" });
+    expect(actions.getAllByRole("button")).toEqual([edit, copy]);
     await user.click(edit);
     const dialog = await screen.findByRole("dialog", { name: "编辑标签" });
     const input = within(dialog).getByRole("textbox", { name: "任务标签" });
@@ -813,10 +815,11 @@ describe("task page", () => {
     const group = screen.getByRole("group", { name: "任务标签" });
     expect(within(group).getByText("日报")).toBeTruthy();
     expect(within(group).queryByText("销售")).toBeNull();
-    await user.click(within(group).getByRole("button", { name: "编辑标签" }));
+    await user.click(edit);
     await user.clear(screen.getByRole("textbox", { name: "任务标签" }));
     await user.click(screen.getByRole("button", { name: "保存" }));
-    await waitFor(() => expect(within(group).queryByText("日报")).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("group", { name: "任务标签" })).toBeNull());
+    expect(actions.getByRole("button", { name: "编辑标签" })).toBe(edit);
     expect(server.requests.filter((r) => r.method === "PUT" && r.path.endsWith("/tags")).map((r) => r.body))
       .toEqual([{ tags: ["日报", "CRM"] }, { tags: [] }]);
   });
@@ -967,7 +970,7 @@ describe("task page", () => {
     renderApp(`/tasks/${TASK.id}`, { role: state === "viewer" ? "viewer" : "owner", task: state === "archived" ? { archived_at: iso(-10) } : {} });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    for (const name of ["停用任务", "启用任务", "更多任务操作", "立即重新触发"]) expect(screen.queryByRole("button", { name })).toBeNull();
+    for (const name of ["停用任务", "启用任务", "更多任务操作", "立即重新触发", "编辑标签"]) expect(screen.queryByRole("button", { name })).toBeNull();
   });
 
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
