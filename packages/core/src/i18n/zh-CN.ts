@@ -92,6 +92,7 @@ export const zhCN = {
     unarchive: "取消归档",
     archived: "已归档",
     archiveBody: "移到“已归档”，运行记录、完整日志和现有产物长期保留，不再自动清理。归档不会改变任务计划或停止自动重试。",
+    skipArchiveConfirmation: "不再提示",
     unarchiveBody: "恢复到默认列表，记录、日志和产物将重新按部署的保留策略清理。",
     archiveExpired: "日志已按保留策略清理，无法归档完整日志。",
     archiveActive: "运行尚未结束，请结束后再归档。",

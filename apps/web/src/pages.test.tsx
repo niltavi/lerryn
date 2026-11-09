@@ -1010,6 +1010,12 @@ describe("task page", () => {
 });
 
 describe("run page", () => {
+  const archivePreferenceKey = `lerryn.runs.skipArchiveConfirmation.${ME.id}`;
+  afterEach(() => {
+    localStorage.removeItem(archivePreferenceKey);
+    localStorage.removeItem("lerryn.runs.view");
+  });
+
   it("keeps the confirmed archive target when another client changes the record", async () => {
     const { server, queryClient } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "owner" });
     const user = userEvent.setup();
@@ -1021,17 +1027,18 @@ describe("run page", () => {
     expect(server.requests.find((r) => r.path.endsWith("/archive"))?.body).toEqual({ archived: true });
   });
 
-  it("submits archiving once and keeps failures in the confirmation", async () => {
+  it.each([false, true])("submits archiving once and shows failures (skip confirmation: %s)", async (skip) => {
+    if (skip) localStorage.setItem(archivePreferenceKey, "true");
     let finish: ((response: Response) => void) | undefined;
     const { server } = renderApp(`/runs/${FAILED_RUN.id}`, { role: "owner", runArchiveSubmit: () => new Promise((resolve) => { finish = resolve; }) });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "归档记录" }));
-    const dialog = await screen.findByRole("dialog");
-    const button = within(dialog).getByRole("button", { name: "归档记录" });
+    const archive = await screen.findByRole("button", { name: "归档记录" });
+    if (!skip) await user.click(archive);
+    const button = skip ? archive : within(await screen.findByRole("dialog")).getByRole("button", { name: "归档记录" });
     fireEvent.click(button);
     fireEvent.click(button);
     await user.keyboard("{Escape}");
-    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(!!screen.queryByRole("dialog")).toBe(!skip);
     await waitFor(() => expect(server.requests.filter((r) => r.path.endsWith("/archive"))).toHaveLength(1));
     await act(async () => finish!(problem(500, "internal_error")));
     expect((await screen.findByRole("alert")).textContent).toContain("归档状态未更新");
@@ -1052,6 +1059,44 @@ describe("run page", () => {
     await user.click(within(dialog).getByRole("button", { name: "取消归档" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(server.requests.filter((r) => r.path.endsWith("/archive")).map((r) => r.body)).toEqual([{ archived: true }, { archived: false }]);
+  });
+
+  it("remembers the archive preference from the attention preview after a successful archive", async () => {
+    const { router, server } = renderApp("/runs?view=board", { role: "owner", showRunInList: true });
+    const user = userEvent.setup();
+    const attention = within(await screen.findByRole("region", { name: "待处理" }));
+    await user.click(await attention.findByRole("link", { name: /weekday-digest/ }));
+    const preview = within(await screen.findByRole("complementary", { name: "运行预览" }));
+    const archive = () => preview.findByRole("button", { name: "归档记录" });
+
+    await user.click(await archive());
+    let dialog = within(await screen.findByRole("dialog", { name: "归档记录" }));
+    await user.click(dialog.getByText("不再提示"));
+    await user.click(dialog.getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(server.requests.filter((r) => r.path.endsWith("/archive"))).toHaveLength(0);
+
+    await user.click(await archive());
+    dialog = within(await screen.findByRole("dialog", { name: "归档记录" }));
+    expect((dialog.getByRole("checkbox", { name: "不再提示" }) as HTMLInputElement).checked).toBe(false);
+    await user.click(dialog.getByText("不再提示"));
+    await user.click(dialog.getByRole("button", { name: "归档记录" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(attention.queryByRole("link", { name: /weekday-digest/ })).toBeNull();
+
+    await act(() => router.navigate({ to: "/runs/$runId", params: { runId: FAILED_RUN.id } }));
+    await user.click(await screen.findByRole("button", { name: "取消归档" }));
+    dialog = within(await screen.findByRole("dialog", { name: "取消归档" }));
+    expect(dialog.queryByRole("checkbox")).toBeNull();
+    await user.click(dialog.getByRole("button", { name: "取消归档" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    await user.click(screen.getByRole("button", { name: "归档记录" }));
+    await screen.findByRole("button", { name: "取消归档" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(server.requests.filter((r) => r.path.endsWith("/archive")).map((r) => r.body)).toEqual([
+      { archived: true }, { archived: false }, { archived: true },
+    ]);
   });
 
   it.each(["viewer", "running", "expired"])("prevents archiving for %s", async (state) => {
