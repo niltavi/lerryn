@@ -1,11 +1,12 @@
 import {
   RUN_BOARD_COLUMNS,
-  RUN_BOARD_WINDOW_MS,
   isRunActive,
   runBoardColumn,
   shortId,
+  useCalendar,
   useI18n,
   useRunList,
+  type CalendarItem,
   type RunBoardColumn,
   type RunSummary,
 } from "@lerryn/core";
@@ -14,7 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { useNow } from "../lib/hooks";
-import { errorCodeLabel, shortWhen, skipReasonLabel } from "../lib/present";
+import { errorCodeLabel, GlyphView, shortWhen, skipReasonLabel } from "../lib/present";
 import { LoadError, LoadMore } from "../shell/layout";
 import { RunsBoardPreview } from "./RunsBoardPreview";
 
@@ -24,16 +25,26 @@ const AUTO_PAGES = 6;
 const COLUMN_BATCH = 50;
 
 /**
- * The runs board: the last 48 hours of runs in four columns by status, and
- * a floating preview of the selected run. When a run's status moves it to
- * another column, its card is carried there.
+ * The runs board: three local days of run history and planned fires through
+ * tomorrow, with a floating preview of the selected run.
  */
 export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runId?: string; viewSwitch: ReactNode }) {
   const { t } = useI18n();
-  // Fixed per visit so polling keeps one query; the exact window is cut below.
-  const [since] = useState(() => new Date(Date.now() - RUN_BOARD_WINDOW_MS).toISOString());
-  const runs = useRunList({ taskId, since });
   const now = useNow(30_000);
+  const date = new Date(now);
+  const midnight = (offset: number) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset).getTime();
+  const from = midnight(-2);
+  const tomorrow = midnight(1);
+  const to = midnight(2);
+  const runs = useRunList({ taskId, since: new Date(from).toISOString() });
+  // Today's runs and plans share the calendar's item limit. Give tomorrow its own window.
+  const todayCalendar = useCalendar({ projectId: null, taskId, from: midnight(0), to: tomorrow });
+  const tomorrowCalendar = useCalendar({ projectId: null, taskId, from: tomorrow, to });
+  const todayItems = todayCalendar.isPlaceholderData ? undefined : todayCalendar.data?.items;
+  const tomorrowItems = tomorrowCalendar.isPlaceholderData ? undefined : tomorrowCalendar.data?.items;
+  const calendarPending = todayCalendar.isPending || tomorrowCalendar.isPending || todayCalendar.isPlaceholderData || tomorrowCalendar.isPlaceholderData;
+  const calendarError = todayCalendar.error ?? tomorrowCalendar.error;
+  const calendarTruncated = todayCalendar.data?.truncated || tomorrowCalendar.data?.truncated;
   const items = runs.data?.items;
   const pages = runs.data?.pageCount ?? 0;
   const [limits, setLimits] = useState<Partial<Record<RunBoardColumn, number>>>({});
@@ -45,22 +56,40 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
 
   const columns = useMemo(() => {
     const out = Object.fromEntries(RUN_BOARD_COLUMNS.map((c) => [c, [] as RunSummary[]])) as Record<RunBoardColumn, RunSummary[]>;
-    const from = now - RUN_BOARD_WINDOW_MS;
     for (const run of items ?? []) {
-      if (Date.parse(run.queued_at) < from) continue;
+      const queued = Date.parse(run.queued_at);
+      if (queued < from || queued >= to) continue;
       out[runBoardColumn(run.status)].push(run);
     }
     return out;
-  }, [items, now]);
+  }, [items, from, to]);
+
+  const planned = useMemo(() => {
+    // The run list can observe a fire before the calendar refreshes.
+    const fired = new Set((items ?? []).flatMap(({ trigger }) =>
+      trigger.trigger_id && trigger.scheduled_at ? [`${trigger.trigger_id}:${Date.parse(trigger.scheduled_at)}`] : []));
+    return [...(todayItems ?? []), ...(tomorrowItems ?? [])].filter((item) => {
+      const at = Date.parse(item.start);
+      return item.kind === "planned" && at >= now && at < to && !fired.has(`${item.trigger_id}:${at}`);
+    });
+  }, [items, todayItems, tomorrowItems, now, to]);
 
   const shown = useMemo(() => {
     const out = { ...columns };
     for (const c of RUN_BOARD_COLUMNS) out[c] = columns[c].slice(0, limits[c] ?? COLUMN_BATCH);
     return out;
   }, [columns, limits]);
+  const shownPlans = planned.slice(0, (limits.scheduled ?? COLUMN_BATCH) - shown.scheduled.length);
 
   const boardRef = useRef<HTMLDivElement>(null);
   useCardMoves(boardRef, shown, !!runs.data);
+
+  const calendarNotice = calendarError ? (
+    <LoadError error={calendarError} onRetry={() => {
+      if (todayCalendar.isError) void todayCalendar.refetch();
+      if (tomorrowCalendar.isError) void tomorrowCalendar.refetch();
+    }} />
+  ) : !calendarPending && calendarTruncated ? <div className="kb-empty">{t("runs.board.plansTruncated")}</div> : null;
 
   return (
     <>
@@ -79,10 +108,13 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
                 key={column}
                 column={column}
                 runs={shown[column]}
-                total={columns[column].length}
+                total={columns[column].length + (column === "scheduled" ? planned.length : 0)}
                 onShowMore={() => setLimits((prev) => ({ ...prev, [column]: (prev[column] ?? COLUMN_BATCH) + COLUMN_BATCH }))}
                 taskId={taskId}
                 now={now}
+                planned={column === "scheduled" ? shownPlans : undefined}
+                pending={column === "scheduled" && calendarPending}
+                notice={column === "scheduled" ? calendarNotice : null}
               />
             ))}
           </div>
@@ -101,6 +133,9 @@ function BoardColumn({
   onShowMore,
   taskId,
   now,
+  planned = [],
+  pending,
+  notice,
 }: {
   column: RunBoardColumn;
   runs: RunSummary[];
@@ -108,37 +143,46 @@ function BoardColumn({
   onShowMore: () => void;
   taskId?: string;
   now: number;
+  planned?: CalendarItem[];
+  pending: boolean;
+  notice: ReactNode;
 }) {
   const { t } = useI18n();
   const title = t(`runs.board.column.${column}`);
-  const more = Math.min(COLUMN_BATCH, total - runs.length);
+  const shownCount = runs.length + planned.length;
+  const more = Math.min(COLUMN_BATCH, total - shownCount);
   const listRef = useRef<HTMLUListElement>(null);
   const firstAdded = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (firstAdded.current === null) return;
     listRef.current?.children[firstAdded.current]?.querySelector("a")?.focus();
     firstAdded.current = null;
-  }, [runs]);
+  }, [runs, planned]);
 
   return (
-    <section className={`kb-col kb-col--${column}`} aria-label={title} data-column={column}>
+    <section className={`kb-col kb-col--${column}`} aria-label={title} data-column={column} aria-busy={pending || undefined}>
       <h2 className="kb-head">
         <span>{title}</span>
         <span className="n">{total}</span>
       </h2>
       <div className="kb-scroll">
-        {total === 0 ? <div className="kb-empty">{t("runs.board.empty")}</div> : (
-          <ul className="kb-list" ref={listRef}>
-            {runs.map((run) => (
-              <li key={run.id} className="kb-item" data-run={run.id}>
-                <RunCard run={run} taskId={taskId} now={now} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <ul className="kb-list" ref={listRef}>
+          {runs.map((run) => (
+            <li key={run.id} className="kb-item" data-run={run.id}>
+              <RunCard run={run} taskId={taskId} now={now} />
+            </li>
+          ))}
+          {planned.map((item) => (
+            <li key={`${item.task.id}:${item.trigger_id}:${item.start}`} className="kb-item">
+              <PlannedCard item={item} now={now} />
+            </li>
+          ))}
+        </ul>
+        {notice}
+        {total === 0 && !pending && !notice ? <div className="kb-empty">{t("runs.board.empty")}</div> : null}
         {more > 0 ? (
           <button type="button" className="kb-more" onClick={() => {
-            firstAdded.current = runs.length;
+            firstAdded.current = shownCount;
             onShowMore();
           }}>
             {t("runs.board.showMore", { count: more })}
@@ -146,6 +190,17 @@ function BoardColumn({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function PlannedCard({ item, now }: { item: CalendarItem; now: number }) {
+  const { t, locale } = useI18n();
+  return (
+    <Link to="/tasks/$taskId" params={{ taskId: item.task.id }} className="kb-card">
+      <GlyphView glyph={{ tone: "idle", icon: "calendar" }} label={t("task.scheduled")} />
+      <span className="li-name">{item.task.name}</span>
+      <time className="li-meta" dateTime={item.start}>{shortWhen(item.start, locale, now)}</time>
+    </Link>
   );
 }
 

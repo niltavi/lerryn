@@ -347,7 +347,8 @@ export const en: Messages = {
     },
     board: {
       label: "Runs board",
-      window: "Last 48 hours",
+      window: "Past 2 days through tomorrow",
+      plansTruncated: "Some scheduled times may be missing",
       empty: "None",
       showMore: "Show {count} more",
       previewMode: {
@@ -372,7 +373,11 @@ export const en: Messages = {
     notifications: "Notifications",
     pairing: "Phone",
     account: "Account",
+    about: "About",
     tools: "Tools",
+  },
+  about: {
+    website: "Website",
   },
   tokens: {
     title: "Access tokens",

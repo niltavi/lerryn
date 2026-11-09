@@ -347,7 +347,8 @@ export const zhCN = {
     },
     board: {
       label: "运行看板",
-      window: "近 48 小时",
+      window: "前天至明天",
+      plansTruncated: "记录较多，排期可能显示不全",
       empty: "暂无",
       showMore: "再显示 {count} 条",
       previewMode: {
@@ -372,7 +373,11 @@ export const zhCN = {
     notifications: "通知",
     pairing: "手机",
     account: "账号",
+    about: "关于",
     tools: "工具",
+  },
+  about: {
+    website: "官网",
   },
   tokens: {
     title: "访问令牌",

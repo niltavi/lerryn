@@ -22,6 +22,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { RunPage } from "./pages/run/RunPage";
 import { RunsPage, validateRunsSearch } from "./pages/RunsPage";
+import { AboutPage } from "./pages/settings/AboutPage";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { CredentialsPage } from "./pages/settings/CredentialsPage";
 import { NotificationsPage } from "./pages/settings/NotificationsPage";
@@ -129,6 +130,7 @@ const notificationsRoute = createRoute({
 });
 const pairingRoute = createRoute({ getParentRoute: () => accountSettingsRoute, path: "pairing", component: PairingPage });
 const accountRoute = createRoute({ getParentRoute: () => accountSettingsRoute, path: "account", component: AccountPage });
+const aboutRoute = createRoute({ getParentRoute: () => accountSettingsRoute, path: "about", component: AboutPage });
 const toolsRoute = createRoute({ getParentRoute: () => keySettingsRoute, path: "tools", component: ToolsPage });
 
 // Admin pages answer "not found" to everyone else, like the API does.
@@ -163,7 +165,7 @@ const routeTree = rootRoute.addChildren([
     settingsRoute.addChildren([
       settingsIndexRoute,
       keySettingsRoute.addChildren([tokensRoute, credentialsRoute, toolsRoute]),
-      accountSettingsRoute.addChildren([notificationsRoute, pairingRoute, accountRoute]),
+      accountSettingsRoute.addChildren([notificationsRoute, pairingRoute, accountRoute, aboutRoute]),
     ]),
     adminRoute.addChildren([adminIndexRoute, adminUsersRoute, adminLoginRoute, adminRunnersRoute, adminAuditRoute]),
   ]),
