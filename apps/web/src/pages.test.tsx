@@ -486,9 +486,14 @@ describe("settings navigation", () => {
     await user.click(accountMenu.getByRole("link", { name: "关于" }));
     const about = within(await screen.findByRole("main", { name: "关于" }));
     expect(about.getByRole("heading", { name: "Lerryn" })).toBeTruthy();
+    expect(await about.findByText("dev")).toBeTruthy();
     expect(about.getByRole("link", { name: "官网" }).getAttribute("href")).toBe("https://lerryn.niltavi.com/");
     expect(about.getByRole("link", { name: "GitHub" }).getAttribute("href")).toBe("https://github.com/niltavi/lerryn");
-    expect(about.getByRole("img", { name: "niltavi" })).toBeTruthy();
+    expect(about.getByRole("link", { name: "理念" }).getAttribute("href")).toBe("https://ui.niltavi.com/#/philosophy");
+    expect(about.getByText(/在人工智能不断拓展人类能力边界的时代/)).toBeTruthy();
+    const niltavi = about.getByRole("link", { name: "niltavi" });
+    expect(niltavi.getAttribute("href")).toBe("https://niltavi.com/");
+    expect(within(niltavi).getByRole("img", { name: "niltavi" })).toBeTruthy();
   });
 
   it.each([
