@@ -353,8 +353,7 @@ export const zhCN = {
       empty: "暂无",
       showMore: "再显示 {count} 条",
       previewMode: {
-        label: "切换预览大小",
-        compact: "切换小窗",
+        compact: "返回小窗",
         expanded: "向上展开",
         fullscreen: "切换全屏",
       },
