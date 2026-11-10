@@ -260,6 +260,7 @@ interface FakeOptions {
   triggerItems?: Schemas["Trigger"][];
   taskControlSubmit?: (path: string, body: unknown) => Promise<Response>;
   run?: Partial<Schemas["Run"]>;
+  runDetail?: () => Promise<Response>;
   runArchiveSubmit?: (body: Schemas["SetRunArchiveRequest"]) => Promise<Response>;
   showRunInList?: boolean;
   admin?: boolean;
@@ -379,7 +380,7 @@ function fakeServer(opts: FakeOptions = {}) {
       case `POST /api/v1/tasks/${TASK.id}/runs`:
         return opts.startError ? problem(409, opts.startError) : json(NEW_RUN, 202);
       case `GET /api/v1/runs/${FAILED_RUN.id}`:
-        return json(failedRun);
+        return opts.runDetail?.() ?? json(failedRun);
       case `PUT /api/v1/runs/${FAILED_RUN.id}/archive`: {
         const input = body as Schemas["SetRunArchiveRequest"];
         if (opts.runArchiveSubmit) {
@@ -1684,22 +1685,36 @@ describe("runs board", () => {
     expect(await within(preview).findByRole("link", { name: /打开/ })).toBeTruthy();
     expect(within(board).getByRole("link", { name: /failed-run/ }).getAttribute("aria-current")).toBe("page");
     expect(within(preview).getByRole("link", { name: "关闭" }).getAttribute("aria-current")).toBeNull();
-    const changeSize = async (name: string) => {
-      await user.click(within(preview).getByRole("button", { name: "切换预览大小" }));
-      await user.click(await screen.findByRole("menuitemradio", { name }));
-    };
-    await changeSize("向上展开");
+    const resize = within(preview).getByRole("button", { name: "向上展开" });
+    await user.click(resize);
     expect(preview.getAttribute("data-mode")).toBe("expanded");
-    await changeSize("切换全屏");
+    expect(within(preview).getByRole("button", { name: "切换全屏" })).toBe(resize);
+    await user.keyboard("{Enter}");
     expect(await screen.findByRole("dialog", { name: "运行预览" })).toBe(preview);
     expect(preview.getAttribute("data-mode")).toBe("fullscreen");
-    await changeSize("切换小窗");
+    expect(within(preview).getByRole("button", { name: "返回小窗" })).toBe(resize);
+    await user.click(resize);
     expect(await screen.findByRole("complementary", { name: "运行预览" })).toBe(preview);
+    expect(preview.getAttribute("data-mode")).toBe("compact");
+    await user.keyboard("{Enter}{Enter}{Escape}");
     expect(preview.getAttribute("data-mode")).toBe("compact");
     expect(router.state.location.search).toEqual({ view: "board", run: FAILED_RUN.id });
     await user.click(within(preview).getByRole("link", { name: "关闭" }));
     await waitFor(() => expect(screen.queryByRole("complementary", { name: "运行预览" })).toBeNull());
     expect(router.state.location.search).toEqual({ view: "board" });
+  });
+
+  it("shows a loading indicator until the run preview is ready", async () => {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    renderApp(`/runs?view=board&run=${FAILED_RUN.id}`, { runDetail: () => pending });
+    const preview = within(await screen.findByRole("complementary", { name: "运行预览" }));
+    expect(preview.getByRole("status").textContent).toBe("正在加载");
+    expect(preview.queryByRole("link", { name: "打开" })).toBeNull();
+
+    finish(json(FAILED_RUN));
+    expect(await preview.findByRole("link", { name: "打开" })).toBeTruthy();
+    expect(preview.queryByText("正在加载")).toBeNull();
   });
 
   it("shows 50 cards per column and appends the next batch only to the chosen column", async () => {

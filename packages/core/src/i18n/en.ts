@@ -362,8 +362,7 @@ export const en: Messages = {
       empty: "None",
       showMore: "Show {count} more",
       previewMode: {
-        label: "Change preview size",
-        compact: "Switch to small window",
+        compact: "Return to small window",
         expanded: "Expand upward",
         fullscreen: "Switch to full screen",
       },

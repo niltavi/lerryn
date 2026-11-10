@@ -602,6 +602,8 @@
   .kb-preview {
     --kb-preview-edge: var(--space-4);
     --kb-preview-bottom: var(--kb-preview-edge);
+    --kb-preview-available: calc(100dvh - var(--kb-preview-edge) - var(--kb-preview-bottom));
+    --kb-preview-resize: 180ms ease-out;
     position: fixed;
     right: var(--kb-preview-edge);
     bottom: var(--kb-preview-bottom);
@@ -609,23 +611,29 @@
     display: flex;
     flex-direction: column;
     width: min(480px, calc(100% - 2 * var(--kb-preview-edge)));
-    max-height: min(380px, max(180px, 48dvh), calc(100dvh - var(--kb-preview-edge) - var(--kb-preview-bottom)));
+    height: min(380px, max(180px, 48dvh), var(--kb-preview-available));
     overflow: clip;
-    border: 1px solid var(--line-strong);
+    border: 1px solid var(--line);
     border-radius: var(--radius-4xl);
     background: var(--paper);
+    transition: width var(--kb-preview-resize), height var(--kb-preview-resize), right var(--kb-preview-resize), bottom var(--kb-preview-resize), border-radius var(--kb-preview-resize);
+    animation: kb-preview-enter 140ms ease-out;
   }
-  .kb-preview[data-mode="expanded"] { height: 76dvh; max-height: calc(100dvh - var(--kb-preview-edge) - var(--kb-preview-bottom)); }
-  .kb-preview[data-mode="fullscreen"] { inset: 0; width: auto; max-height: none; border: 0; border-radius: 0; }
+  .kb-preview[data-mode="expanded"] { height: min(76dvh, var(--kb-preview-available)); }
+  .kb-preview[data-mode="fullscreen"] { right: 0; bottom: 0; width: 100%; height: 100dvh; border-color: transparent; border-radius: 0; }
+  @keyframes kb-preview-enter { from { opacity: 0; translate: 0 var(--space-2); } }
+  @keyframes kb-preview-content-in { from { opacity: 0; } }
   /* The scroll lock normally reserves space for the page's scrollbar. */
   html:has(.kb-preview[data-mode="fullscreen"]) { scrollbar-gutter: auto !important; }
   .kb-preview-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); background: var(--liner); }
-  .kb-preview-menu { z-index: 40; border: 1px solid var(--line); box-shadow: none; }
   .kb-preview-close { height: 36px; width: 36px; padding: 0; justify-content: center; }
-  .kb-preview-body { min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; overscroll-behavior-y: contain; padding: var(--space-4); overflow-wrap: anywhere; }
+  .kb-preview-body { flex: 1; min-height: 0; width: min(100%, 1160px); margin-inline: auto; display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; overscroll-behavior-y: contain; padding: var(--space-4); overflow-wrap: anywhere; transition: padding var(--kb-preview-resize); }
   .kb-preview-body > * { flex-shrink: 0; }
+  .kb-preview-body > :not(.run-preview-loading) { animation: kb-preview-content-in 140ms ease-out; }
   .kb-preview-body .board-top .tools { flex-wrap: wrap; }
-  .kb-preview[data-mode="fullscreen"] .kb-preview-body { width: 100%; max-width: 1160px; margin-inline: auto; padding: clamp(16px, 3vw, 40px); }
+  .kb-preview[data-mode="fullscreen"] .kb-preview-body { padding: clamp(16px, 3vw, 40px); }
+  .run-preview-loading { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-4); color: var(--ink-muted); }
+  .kb-preview-body > .run-preview-loading { flex: 1; }
   @media (max-width: 720px) {
     .kb-col { max-height: max(224px, calc(100dvh - 156px - env(safe-area-inset-bottom, 0px))); }
     .kb-preview { --kb-preview-edge: var(--space-3); --kb-preview-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
@@ -648,7 +656,7 @@
   .qr--off { opacity: .25; }
 
   @media (prefers-reduced-motion: reduce) {
-    .wl-loader svg { animation: none; }
-    .switch-sm::after, .toggle::after, .acts, .kb-card { transition: none; }
+    .wl-loader svg, .kb-preview, .kb-preview-body > :not(.run-preview-loading) { animation: none; }
+    .switch-sm::after, .toggle::after, .acts, .kb-card, .kb-preview, .kb-preview-body { transition: none; }
   }
 }

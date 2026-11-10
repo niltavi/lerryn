@@ -17,7 +17,7 @@ import {
   useTask,
   type Run,
 } from "@lerryn/core";
-import { CopyButton, RunStages, StatusGlyph, StatusIcon } from "@lerryn/ui-web";
+import { CopyButton, RunStages, StatusGlyph, StatusIcon, WaveLoader } from "@lerryn/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, CircleAlert, Hash, RotateCcw } from "lucide-react";
@@ -42,8 +42,16 @@ function useLogTail(runId: string, active: boolean, expired: boolean) {
 }
 
 export function RunPreview({ runId }: { runId: string }) {
+  const { t } = useI18n();
   const run = useRun(runId);
-  if (run.isPending) return null;
+  if (run.isPending) {
+    return (
+      <div className="run-preview-loading" role="status">
+        <WaveLoader size="sm" />
+        {t("common.loading")}
+      </div>
+    );
+  }
   if (run.isError) {
     return isNotFound(run.error) ? <NotFoundBody /> : <LoadError error={run.error} onRetry={() => void run.refetch()} />;
   }
