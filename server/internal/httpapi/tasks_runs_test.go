@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -97,6 +98,53 @@ func digestRequest() map[string]any {
 			{"path": "main.py", "content": "print('hi')\n"},
 			{"path": "run.sh", "content": "#!/bin/sh\n", "executable": true},
 		},
+	}
+}
+
+func TestTaskTitle(t *testing.T) {
+	c := newTaskClient(t)
+	token, project := c.agent("alice")
+	path := "/api/v1/projects/" + project.String() + "/tasks/digest"
+	body := digestRequest()
+	manifest := body["manifest"].(map[string]any)
+	manifest["title"] = "CRM 费用日报"
+	rec := c.as(token, http.MethodPut, path, body)
+	c.want(rec, http.StatusOK, "")
+	task := appliedTask(t, rec)
+	if task.Title == nil || *task.Title != "CRM 费用日报" || task.Name != "digest" {
+		t.Fatalf("created task = %+v", task)
+	}
+
+	manifest["title"] = "GitHub 费用日报"
+	rec = c.call(http.MethodPut, path, body, "Authorization", token, "If-Match", "1")
+	c.want(rec, http.StatusOK, "")
+	detailPath := "/api/v1/tasks/" + task.ID.String()
+	rec = c.as(token, http.MethodGet, detailPath, nil)
+	c.want(rec, http.StatusOK, "")
+	detail := decode[Task](t, rec)
+	if detail.Title == nil || *detail.Title != "GitHub 费用日报" ||
+		detail.LatestVersion.Manifest.Title == nil || *detail.LatestVersion.Manifest.Title != *detail.Title {
+		t.Fatalf("task detail = %+v", detail)
+	}
+
+	searchPath := "/api/v1/tasks?q=" + url.QueryEscape("github 费用")
+	rec = c.as(token, http.MethodGet, searchPath, nil)
+	c.want(rec, http.StatusOK, "")
+	list := decode[TaskSummaryPage](t, rec)
+	if len(list.Items) != 1 || list.Items[0].ID != task.ID || list.Items[0].Title == nil || *list.Items[0].Title != *detail.Title {
+		t.Fatalf("title search = %+v", list)
+	}
+
+	delete(manifest, "title")
+	rec = c.call(http.MethodPut, path, body, "Authorization", token, "If-Match", "2")
+	c.want(rec, http.StatusOK, "")
+	if cleared := appliedTask(t, rec); cleared.Title != nil || cleared.ID != task.ID {
+		t.Fatalf("cleared task = %+v", cleared)
+	}
+	rec = c.as(token, http.MethodGet, searchPath, nil)
+	c.want(rec, http.StatusOK, "")
+	if list := decode[TaskSummaryPage](t, rec); len(list.Items) != 0 {
+		t.Fatalf("title search after clearing = %+v", list)
 	}
 }
 

@@ -8,12 +8,14 @@ TaskName:
 Manifest:
   type: object
   description: |
-    任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
-    runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
-    修改触发频率不产生新版本。
+    任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
   required: [runtime, entrypoint]
   additionalProperties: false
   properties:
+    title:
+      type: string
+      maxLength: 120
+      description: 单行显示标题，支持中文。省略或留空时显示任务名。
     description:
       type: string
       maxLength: 500
@@ -446,6 +448,9 @@ Task:
       format: uuid
     name:
       $ref: "#/TaskName"
+    title:
+      type: string
+      description: 最新版本清单中的显示标题，没有时省略。
     description:
       type: string
       description: 最新版本清单中的用途说明，没有时为空字符串。
@@ -490,6 +495,9 @@ TaskSummary:
       format: uuid
     name:
       $ref: "#/TaskName"
+    title:
+      type: string
+      description: 最新版本清单中的显示标题，没有时省略。
     description:
       type: string
     tags:

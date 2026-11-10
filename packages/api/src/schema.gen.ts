@@ -448,14 +448,10 @@ export interface paths {
         get?: never;
         /**
          * 提交任务
-         * @description 按项目和任务名提交任务：任务不存在时创建并生成第 1 个版本，已存在时生成新版本。
-         *     每个版本都不可变，运行记录始终指向自己使用的版本。
-         *
-         *     - 任务已存在时必须带 `If-Match`，值为读到的最新版本号；与当前最新版本不一致时返回 412 `version_conflict`，
-         *       缺少时返回 428 `precondition_required`。任务不存在时不需要。
-         *     - `dry_run=true` 只校验并返回差异，不生成版本。
-         *     - 响应带校验警告，以及与激活版本（没有时为上一个版本）的差异。
-         *     - 提交新版本不改变激活的版本；要让触发器使用新版本，测试后调用 setTaskActivation。
+         * @description 按项目和任务名提交不可变的版本，新任务从第 1 版开始。运行记录指向实际使用的版本。
+         *     已有任务须用 `If-Match` 传最新版本号。不一致返回 412 `version_conflict`，缺少时返回 428 `precondition_required`。
+         *     `dry_run=true` 只校验和预览。响应含警告及与激活版本（否则为上一个版本）的差异。
+         *     新版本经测试后调用 setTaskActivation 激活，触发器才会使用它。
          */
         put: operations["applyTask"];
         post?: never;
@@ -2458,12 +2454,10 @@ export interface components {
          * @example weekday-digest
          */
         TaskName: string;
-        /**
-         * @description 任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
-         *     runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
-         *     修改触发频率不产生新版本。
-         */
+        /** @description 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。 */
         Manifest: {
+            /** @description 单行显示标题，支持中文。省略或留空时显示任务名。 */
+            title?: string;
             /** @description 任务用途，给人看。 */
             description?: string;
             runtime: components["schemas"]["RuntimeSpec"];
@@ -2742,6 +2736,8 @@ export interface components {
             /** Format: uuid */
             project_id: string;
             name: components["schemas"]["TaskName"];
+            /** @description 最新版本清单中的显示标题，没有时省略。 */
+            title?: string;
             /** @description 最新版本清单中的用途说明，没有时为空字符串。 */
             description: string;
             tags: components["schemas"]["TaskTags"];
@@ -2773,6 +2769,8 @@ export interface components {
             /** Format: uuid */
             project_id: string;
             name: components["schemas"]["TaskName"];
+            /** @description 最新版本清单中的显示标题，没有时省略。 */
+            title?: string;
             description: string;
             tags: components["schemas"]["TaskTags"];
             state: components["schemas"]["TaskState"];
@@ -5239,7 +5237,7 @@ export interface operations {
                 state?: components["schemas"]["TaskState"];
                 /** @description 只返回这个任务名的任务（精确匹配）。CLI 和 Agent 用它按名字查任务 ID；不同项目可能有同名任务，需要时同时给出 project_id。 */
                 name?: components["schemas"]["TaskName"];
-                /** @description 按任务名或用途说明中包含的文字筛选，不区分大小写。 */
+                /** @description 按标题、任务名或用途说明中包含的文字筛选，不区分大小写。 */
                 q?: string;
                 /** @description 只返回带有这个标签的任务，精确匹配并区分大小写。 */
                 tag?: components["schemas"]["TaskTag"];

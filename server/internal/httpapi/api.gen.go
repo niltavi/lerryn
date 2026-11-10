@@ -1414,9 +1414,7 @@ type APIInfo struct {
 type ApplyTaskRequest struct {
 	Files []TaskFileInput `json:"files"`
 
-	// Manifest 任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
-	// runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
-	// 修改触发频率不产生新版本。
+	// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
 	Manifest Manifest `json:"manifest"`
 }
 
@@ -2163,9 +2161,7 @@ type LoginRequest struct {
 	Username string `json:"username"`
 }
 
-// Manifest 任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
-// runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
-// 修改触发频率不产生新版本。
+// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
 type Manifest struct {
 	// Concurrency 同一任务能否同时有多个运行。forbid 时，已有运行未结束会拒绝 API 发起的新运行（`run_in_progress`），
 	// 定时和 webhook 触发记为已跳过，`skip_reason` 为 overlap。
@@ -2214,6 +2210,9 @@ type Manifest struct {
 
 	// Stages 声明的阶段。任务用 `sbx stage` 上报进度时，控制台按这里的顺序显示。
 	Stages *[]StageSpec `json:"stages,omitempty"`
+
+	// Title 单行显示标题，支持中文。省略或留空时显示任务名。
+	Title *string `json:"title,omitempty"`
 
 	// Tools 允许使用的已登记工具名（技术设计第 7.8 节）。
 	Tools *[]string `json:"tools,omitempty"`
@@ -3354,7 +3353,10 @@ type Task struct {
 	State TaskState `json:"state"`
 
 	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
-	Tags      TaskTags  `json:"tags"`
+	Tags TaskTags `json:"tags"`
+
+	// Title 最新版本清单中的显示标题，没有时省略。
+	Title     *string   `json:"title,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -3401,9 +3403,7 @@ type TaskBundleVersion struct {
 	CreatedAt time.Time       `json:"created_at"`
 	Files     []TaskFileInput `json:"files"`
 
-	// Manifest 任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
-	// runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
-	// 修改触发频率不产生新版本。
+	// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
 	Manifest Manifest `json:"manifest"`
 
 	// Seq 源部署中的版本号。导入后重新从 1 编号。
@@ -3555,7 +3555,10 @@ type TaskSummary struct {
 	State TaskState `json:"state"`
 
 	// Tags 任务的分类标签，最多 20 个。响应中按标签名排序，没有标签时为空数组。
-	Tags      TaskTags  `json:"tags"`
+	Tags TaskTags `json:"tags"`
+
+	// Title 最新版本清单中的显示标题，没有时省略。
+	Title     *string   `json:"title,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -3593,9 +3596,7 @@ type TaskVersion struct {
 	CreatedBy openapi_types.UUID `json:"created_by"`
 	Files     []TaskFile         `json:"files"`
 
-	// Manifest 任务清单（技术设计第 5.3 节）：运行时、入口、参数、阶段、资源限制、网络、并发、凭证、工具、
-	// runner 标签、自动重试、副作用声明和 Agent 面板。触发器不在清单里，用 setTriggers 单独维护，
-	// 修改触发频率不产生新版本。
+	// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
 	Manifest Manifest `json:"manifest"`
 
 	// Seq 版本号，从 1 开始递增。
@@ -4281,7 +4282,7 @@ type ListTasksParams struct {
 	// Name 只返回这个任务名的任务（精确匹配）。CLI 和 Agent 用它按名字查任务 ID；不同项目可能有同名任务，需要时同时给出 project_id。
 	Name *TaskName `form:"name,omitempty" json:"name,omitempty"`
 
-	// Q 按任务名或用途说明中包含的文字筛选，不区分大小写。
+	// Q 按标题、任务名或用途说明中包含的文字筛选，不区分大小写。
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
 	// Tag 只返回带有这个标签的任务，精确匹配并区分大小写。

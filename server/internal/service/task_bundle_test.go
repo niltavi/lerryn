@@ -22,6 +22,7 @@ func bundleTask(t *testing.T, f *fixture, alice *auth.Principal) service.TaskDet
 	m := credManifest(service.CredentialSpec{Name: "LLM_API_KEY"}, service.CredentialSpec{Name: "CRM_COOKIE", As: "file", Optional: true})
 	m.Description = "第一版"
 	first := f.apply(alice, "digest", m)
+	m.Title = "线索日报"
 	m.Description = "第二版"
 	m.Stages = []service.StageSpec{{ID: "fetch", Name: "获取"}}
 	f.apply(alice, "digest", m,
@@ -65,7 +66,7 @@ func TestExportTask(t *testing.T) {
 		t.Fatalf("bundle = %+v", b)
 	}
 	v := b.Versions[0]
-	if v.Seq != 2 || v.Manifest.Description != "第二版" || len(v.Files) != 2 {
+	if v.Seq != 2 || v.Manifest.Title != "线索日报" || v.Manifest.Description != "第二版" || len(v.Files) != 2 {
 		t.Fatalf("version = %+v", v)
 	}
 	if v.Files[0].Path != "bin/run.sh" || !v.Files[0].Executable || string(v.Files[1].Content) != "print('v2 <ok> & done')\n" {
@@ -141,7 +142,7 @@ func TestImportTask(t *testing.T) {
 	}
 	task := res.Task.Task
 	if task.ProjectID != project || task.Name != "digest" || task.CreatedBy != bob.UserID || task.LatestSeq != 2 ||
-		task.State != store.TaskInactive || task.ActiveSeq != 0 || task.Description != "第二版" || task.TriggersRevision != 1 {
+		task.State != store.TaskInactive || task.ActiveSeq != 0 || task.Title != "线索日报" || task.Description != "第二版" || task.TriggersRevision != 1 {
 		t.Fatalf("task = %+v", task)
 	}
 	if !slices.Equal(res.SourceSeqs, []int{1, 2}) {
@@ -160,7 +161,7 @@ func TestImportTask(t *testing.T) {
 		if got.Version.TreeHash != want.Version.TreeHash || got.Version.CreatedBy != bob.UserID || !got.Version.TestedAt.IsZero() {
 			t.Errorf("version %d = %+v, source %+v", seq, got.Version, want.Version)
 		}
-		if got.Manifest.Description != want.Manifest.Description {
+		if got.Manifest.Title != want.Manifest.Title || got.Manifest.Description != want.Manifest.Description {
 			t.Errorf("version %d manifest = %+v", seq, got.Manifest)
 		}
 		for _, file := range got.Files {

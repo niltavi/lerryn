@@ -796,6 +796,27 @@ describe("compact list navigation", () => {
 });
 
 describe("task page", () => {
+  it("shows and searches a task title, falling back to the name for older tasks", async () => {
+    const title = "GitHub 费用日报";
+    const summary: Schemas["TaskSummary"] = {
+      ...TASK, state: "active", latest_version: 2, active_runs: 0, last_run: null, next_run_at: null,
+    };
+    renderApp(`/tasks/${TASK.id}`, {
+      task: { title },
+      tasks: [{ ...summary, title }, { ...summary, id: "untitled", name: "untitled-task" }],
+    });
+    expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
+    const list = within(await screen.findByRole("region", { name: "任务列表" }));
+    expect(await list.findByRole("link", { name: new RegExp(title) })).toBeTruthy();
+    expect(list.getByRole("link", { name: /untitled-task/ })).toBeTruthy();
+    expect(list.queryByText(TASK.name)).toBeNull();
+
+    fireEvent.click(list.getByRole("button", { name: "搜索任务" }));
+    fireEvent.change(list.getByRole("searchbox", { name: "搜索任务" }), { target: { value: "github 费用" } });
+    expect(list.getByRole("link", { name: new RegExp(title) })).toBeTruthy();
+    expect(list.queryByRole("link", { name: /untitled-task/ })).toBeNull();
+  });
+
   it("lets a maintainer replace and clear task tags", async () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", task: { tags: ["销售"] } });
     const user = userEvent.setup();
@@ -971,7 +992,7 @@ describe("task page", () => {
     renderApp(`/tasks/${TASK.id}`, { role: state === "viewer" ? "viewer" : "owner", task: state === "archived" ? { archived_at: iso(-10) } : {} });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    for (const name of ["停用任务", "启用任务", "更多任务操作", "立即重新触发", "编辑标签"]) expect(screen.queryByRole("button", { name })).toBeNull();
+    for (const name of ["停用任务", "启用任务", "更多任务操作", "立即触发", "编辑标签"]) expect(screen.queryByRole("button", { name })).toBeNull();
   });
 
   it("shows activation, the schedule, credentials and versions, read-only", async () => {
@@ -986,7 +1007,7 @@ describe("task page", () => {
     fireEvent.click(screen.getByRole("button", { name: "填写" }));
     expect(await within(await screen.findByRole("dialog")).findByText("weekday-digest 需要凭证")).toBeTruthy();
     // Without run control in the project: no editing, running or pausing.
-    for (const name of [/运行$/, /暂停/, /编辑/, /重试/, /立即重新触发/]) {
+    for (const name of [/运行$/, /暂停/, /编辑/, /重试/, /立即触发/]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
   });
@@ -996,8 +1017,8 @@ describe("task page", () => {
     { scenario: "one enabled schedule", triggerItems: [MORNING_TRIGGER, { ...AFTERNOON_TRIGGER, enabled: false }], body: { params: MORNING_TRIGGER.params, test: false } },
   ])("starts a run directly with $scenario and opens it", async ({ triggerItems, body }) => {
     const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", triggerItems });
-    const button = await screen.findByRole("button", { name: "立即重新触发" });
-    expect(button.textContent).toContain("立即重新触发");
+    const button = await screen.findByRole("button", { name: "立即触发" });
+    expect(button.textContent).toContain("立即触发");
     fireEvent.click(button);
     await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${NEW_RUN.id}`));
     const post = server.requests.find((r) => r.method === "POST")!;
@@ -1010,10 +1031,10 @@ describe("task page", () => {
   it("waits for a schedule choice and starts only the selected one", async () => {
     const { router, server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", triggerItems: [MORNING_TRIGGER, AFTERNOON_TRIGGER] });
     const user = userEvent.setup();
-    const button = await screen.findByRole("button", { name: "立即重新触发" });
+    const button = await screen.findByRole("button", { name: "立即触发" });
     button.focus();
     await user.keyboard("{ArrowDown}");
-    const menu = within(await screen.findByRole("menu", { name: "立即重新触发" }));
+    const menu = within(await screen.findByRole("menu", { name: "立即触发" }));
     expect(menu.getByRole("menuitem", { name: /weekday-morning/ }).textContent).toContain("08:00");
     expect(menu.getByRole("menuitem", { name: /weekday-afternoon/ }).textContent).toContain("15:00");
     expect(server.requests.filter((r) => r.method === "POST")).toEqual([]);
@@ -1027,7 +1048,7 @@ describe("task page", () => {
   it("stays on the task when the run is refused", async () => {
     const { router } = renderApp(`/tasks/${TASK.id}`, { role: "owner", startError: "run_in_progress" });
     const user = userEvent.setup();
-    const button = await screen.findByRole("button", { name: "立即重新触发" });
+    const button = await screen.findByRole("button", { name: "立即触发" });
     await user.click(button);
     await user.unhover(button);
     await user.hover(button);
@@ -1039,14 +1060,96 @@ describe("task page", () => {
     renderApp(`/tasks/${TASK.id}`, { role: "viewer" });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    expect(screen.queryByRole("button", { name: "立即重新触发" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "立即触发" })).toBeNull();
   });
 
   it("hides manual runs when the agent turned them off", async () => {
     renderApp(`/tasks/${TASK.id}`, { role: "owner", manualRun: false });
     await screen.findByRole("heading", { name: "weekday-digest" });
     await screen.findByRole("img", { name: "有凭证不可用" });
-    expect(screen.queryByRole("button", { name: "立即重新触发" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "立即触发" })).toBeNull();
+  });
+});
+
+describe("runs list", () => {
+  afterEach(() => localStorage.removeItem("lerryn.runs.view"));
+
+  const runAt = (n: number, taskId: string, name: string, over: Partial<Schemas["RunSummary"]> = {}): Schemas["RunSummary"] => ({
+    id: `0192f3a1-0000-7000-8000-00000000${String(n).padStart(4, "0")}`,
+    task: { id: taskId, name, project_id: PROJECT.id },
+    version: n,
+    status: "completed",
+    test: false,
+    trigger: { kind: "cron", trigger_id: null, scheduled_at: null, user_id: null, client: null },
+    attempt: 1,
+    retry_of: null,
+    rerun_of: null,
+    skip_reason: null,
+    queued_at: iso(-n),
+    started_at: iso(-n),
+    finished_at: iso(-n),
+    error: null,
+    result_status: null,
+    result_summary: null,
+    current_stage: null,
+    archived_at: null,
+    links: { console: "http://lerryn.test/" },
+    ...over,
+  });
+  const runs = [runAt(3, "ta", "linear-digest"), runAt(2, "tb", "dataset-backup", { status: "failed" }), runAt(1, "ta", "linear-digest")];
+
+  it("searches the loaded runs", async () => {
+    renderApp("/runs?view=list", { runs });
+    const list = await screen.findByRole("region", { name: "运行列表" });
+    await within(list).findAllByText("linear-digest");
+    fireEvent.click(screen.getByRole("button", { name: "搜索运行" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "搜索运行" }), { target: { value: "backup" } });
+    expect(within(list).queryByText("linear-digest")).toBeNull();
+    expect(within(list).getByText("dataset-backup")).toBeTruthy();
+    fireEvent.change(screen.getByRole("searchbox", { name: "搜索运行" }), { target: { value: "nothing" } });
+    expect(within(list).getByText("已加载的运行中没有匹配项")).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("searchbox", { name: "搜索运行" }), { key: "Escape" });
+    expect(within(list).queryByRole("searchbox")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "搜索运行" }));
+    expect(within(list).getAllByText("linear-digest")).toHaveLength(2);
+  });
+
+  it("groups runs under their task and folds one task away", async () => {
+    const { router } = renderApp("/runs?view=list", { runs });
+    const list = await screen.findByRole("region", { name: "运行列表" });
+    await within(list).findAllByText("linear-digest");
+    fireEvent.click(screen.getByRole("button", { name: "按任务分组" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ view: "tasks" }));
+    const head = within(list).getByRole("button", { name: /linear-digest/ });
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+    expect(within(head).getByText("2 次")).toBeTruthy();
+    expect(within(within(list).getByRole("group", { name: "linear-digest" })).getAllByRole("link")).toHaveLength(2);
+    fireEvent.click(head);
+    expect(head.getAttribute("aria-expanded")).toBe("false");
+    expect(within(list).queryByRole("group", { name: "linear-digest" })).toBeNull();
+    expect(within(list).getByRole("group", { name: "dataset-backup" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "全部折叠" }));
+    expect(within(list).queryByRole("group", { name: "dataset-backup" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "全部展开" }));
+    expect(within(list).getByRole("group", { name: "linear-digest" })).toBeTruthy();
+  });
+
+  it("preserves grouping across archive filters and can switch to the board", async () => {
+    const archived = runAt(4, "tc", "archived-report", { archived_at: iso(-1) });
+    const { router } = renderApp("/runs?view=tasks", { runs: [...runs, archived] });
+    const list = within(await screen.findByRole("region", { name: "运行列表" }));
+    await list.findByRole("group", { name: "linear-digest" });
+    expect(list.queryByRole("group", { name: "archived-report" })).toBeNull();
+    expect(list.getByRole("link", { name: "列表" }).getAttribute("aria-current")).toBe("page");
+
+    await userEvent.click(list.getByRole("button", { name: "已归档" }));
+    await list.findByRole("group", { name: "archived-report" });
+    expect(router.state.location.search).toEqual({ view: "tasks", filter: "archived" });
+    expect(list.queryByRole("group", { name: "linear-digest" })).toBeNull();
+
+    await userEvent.click(list.getByRole("link", { name: "看板" }));
+    await screen.findByRole("main", { name: "运行看板" });
+    expect(router.state.location.search).toEqual({ view: "board" });
   });
 });
 

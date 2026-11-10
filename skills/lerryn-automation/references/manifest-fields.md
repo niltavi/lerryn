@@ -6,6 +6,7 @@
 
 | 字段 | 类型 | 必填 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
+| `title` | string |  |  | 最长 120 个字符 | 单行显示标题，支持中文。省略或留空时显示任务名。 |
 | `description` | string |  |  | 最长 500 个字符 | 任务用途，给人看。 |
 | `runtime` | object | 是 |  |  | 运行时（技术设计第 7.3 节）。language 和 version 的组合只能从 `discover` 返回的运行时目录中选，不在目录中的组合以 422 `validation_failed` 拒绝。 |
 | `runtime.language` | string | 是 |  | 取值 `python`、`node`、`shell` | python 为 Python 3.12，用 uv 管理依赖；node 为 Node.js 22，用 npm 管理依赖，`.ts` 文件由 Node 的类型剥离直接运行；shell 为 Bash 5 和常用命令行工具，没有依赖管理。 |

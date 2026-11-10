@@ -298,6 +298,7 @@ func (t *Tasks) applyOnce(ctx context.Context, sub submission) (TaskDetail, []st
 				ID:          store.NewID(),
 				ProjectID:   sub.in.ProjectID,
 				Name:        sub.in.Name,
+				Title:       sub.in.Manifest.Title,
 				Description: sub.in.Manifest.Description,
 				LatestSeq:   1,
 				CreatedBy:   sub.principal.UserID,
@@ -314,6 +315,7 @@ func (t *Tasks) applyOnce(ctx context.Context, sub submission) (TaskDetail, []st
 		} else {
 			err := tx.NewUpdate().Model(&task).
 				Set("latest_seq = latest_seq + 1").
+				Set("title = ?", sub.in.Manifest.Title).
 				Set("description = ?", sub.in.Manifest.Description).
 				Set("updated_at = ?", now).
 				Where("project_id = ? AND name = ? AND archived_at IS NULL AND latest_seq = ?", sub.in.ProjectID, sub.in.Name, sub.expected).
