@@ -88,7 +88,12 @@ for (let i = 0; i < 300; i++) {
 				t.Fatal(err)
 			}
 			tasks := service.NewTasks(db, authz, blobs, nil)
-			td, err := tasks.Apply(ctx, p, service.ApplyTaskInput{ProjectID: p.PersonalProjectID, Name: "burst", Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "node", Version: "22"}, Entrypoint: []string{"node", "main.js"}, Concurrency: service.ConcurrencyAllow}, Files: []service.FileInput{{Path: "main.js", Content: []byte("// SDK burst\n")}}})
+			td, err := tasks.Apply(ctx, p, service.ApplyTaskInput{
+				ProjectID: p.PersonalProjectID, Name: "burst",
+				Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "node", Version: "22"}, Entrypoint: []string{"node", "main.js"}, Concurrency: service.ConcurrencyAllow,
+					Workflow: []service.WorkflowStep{{Title: "Report events", Description: "Emit a burst of events using the SDK."}}},
+				Files: []service.FileInput{{Path: "main.js", Content: []byte("// SDK burst\n")}},
+			})
 			if err != nil {
 				t.Fatal(err)
 			}

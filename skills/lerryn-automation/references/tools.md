@@ -41,6 +41,7 @@
 ### task_apply（提交任务）
 
 创建任务或提交新版本：给出完整的清单（manifest）和全部文件（files，UTF-8 文本）。
+manifest.workflow 必填。按执行顺序，用用户的语言为每一步写 title 和 description，说明操作及结果。更新代码时同步更新流程说明。
 新建任务时建议默认填写 manifest.title，用用户的语言写一个简短标题，例如「GitHub 费用日报」。更新任务时沿用已有标题，除非用户要求更改或清除。
 project_id 用 discover 返回的 principal.personal_project_id。运行时只能从 discover 的 runtimes 中选。
 修改已有任务时 if_match 必填，值为读到的 latest_version.seq；收到 version_conflict 时先用 task_get 和差异确认别人的修改，不要直接覆盖。

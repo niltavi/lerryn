@@ -678,6 +678,7 @@ func measure(t *testing.T, p profile, logPhase time.Duration) result {
 		if _, err := d.api(ctx, i, http.MethodPut, fmt.Sprintf("/api/v1/projects/%s/tasks/task-%04d", d.project, i), map[string]any{
 			"manifest": map[string]any{
 				"runtime": map[string]any{"language": "python", "version": "3.12"}, "entrypoint": []string{"python", "main.py"},
+				"workflow":    []map[string]any{{"title": "记录任务编号", "description": "在日志中输出本次运行的任务编号。"}},
 				"concurrency": "allow", "network": "none",
 			},
 			"files": []map[string]any{{"path": "main.py", "content": fmt.Sprintf("print('task %d')\n", i)}},

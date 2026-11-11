@@ -109,6 +109,8 @@ func TestPlaintextInTaskSubmissions(t *testing.T) {
 		m.Params = params
 		return m
 	}
+	workflowLeak := withParams(nil)
+	workflowLeak.Workflow[0].Description = "Call the API with " + testSecret
 	tests := []struct {
 		name     string
 		manifest service.Manifest
@@ -117,6 +119,7 @@ func TestPlaintextInTaskSubmissions(t *testing.T) {
 		pointers []string
 	}{
 		{name: "manifest params", manifest: withParams(map[string]any{"api_key": testSecret}), pointers: []string{"#/manifest/params/api_key"}},
+		{name: "workflow description", manifest: workflowLeak, pointers: []string{"#/manifest/workflow/0/description"}},
 		{name: "embedded in a header", manifest: withParams(map[string]any{"headers": []any{"Authorization: Bearer " + testSecret}}),
 			pointers: []string{"#/manifest/params/headers/0"}},
 		// The pointer stops before a key that is itself the value.

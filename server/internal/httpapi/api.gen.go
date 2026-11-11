@@ -1412,14 +1412,11 @@ type APIInfo struct {
 // 清单或文件中含有调用者自己的凭证、或任务已绑定的凭证的值（或它的 base64、URL 编码、JSON 转义）时，提交被拒绝，返回 422 `validation_failed`，
 // `errors` 指出位置和凭证名，预览也一样。凭证在清单的 `credentials` 中引用，由平台在运行时注入。
 type ApplyTaskRequest struct {
-	Files []TaskFileInput `json:"files"`
-
-	// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
-	Manifest Manifest `json:"manifest"`
+	Files    []TaskFileInput `json:"files"`
+	Manifest Manifest        `json:"manifest"`
 }
 
-// ApplyTaskResult 提交任务的结果。正式提交时 `task` 为提交后的任务；`dry_run` 为 true 时什么都不保存，`task` 为提交前的任务，
-// 任务尚不存在时为 null。
+// ApplyTaskResult 正式提交返回新版本。预览返回提交前的任务，新任务为 null。
 type ApplyTaskResult struct {
 	// Created 这次提交建立了新任务；预览时表示将会建立。
 	Created bool `json:"created"`
@@ -2161,7 +2158,7 @@ type LoginRequest struct {
 	Username string `json:"username"`
 }
 
-// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
+// Manifest 任务版本的清单。触发器由 setTriggers 单独维护。
 type Manifest struct {
 	// Concurrency 同一任务能否同时有多个运行。forbid 时，已有运行未结束会拒绝 API 发起的新运行（`run_in_progress`），
 	// 定时和 webhook 触发记为已跳过，`skip_reason` 为 overlap。
@@ -2216,6 +2213,9 @@ type Manifest struct {
 
 	// Tools 允许使用的已登记工具名（技术设计第 7.8 节）。
 	Tools *[]string `json:"tools,omitempty"`
+
+	// Workflow 按执行顺序填写每步的标题和操作说明。
+	Workflow *TaskWorkflow `json:"workflow,omitempty"`
 }
 
 // ManifestConcurrency 同一任务能否同时有多个运行。forbid 时，已有运行未结束会拒绝 API 发起的新运行（`run_in_progress`），
@@ -3403,7 +3403,7 @@ type TaskBundleVersion struct {
 	CreatedAt time.Time       `json:"created_at"`
 	Files     []TaskFileInput `json:"files"`
 
-	// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
+	// Manifest 任务版本的清单。触发器由 setTriggers 单独维护。
 	Manifest Manifest `json:"manifest"`
 
 	// Seq 源部署中的版本号。导入后重新从 1 编号。
@@ -3596,7 +3596,7 @@ type TaskVersion struct {
 	CreatedBy openapi_types.UUID `json:"created_by"`
 	Files     []TaskFile         `json:"files"`
 
-	// Manifest 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
+	// Manifest 任务版本的清单。触发器由 setTriggers 单独维护。
 	Manifest Manifest `json:"manifest"`
 
 	// Seq 版本号，从 1 开始递增。
@@ -3637,6 +3637,12 @@ type TaskVersionSummary struct {
 	// TestedAt 第一次成功测试运行的结束时间，没有时为 null。
 	TestedAt *time.Time `json:"tested_at"`
 	TreeHash string     `json:"tree_hash"`
+}
+
+// TaskWorkflow 按执行顺序填写每步的标题和操作说明。
+type TaskWorkflow = []struct {
+	Description string `json:"description"`
+	Title       string `json:"title"`
 }
 
 // TokenScope 访问令牌的范围，与 `x-operation-kind` 一一对应：read 操作需要 read，mutate 操作需要 write，

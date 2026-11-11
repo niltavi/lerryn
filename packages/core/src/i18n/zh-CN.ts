@@ -219,6 +219,7 @@ export const zhCN = {
     scheduleChanged: "任务或执行计划已变化，请关闭窗口后重新确认。",
     controlFailed: "操作未完成，请刷新任务状态后重试。",
     info: "任务信息",
+    workflow: "任务说明",
     runtime: "运行环境",
     entrypoint: "入口",
     dependencies: "依赖",

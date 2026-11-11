@@ -254,6 +254,7 @@ func (s *server) applyTask(project, name, source string, manifest map[string]any
 	m := map[string]any{
 		"runtime":    map[string]any{"language": "python", "version": "3.12"},
 		"entrypoint": []string{"python", "main.py"},
+		"workflow":   []map[string]any{{"title": "执行检查", "description": "运行验收脚本并记录结果。"}},
 		"limits":     map[string]any{"timeout": "5m", "memory": "256Mi"},
 	}
 	for k, v := range manifest {

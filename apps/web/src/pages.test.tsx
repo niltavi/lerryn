@@ -796,6 +796,65 @@ describe("compact list navigation", () => {
 });
 
 describe("task page", () => {
+  it.each(["结果", "上次结果"])("shows the latest workflow above %s and folds each panel independently", async (resultTitle) => {
+    const workflow = [
+      { title: "读取邮件", description: "读取尚未处理的收件箱邮件。" },
+      { title: "保存摘要", description: "整理邮件并保存摘要。" },
+    ];
+    const panels: Schemas["Manifest"]["panels"] = resultTitle === "上次结果"
+      ? [{ id: "emails", type: "metric", title: "已处理邮件", source: "/processed" }]
+      : undefined;
+    renderApp(`/tasks/${TASK.id}`, {
+      task: {
+        active_version: 1,
+        latest_version: {
+          ...TASK.latest_version,
+          manifest: {
+            ...TASK.latest_version.manifest,
+            runtime: { language: "python", version: "3.12" },
+            credentials: [{ name: "LLM_API_KEY", as: "env", optional: false }],
+            network: "full", concurrency: "forbid", side_effects: false, workflow, panels,
+          },
+        },
+      },
+      runs: [{
+        ...FAILED_RUN, task: TASK_REF, status: "completed",
+        trigger: { ...FAILED_RUN.trigger, kind: "cron" },
+        error: null,
+        current_stage: null, result_status: "ok", result_summary: "摘要已保存",
+      }],
+      run: { result: { status: "ok", summary: "摘要已保存", data: { processed: 2 } } },
+    });
+    const flow = await screen.findByRole("region", { name: "任务说明" });
+    const region = within(flow);
+    expect(region.getByText("v2")).toBeTruthy();
+    const steps = region.getAllByRole("listitem");
+    expect(steps.map((step) => within(step).getByRole("heading").textContent)).toEqual(workflow.map((step) => step.title));
+    expect(steps.map((step) => step.querySelector("p")?.textContent)).toEqual(workflow.map((step) => step.description));
+    const result = await screen.findByRole("region", { name: resultTitle });
+    expect(flow.compareDocumentPosition(result)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const flowButton = region.getByRole("button", { name: "任务说明" });
+    const resultPanel = within(result);
+    const resultButton = resultPanel.getByRole("button", { name: resultTitle });
+    expect(flowButton.getAttribute("aria-expanded")).toBe("true");
+    expect(resultButton.getAttribute("aria-expanded")).toBe("true");
+
+    const user = userEvent.setup();
+    await user.click(flowButton);
+    expect(flowButton.getAttribute("aria-expanded")).toBe("false");
+    expect(region.queryByRole("list")).toBeNull();
+    expect(resultPanel.getByRole("group", { name: resultTitle })).toBeTruthy();
+    expect(region.getByText("v2")).toBeTruthy();
+
+    await user.click(resultButton);
+    expect(resultButton.getAttribute("aria-expanded")).toBe("false");
+    expect(resultPanel.queryByRole("group", { name: resultTitle })).toBeNull();
+    await user.keyboard("{Enter}");
+    expect(resultButton.getAttribute("aria-expanded")).toBe("true");
+    expect(resultPanel.getByRole("group", { name: resultTitle })).toBeTruthy();
+    expect(flowButton.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("shows and searches a task title, falling back to the name for older tasks", async () => {
     const title = "GitHub 费用日报";
     const summary: Schemas["TaskSummary"] = {
@@ -806,6 +865,7 @@ describe("task page", () => {
       tasks: [{ ...summary, title }, { ...summary, id: "untitled", name: "untitled-task" }],
     });
     expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "任务说明" })).toBeNull();
     const list = within(await screen.findByRole("region", { name: "任务列表" }));
     expect(await list.findByRole("link", { name: new RegExp(title) })).toBeTruthy();
     expect(list.getByRole("link", { name: /untitled-task/ })).toBeTruthy();

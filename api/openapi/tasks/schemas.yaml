@@ -7,8 +7,7 @@ TaskName:
 
 Manifest:
   type: object
-  description: |
-    任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
+  description: 任务版本的清单。触发器由 setTriggers 单独维护。
   required: [runtime, entrypoint]
   additionalProperties: false
   properties:
@@ -20,6 +19,8 @@ Manifest:
       type: string
       maxLength: 500
       description: 任务用途，给人看。
+    workflow:
+      $ref: "#/TaskWorkflow"
     runtime:
       $ref: "#/RuntimeSpec"
     entrypoint:
@@ -96,6 +97,25 @@ Manifest:
         不执行 HTML 或脚本。结果中没有对应数据时不显示该面板。
       items:
         $ref: "#/PanelSpec"
+
+TaskWorkflow:
+  type: array
+  minItems: 1
+  maxItems: 20
+  description: 按执行顺序填写每步的标题和操作说明。
+  items:
+    type: object
+    required: [title, description]
+    additionalProperties: false
+    properties:
+      title:
+        type: string
+        minLength: 1
+        maxLength: 80
+      description:
+        type: string
+        minLength: 1
+        maxLength: 300
 
 RuntimeSpec:
   type: object
@@ -334,7 +354,10 @@ ApplyTaskRequest:
   additionalProperties: false
   properties:
     manifest:
-      $ref: "#/Manifest"
+      allOf:
+        - $ref: "#/Manifest"
+      required: [workflow]
+      x-go-type: Manifest
     files:
       type: array
       minItems: 1
@@ -344,9 +367,7 @@ ApplyTaskRequest:
 
 ApplyTaskResult:
   type: object
-  description: |
-    提交任务的结果。正式提交时 `task` 为提交后的任务；`dry_run` 为 true 时什么都不保存，`task` 为提交前的任务，
-    任务尚不存在时为 null。
+  description: 正式提交返回新版本。预览返回提交前的任务，新任务为 null。
   required: [dry_run, created, version, task, diff, warnings]
   properties:
     dry_run:

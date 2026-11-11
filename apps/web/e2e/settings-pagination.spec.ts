@@ -87,7 +87,11 @@ test("pending requests beyond the first page can be filled and counts stay accur
   const { task } = await api.call<{ task: { id: string } }>(`/api/v1/projects/${me.personal_project_id}/tasks/${name}`, {
     method: "PUT", want: 200,
     body: {
-      manifest: { runtime: { language: "python", version: "3.12" }, entrypoint: ["python", "main.py"] },
+      manifest: {
+        runtime: { language: "python", version: "3.12" },
+        entrypoint: ["python", "main.py"],
+        workflow: [{ title: "输出任务信息", description: "将任务信息写入运行日志。" }],
+      },
       files: [{ path: "main.py", content: "print('pending request pagination')\n" }],
     },
   });

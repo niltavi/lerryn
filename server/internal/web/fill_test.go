@@ -90,8 +90,9 @@ func (e *env) request(p *auth.Principal, fields ...store.CredentialField) uuid.U
 	e.t.Helper()
 	task, err := e.tasks.Apply(e.ctx, p, service.ApplyTaskInput{
 		ProjectID: p.PersonalProjectID, Name: "price-watch-" + strings.ToLower(uuid.NewString()[:6]),
-		Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"}, Entrypoint: []string{"python", "main.py"}},
-		Files:    []service.FileInput{{Path: "main.py", Content: []byte("print(1)\n")}},
+		Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"}, Entrypoint: []string{"python", "main.py"},
+			Workflow: []service.WorkflowStep{{Title: "Record value", Description: "Print the value to the run log."}}},
+		Files: []service.FileInput{{Path: "main.py", Content: []byte("print(1)\n")}},
 	})
 	if err != nil {
 		e.t.Fatal(err)

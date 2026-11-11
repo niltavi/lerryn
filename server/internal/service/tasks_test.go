@@ -156,6 +156,17 @@ func TestApplyValidation(t *testing.T) {
 		{"empty entrypoint", "", func(m *service.Manifest) { m.Entrypoint = nil }, nil, "#/manifest/entrypoint"},
 		{"empty argument", "", func(m *service.Manifest) { m.Entrypoint = []string{"python", ""} }, nil, "#/manifest/entrypoint/1"},
 		{"description", "", func(m *service.Manifest) { m.Description = strings.Repeat("说", 501) }, nil, "#/manifest/description"},
+		{"workflow missing", "", func(m *service.Manifest) { m.Workflow = nil }, nil, "#/manifest/workflow"},
+		{"workflow empty", "", func(m *service.Manifest) { m.Workflow = []service.WorkflowStep{} }, nil, "#/manifest/workflow"},
+		{"workflow too many steps", "", func(m *service.Manifest) {
+			m.Workflow = slices.Repeat(m.Workflow, 21)
+		}, nil, "#/manifest/workflow"},
+		{"workflow title blank", "", func(m *service.Manifest) { m.Workflow[0].Title = "　 " }, nil, "#/manifest/workflow/0/title"},
+		{"workflow title multiline", "", func(m *service.Manifest) { m.Workflow[0].Title = "读取\n邮件" }, nil, "#/manifest/workflow/0/title"},
+		{"workflow description blank", "", func(m *service.Manifest) { m.Workflow[0].Description = "\n\t " }, nil, "#/manifest/workflow/0/description"},
+		{"workflow description too long", "", func(m *service.Manifest) {
+			m.Workflow[0].Description = strings.Repeat("说", 301)
+		}, nil, "#/manifest/workflow/0/description"},
 		{"timeout too long", "", func(m *service.Manifest) { m.Limits = &service.Limits{Timeout: "25h"} }, nil, "#/manifest/limits/timeout"},
 		{"timeout format", "", func(m *service.Manifest) { m.Limits = &service.Limits{Timeout: "1d"} }, nil, "#/manifest/limits/timeout"},
 		{"timeout overflow", "", func(m *service.Manifest) { m.Limits = &service.Limits{Timeout: "99999999999999999999h"} }, nil, "#/manifest/limits/timeout"},

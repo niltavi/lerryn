@@ -51,8 +51,9 @@ func TestTriggerSetToolAndWebhookRoute(t *testing.T) {
 	}
 	applied, err := tasks.Apply(ctx, p, service.ApplyTaskInput{
 		ProjectID: p.PersonalProjectID, Name: "digest",
-		Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"}, Entrypoint: []string{"python", "main.py"}},
-		Files:    []service.FileInput{{Path: "main.py", Content: []byte("print(1)\n")}},
+		Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"}, Entrypoint: []string{"python", "main.py"},
+			Workflow: []service.WorkflowStep{{Title: "Execute script", Description: "Run the Python script and capture its output."}}},
+		Files: []service.FileInput{{Path: "main.py", Content: []byte("print(1)\n")}},
 	})
 	if err != nil {
 		t.Fatal(err)

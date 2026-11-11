@@ -94,8 +94,13 @@ name: weekday-digest
 description: 工作日早上汇总
 runtime: {language: python, version: "3.12"}
 entrypoint: [python, main.py]
+workflow:
+  - title: 生成线索摘要
+    description: 读取内部 CRM 的新线索，汇总并保存摘要。
 params: {source: internal-crm}
 ```
+
+`workflow` 必填。按执行顺序为每步填写 `title` 和 `description`，Web 任务详情据此显示流程图。
 
 目录里的其他文件按 UTF-8 文本上传，保留可执行位。以下内容不上传：清单文件本身，以 `.` 开头的文件和目录（例如 `.git`、`.venv`、`.env`），`__pycache__` 和 `node_modules`。遇到符号链接或非 UTF-8 文件时直接报错，不会读取目录之外的内容。
 

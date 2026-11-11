@@ -219,6 +219,7 @@ export const en: Messages = {
     scheduleChanged: "The task or schedule has changed. Close this dialog and confirm again.",
     controlFailed: "The action could not be completed. Refresh the task before trying again.",
     info: "Task details",
+    workflow: "Task workflow",
     runtime: "Runtime",
     entrypoint: "Entrypoint",
     dependencies: "Dependencies",

@@ -94,8 +94,13 @@ name: weekday-digest
 description: Weekday morning digest
 runtime: {language: python, version: "3.12"}
 entrypoint: [python, main.py]
+workflow:
+  - title: Summarize leads
+    description: Read new leads from the internal CRM and save a digest.
 params: {source: internal-crm}
 ```
+
+`workflow` is required. List the steps in execution order and give each one a `title` and `description` for the task page diagram.
 
 Other files are uploaded as UTF-8 text, preserving the executable bit. The manifest itself, files and directories starting with `.` (such as `.git`, `.venv`, and `.env`), `__pycache__`, and `node_modules` are skipped. Symbolic links and non-UTF-8 files cause an error; the CLI does not read outside the directory.
 

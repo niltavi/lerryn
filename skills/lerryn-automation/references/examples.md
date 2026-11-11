@@ -13,6 +13,10 @@
     "description": "统计给定文本中的高频词",
     "runtime": {"language": "python", "version": "3.12"},
     "entrypoint": ["python", "main.py"],
+    "workflow": [
+      {"title": "统计词频", "description": "把输入文本按空格拆成词，计算每个词出现的次数。"},
+      {"title": "上报高频词", "description": "取出现次数最多的指定数量的词，把词和次数上报给控制台。"}
+    ],
     "params": {"text": "Lerryn 任务 Lerryn 运行 Lerryn 任务", "top": 2},
     "stages": [
       {"id": "count", "name": "统计"},
@@ -44,6 +48,10 @@
     "description": "检查输入里哪些值是数字",
     "runtime": {"language": "node", "version": "22", "lockfile": "package-lock.json"},
     "entrypoint": ["node", "main.ts"],
+    "workflow": [
+      {"title": "筛选数字", "description": "检查输入列表中的每个值，保留能识别为数字的值。"},
+      {"title": "汇总检查结果", "description": "上报数字项数量和输入总数。"}
+    ],
     "params": {"values": ["1", "x", "2.5", ""]},
     "stages": [{"id": "check", "name": "检查"}],
     "limits": {"timeout": "5m"}
@@ -76,6 +84,9 @@
     "description": "统计任务文件的行数",
     "runtime": {"language": "shell", "version": "5"},
     "entrypoint": ["bash", "main.sh"],
+    "workflow": [
+      {"title": "统计文件行数", "description": "读取 data.txt，计算它的总行数并上报给控制台。"}
+    ],
     "stages": [{"id": "count", "name": "统计"}],
     "limits": {"timeout": "1m", "memory": "128Mi"},
     "network": "none"

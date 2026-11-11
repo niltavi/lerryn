@@ -72,6 +72,7 @@ test("a filled credential never shows in the console", async ({ page, agent, sta
         description: "打印凭证",
         runtime: { language: "python", version: "3.12" },
         entrypoint: ["python", "main.py"],
+        workflow: [{ title: "验证凭证注入", description: "读取运行时注入的凭证并验证使用结果。" }],
         network: "none",
         limits: { timeout: "2m", memory: "128Mi" },
         credentials: [{ name: "API_TOKEN" }],

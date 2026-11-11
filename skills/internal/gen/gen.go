@@ -255,7 +255,7 @@ func (d *doc) manifestFields() ([]byte, error) {
 	var b strings.Builder
 	b.WriteString(header)
 	b.WriteString("# 清单字段\n\n")
-	b.WriteString("任务清单（`task_apply` 的 `manifest`）的全部字段，由接口契约中的 `Manifest` schema 生成。用法和示例见 [manifest.md](manifest.md)。")
+	b.WriteString("任务清单的全部字段，由接口契约中的 `Manifest` schema 生成。提交新任务或新版本时，`task_apply` 另外要求必填 `workflow`。用法和示例见 [manifest.md](manifest.md)。")
 	b.WriteString("清单不接受未列出的字段。`[]` 表示数组中的每一项。\n\n")
 	b.WriteString("| 字段 | 类型 | 必填 | 默认值 | 约束 | 说明 |\n| --- | --- | --- | --- | --- | --- |\n")
 	for _, r := range rows {

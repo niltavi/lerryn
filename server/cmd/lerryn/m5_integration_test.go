@@ -451,6 +451,7 @@ func TestM5MultiNode(t *testing.T) {
 		"manifest": map[string]any{
 			"runtime":     map[string]any{"language": "python", "version": "3.12"},
 			"entrypoint":  []string{"python", "main.py"},
+			"workflow":    []map[string]any{{"title": "处理测试输入", "description": "读取本次运行的输入并上报结果。"}},
 			"limits":      map[string]any{"timeout": "15m", "memory": "256Mi"},
 			"concurrency": "allow",
 		},

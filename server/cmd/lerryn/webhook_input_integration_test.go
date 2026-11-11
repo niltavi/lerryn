@@ -47,6 +47,7 @@ func TestWebhookBodyReachesTheTask(t *testing.T) {
 		"manifest": map[string]any{
 			"runtime":    map[string]any{"language": "python", "version": "3.12"},
 			"entrypoint": []string{"python", "main.py"},
+			"workflow":   []map[string]any{{"title": "读取事件", "description": "读取 webhook 请求体并上报解析结果。"}},
 			"network":    "none",
 			"limits":     map[string]any{"timeout": "2m", "memory": "256Mi"},
 		},

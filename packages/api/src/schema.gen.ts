@@ -448,10 +448,8 @@ export interface paths {
         get?: never;
         /**
          * 提交任务
-         * @description 按项目和任务名提交不可变的版本，新任务从第 1 版开始。运行记录指向实际使用的版本。
-         *     已有任务须用 `If-Match` 传最新版本号。不一致返回 412 `version_conflict`，缺少时返回 428 `precondition_required`。
-         *     `dry_run=true` 只校验和预览。响应含警告及与激活版本（否则为上一个版本）的差异。
-         *     新版本经测试后调用 setTaskActivation 激活，触发器才会使用它。
+         * @description 提交不可变的任务版本。`dry_run=true` 只校验和预览。
+         *     已有任务须用 `If-Match` 传最新版本号。测试通过后用 setTaskActivation 激活。
          */
         put: operations["applyTask"];
         post?: never;
@@ -2454,12 +2452,13 @@ export interface components {
          * @example weekday-digest
          */
         TaskName: string;
-        /** @description 任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。 */
+        /** @description 任务版本的清单。触发器由 setTriggers 单独维护。 */
         Manifest: {
             /** @description 单行显示标题，支持中文。省略或留空时显示任务名。 */
             title?: string;
             /** @description 任务用途，给人看。 */
             description?: string;
+            workflow?: components["schemas"]["TaskWorkflow"];
             runtime: components["schemas"]["RuntimeSpec"];
             /**
              * @description 进程的 argv，工作目录为任务文件所在的 `/sbx/task`。
@@ -2515,6 +2514,11 @@ export interface components {
              */
             panels?: components["schemas"]["PanelSpec"][];
         };
+        /** @description 按执行顺序填写每步的标题和操作说明。 */
+        TaskWorkflow: {
+            title: string;
+            description: string;
+        }[];
         /**
          * @description 运行时（技术设计第 7.3 节）。language 和 version 的组合只能从 `discover` 返回的运行时目录中选，
          *     不在目录中的组合以 422 `validation_failed` 拒绝。
@@ -2678,13 +2682,10 @@ export interface components {
          *     `errors` 指出位置和凭证名，预览也一样。凭证在清单的 `credentials` 中引用，由平台在运行时注入。
          */
         ApplyTaskRequest: {
-            manifest: components["schemas"]["Manifest"];
+            manifest: WithRequired<components["schemas"]["Manifest"], "workflow">;
             files: components["schemas"]["TaskFileInput"][];
         };
-        /**
-         * @description 提交任务的结果。正式提交时 `task` 为提交后的任务；`dry_run` 为 true 时什么都不保存，`task` 为提交前的任务，
-         *     任务尚不存在时为 null。
-         */
+        /** @description 正式提交返回新版本。预览返回提交前的任务，新任务为 null。 */
         ApplyTaskResult: {
             dry_run: boolean;
             /** @description 这次提交建立了新任务；预览时表示将会建立。 */
@@ -4336,6 +4337,7 @@ export type SchemaSetMemberRequest = components['schemas']['SetMemberRequest'];
 export type SchemaUserRefPage = components['schemas']['UserRefPage'];
 export type SchemaTaskName = components['schemas']['TaskName'];
 export type SchemaManifest = components['schemas']['Manifest'];
+export type SchemaTaskWorkflow = components['schemas']['TaskWorkflow'];
 export type SchemaRuntimeSpec = components['schemas']['RuntimeSpec'];
 export type SchemaStageSpec = components['schemas']['StageSpec'];
 export type SchemaLimits = components['schemas']['Limits'];
@@ -7171,3 +7173,6 @@ export interface operations {
         };
     };
 }
+type WithRequired<T, K extends keyof T> = T & {
+    [P in K]-?: T[P];
+};

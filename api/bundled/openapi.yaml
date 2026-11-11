@@ -9,7 +9,7 @@ info:
 
     通用约定：
 
-    - 路径以 `/api/v1` 开头。v1 内只做增量变更。
+    - 路径以 `/api/v1` 开头。试用版提交任务版本须填写 `manifest.workflow`，已有版本仍可读取。
     - 鉴权：Agent 和 CLI 用访问令牌（`Authorization: Bearer wl_pat_...`），控制台用 cookie 会话。
     - 错误一律以 `application/problem+json` 返回，结构见 `Problem`，按 `code` 和 `next_actions` 决定下一步。
     - 每个响应都带 `X-Request-Id` 头，与错误体中的 `request_id` 相同，排查问题时提供它。
@@ -750,10 +750,8 @@ paths:
         - tasks
       summary: 提交任务
       description: |
-        按项目和任务名提交不可变的版本，新任务从第 1 版开始。运行记录指向实际使用的版本。
-        已有任务须用 `If-Match` 传最新版本号。不一致返回 412 `version_conflict`，缺少时返回 428 `precondition_required`。
-        `dry_run=true` 只校验和预览。响应含警告及与激活版本（否则为上一个版本）的差异。
-        新版本经测试后调用 setTaskActivation 激活，触发器才会使用它。
+        提交不可变的任务版本。`dry_run=true` 只校验和预览。
+        已有任务须用 `If-Match` 传最新版本号。测试通过后用 setTaskActivation 激活。
       x-operation-kind: mutate
       x-mcp:
         expose: true
@@ -761,6 +759,7 @@ paths:
         title: 提交任务
         description: |
           创建任务或提交新版本：给出完整的清单（manifest）和全部文件（files，UTF-8 文本）。
+          manifest.workflow 必填。按执行顺序，用用户的语言为每一步写 title 和 description，说明操作及结果。更新代码时同步更新流程说明。
           新建任务时建议默认填写 manifest.title，用用户的语言写一个简短标题，例如「GitHub 费用日报」。更新任务时沿用已有标题，除非用户要求更改或清除。
           project_id 用 discover 返回的 principal.personal_project_id。运行时只能从 discover 的 runtimes 中选。
           修改已有任务时 if_match 必填，值为读到的 latest_version.seq；收到 version_conflict 时先用 task_get 和差异确认别人的修改，不要直接覆盖。
@@ -4437,8 +4436,7 @@ components:
         - weekday-digest
     Manifest:
       type: object
-      description: |
-        任务清单（技术设计第 5.3 节）。触发器由 setTriggers 单独维护，修改频率不产生新版本。
+      description: 任务版本的清单。触发器由 setTriggers 单独维护。
       required:
         - runtime
         - entrypoint
@@ -4452,6 +4450,8 @@ components:
           type: string
           maxLength: 500
           description: 任务用途，给人看。
+        workflow:
+          $ref: '#/components/schemas/TaskWorkflow'
         runtime:
           $ref: '#/components/schemas/RuntimeSpec'
         entrypoint:
@@ -4535,6 +4535,26 @@ components:
             不执行 HTML 或脚本。结果中没有对应数据时不显示该面板。
           items:
             $ref: '#/components/schemas/PanelSpec'
+    TaskWorkflow:
+      type: array
+      minItems: 1
+      maxItems: 20
+      description: 按执行顺序填写每步的标题和操作说明。
+      items:
+        type: object
+        required:
+          - title
+          - description
+        additionalProperties: false
+        properties:
+          title:
+            type: string
+            minLength: 1
+            maxLength: 80
+          description:
+            type: string
+            minLength: 1
+            maxLength: 300
     RuntimeSpec:
       type: object
       description: |
@@ -4806,7 +4826,11 @@ components:
       additionalProperties: false
       properties:
         manifest:
-          $ref: '#/components/schemas/Manifest'
+          allOf:
+            - $ref: '#/components/schemas/Manifest'
+          required:
+            - workflow
+          x-go-type: Manifest
         files:
           type: array
           minItems: 1
@@ -4815,9 +4839,7 @@ components:
             $ref: '#/components/schemas/TaskFileInput'
     ApplyTaskResult:
       type: object
-      description: |
-        提交任务的结果。正式提交时 `task` 为提交后的任务；`dry_run` 为 true 时什么都不保存，`task` 为提交前的任务，
-        任务尚不存在时为 null。
+      description: 正式提交返回新版本。预览返回提交前的任务，新任务为 null。
       required:
         - dry_run
         - created

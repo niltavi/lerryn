@@ -15,6 +15,8 @@ export {
   type StatusGlyphProps,
 } from "./components/RunStatusBadge";
 export { RunTimeline, type RunTimelineProps } from "./components/RunTimeline";
+export { Timeline, type TimelineProps, type TimelineItemProps } from "./components/Timeline";
+export { CollapsiblePanel, type CollapsiblePanelProps } from "./components/CollapsiblePanel";
 export { RunStageGraph, RunStageList, RunStages, type RunStageGraphProps } from "./components/RunStageGraph";
 export {
   STAGE_NODE,

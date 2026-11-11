@@ -18,7 +18,7 @@
 | 示例 App | 可用。Expo SDK 57，展示全部组件，可切换深浅主题 | `design/gallery/` |
 | Claude Design 页面 | 可用。品牌手册、token、9 个组件的 Web 预览、Logo 素材 | 见上方链接 |
 | 控制台原型 | 可用。Claude Design 画布 [Lerryn 控制台原型](https://claude.ai/artifact/X2ivYVnSoKvTiVeq8DkqR1)：Web 19 页、移动端 5 屏、弹窗与状态，数据是示例 | `design/prototype/` |
-| Web 组件库 | 可用。`@lerryn/ui-web`，基于 HeroUI v3.2.6 + Tailwind v4.3.3；含 RunStatusBadge（10 种状态）、RunTimeline、RunStages（有阶段依赖时画依赖简图，窄屏换成带依赖说明的阶段列表）、ResultPanel、LogViewer、CronText、AgentPanels（metric、bars、breakdown、table、text）、QrCode、DayStrip、RunsStrip、Toggle、ActionMenu、Disclosure | `packages/ui-web/` |
+| Web 组件库 | 可用。`@lerryn/ui-web`，基于 HeroUI v3.2.6 + Tailwind v4.3.3；含 Timeline（纵向时间线）、CollapsiblePanel（可折叠面板）、RunStatusBadge（10 种状态）、RunTimeline、RunStages（有阶段依赖时画依赖简图，窄屏换成带依赖说明的阶段列表）、ResultPanel、LogViewer、CronText、AgentPanels（metric、bars、breakdown、table、text）、QrCode、DayStrip、RunsStrip、Toggle、ActionMenu、Disclosure | `packages/ui-web/` |
 
 迁移验证包含 TypeScript 检查、前端测试、Web 构建和深浅色对比度测试。旧版曾在 iOS 模拟器上核对；该记录不能视为新主题的移动端视觉验收。Claude Design 的远端画布仍为旧主题。
 
