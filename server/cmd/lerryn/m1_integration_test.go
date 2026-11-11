@@ -64,6 +64,7 @@ func acceptanceRequest(timeout string) map[string]any {
 			"description": "M1 验收",
 			"runtime":     map[string]any{"language": "python", "version": "3.12"},
 			"entrypoint":  []string{"python", "main.py"},
+			"workflow":    []map[string]any{{"title": "记录执行过程", "description": "输出运行日志，并按参数等待或结束。"}},
 			"stages":      []map[string]any{{"id": "emit", "name": "输出"}, {"id": "wait", "name": "等待"}},
 			"limits":      map[string]any{"timeout": timeout, "memory": "256Mi"},
 		},
@@ -576,6 +577,7 @@ func TestM1MCPFlow(t *testing.T) {
 		"manifest": map[string]any{
 			"runtime":    map[string]any{"language": "python", "version": "3.12"},
 			"entrypoint": []string{"python", "main.py"},
+			"workflow":   []map[string]any{{"title": "输出问候", "description": "输出问候并上报成功结果。"}},
 		},
 		"files": []map[string]any{{"path": "main.py", "content": "import sbx\nprint('hello from mcp')\nsbx.result('ok', 'said hello', {'n': 1})\n"}},
 	})

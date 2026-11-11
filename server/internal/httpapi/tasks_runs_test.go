@@ -87,7 +87,11 @@ func digestRequest() map[string]any {
 			"description": "汇总",
 			"runtime":     map[string]any{"language": "python", "version": "3.12"},
 			"entrypoint":  []string{"python", "main.py"},
-			"params":      map[string]any{"source": "crm"},
+			"workflow": []map[string]string{
+				{"title": "读取线索", "description": "读取 CRM 中的新线索。"},
+				{"title": "生成摘要", "description": "汇总线索并保存摘要。"},
+			},
+			"params": map[string]any{"source": "crm"},
 			"stages": []map[string]any{
 				{"id": "fetch", "name": "获取"},
 				{"id": "save", "name": "保存", "after": []string{"fetch"}},
@@ -178,8 +182,14 @@ func TestTaskEndpoints(t *testing.T) {
 	}
 	rec = c.as(alice, http.MethodGet, "/api/v1/tasks/"+task.ID.String(), nil)
 	c.want(rec, http.StatusOK, "")
-	if got := decode[Task](t, rec); got.LatestVersion.Seq != 2 {
+	got := decode[Task](t, rec)
+	if got.LatestVersion.Seq != 2 {
 		t.Fatalf("get = %+v", got)
+	}
+	workflow := got.LatestVersion.Manifest.Workflow
+	if workflow == nil || len(*workflow) != 2 || (*workflow)[0].Title != "读取线索" ||
+		(*workflow)[1].Description != "汇总线索并保存摘要。" {
+		t.Fatalf("stored workflow = %+v", workflow)
 	}
 
 	// Invisible to others, and the same answer as for a missing task.
@@ -214,6 +224,24 @@ func TestTaskEndpoints(t *testing.T) {
 	// A token without the write scope cannot submit.
 	reader, _ := c.agent("reader", "read")
 	c.want(c.as(reader, http.MethodPut, path, digestRequest()), http.StatusForbidden, ErrorCodeInsufficientScope)
+}
+
+func TestApplyRequiresWorkflow(t *testing.T) {
+	c := newTaskClient(t)
+	token, project := c.agent("alice")
+	path := "/api/v1/projects/" + project.String() + "/tasks/digest"
+
+	omitted := digestRequest()
+	delete(omitted["manifest"].(map[string]any), "workflow")
+	rec := c.as(token, http.MethodPut, path+"?dry_run=true", omitted)
+	c.want(rec, http.StatusBadRequest, ErrorCodeValidationFailed)
+	wantPointers(t, rec, "#/manifest/workflow")
+
+	blank := digestRequest()
+	blank["manifest"].(map[string]any)["workflow"] = []map[string]string{{"title": "读取线索", "description": "　 "}}
+	rec = c.as(token, http.MethodPut, path, blank)
+	c.want(rec, http.StatusUnprocessableEntity, ErrorCodeValidationFailed)
+	wantPointers(t, rec, "#/manifest/workflow/0/description")
 }
 
 func TestRunEndpoints(t *testing.T) {

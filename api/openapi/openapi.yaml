@@ -11,7 +11,7 @@ info:
 
     通用约定：
 
-    - 路径以 `/api/v1` 开头。v1 内只做增量变更。
+    - 路径以 `/api/v1` 开头。试用版提交任务版本须填写 `manifest.workflow`，已有版本仍可读取。
     - 鉴权：Agent 和 CLI 用访问令牌（`Authorization: Bearer wl_pat_...`），控制台用 cookie 会话。
     - 错误一律以 `application/problem+json` 返回，结构见 `Problem`，按 `code` 和 `next_actions` 决定下一步。
     - 每个响应都带 `X-Request-Id` 头，与错误体中的 `request_id` 相同，排查问题时提供它。
@@ -437,6 +437,8 @@ components:
       $ref: ./tasks/schemas.yaml#/TaskName
     Manifest:
       $ref: ./tasks/schemas.yaml#/Manifest
+    TaskWorkflow:
+      $ref: "./tasks/schemas.yaml#/TaskWorkflow"
     RuntimeSpec:
       $ref: ./tasks/schemas.yaml#/RuntimeSpec
     StageSpec:

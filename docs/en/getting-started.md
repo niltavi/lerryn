@@ -51,6 +51,9 @@ name: hello-lerryn
 description: Verify task submission and result retrieval
 runtime: {language: python, version: "3.12"}
 entrypoint: [python, main.py]
+workflow:
+  - title: Generate a greeting
+    description: Read the recipient, print the greeting, and report the result.
 params: {who: world}
 limits: {timeout: "1m", memory: "128Mi"}
 network: none

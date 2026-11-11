@@ -151,6 +151,11 @@ func TestMCPTaskLifecycle(t *testing.T) {
 		return call("task_apply", args)
 	}
 
+	if got, isErr := apply("print(cfg['token'])\n", map[string]any{"dry_run": true}); !isErr {
+		t.Fatalf("task_apply accepted a manifest without workflow: %v", got)
+	}
+	manifest["workflow"] = []map[string]any{{"title": "生成线索摘要", "description": "运行汇总脚本并记录摘要。"}}
+
 	// Preview, then submit.
 	preview, isErr := apply("print(cfg['token'])\n", map[string]any{"dry_run": true})
 	if isErr || preview["dry_run"] != true || preview["task"] != nil {

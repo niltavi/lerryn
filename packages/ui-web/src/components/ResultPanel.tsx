@@ -1,5 +1,6 @@
 import { formatCount, useI18n, type Locale, type RunResult } from "@lerryn/core";
 
+import { CollapsiblePanel } from "./CollapsiblePanel";
 import { ResultStatusPill } from "./RunStatusBadge";
 import { WaveGlyph } from "./Wave";
 
@@ -52,6 +53,7 @@ const show = (v: Primitive, locale: Locale) =>
 export interface ResultPanelProps {
   /** What the task reported with `sbx result`; null renders nothing. */
   result: RunResult | null;
+  collapsible?: boolean;
   className?: string;
 }
 
@@ -61,23 +63,21 @@ export interface ResultPanelProps {
  * the task and carries its own status pill. Without a report it renders
  * nothing, so pages never invent a result.
  */
-export function ResultPanel({ result, className }: ResultPanelProps) {
+export function ResultPanel({ result, collapsible, className }: ResultPanelProps) {
   const { t, locale } = useI18n();
   if (!result) return null;
   const view = viewOfData(result.data);
 
-  return (
-    <section className={["wl-card panel", className].filter(Boolean).join(" ")} aria-label={t("result.title")}>
-      <div className="panel-head">
-        <span className="panel-title">
-          <WaveGlyph size={18} />
-          {t("result.title")}
-        </span>
-        <span className="row" style={{ gap: "var(--space-2)" }}>
-          <ResultStatusPill status={result.status} />
-          <span className="tag">{t("result.reported")}</span>
-        </span>
-      </div>
+  const title = t("result.title");
+  const icon = <WaveGlyph size={18} />;
+  const badges = (
+    <span className="row" style={{ gap: "var(--space-2)" }}>
+      <ResultStatusPill status={result.status} />
+      <span className="tag">{t("result.reported")}</span>
+    </span>
+  );
+  const body = (
+    <>
       {result.summary ? <p className="panel-summary">{result.summary}</p> : null}
       {view.kind === "metrics" ? (
         <div className="hero" style={{ gap: "12px 36px" }}>
@@ -133,6 +133,19 @@ export function ResultPanel({ result, className }: ResultPanelProps) {
           {view.text}
         </pre>
       ) : null}
+    </>
+  );
+
+  if (collapsible) {
+    return <CollapsiblePanel title={title} icon={icon} aside={badges} className={className}>{body}</CollapsiblePanel>;
+  }
+  return (
+    <section className={["wl-card panel", className].filter(Boolean).join(" ")} aria-label={title}>
+      <div className="panel-head">
+        <span className="panel-title">{icon}{title}</span>
+        {badges}
+      </div>
+      {body}
     </section>
   );
 }

@@ -30,6 +30,7 @@ func reportManifest() map[string]any {
 		"description": "汇总并保存报告",
 		"runtime":     map[string]any{"language": "python", "version": "3.12"},
 		"entrypoint":  []string{"python", "main.py"},
+		"workflow":    []map[string]any{{"title": "生成报告", "description": "按参数汇总指定行数，并保存报告。"}},
 		"params":      map[string]any{"rows": 3},
 		"stages":      []map[string]any{{"id": "fetch", "name": "获取"}, {"id": "save", "name": "保存", "after": []string{"fetch"}}},
 		"limits":      map[string]any{"timeout": "5m", "memory": "256Mi"},

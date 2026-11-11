@@ -300,6 +300,66 @@
   .ptable .r { text-align: right; }
   .data-pre { margin: 0; padding: 12px 14px; border-radius: var(--radius-xl); background: var(--liner-2); font-family: var(--font-mono); font-size: 12px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
 
+  .panel-disclosure-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    inline-size: 100%;
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-3xl);
+    text-align: start;
+  }
+  .panel-disclosure-trigger:hover { background: var(--liner-2); }
+  .panel-disclosure-aside { margin-inline-start: auto; }
+  .panel-disclosure-aside + .panel-disclosure-indicator { margin-inline-start: 0; }
+  .panel-disclosure-indicator { color: var(--ink-muted); }
+  .panel-disclosure-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: 0 var(--space-5) var(--space-5);
+  }
+
+  .task-workflow-description { margin-block-start: var(--space-1); white-space: pre-line; }
+
+  /* The rail stretches with wrapped content, stopping at the final marker. */
+  .wl-timeline { --timeline-marker-size: 22px; }
+  .wl-timeline-item {
+    display: grid;
+    grid-template-columns: var(--timeline-marker-size) minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+  .wl-timeline-item:not(:last-child) > .wl-timeline-content { padding-block-end: var(--space-4); }
+  .wl-timeline-content { overflow-wrap: anywhere; }
+  .wl-timeline-rail { position: relative; }
+  .wl-timeline-item:not(:last-child) > .wl-timeline-rail::after {
+    content: "";
+    position: absolute;
+    inset-block: calc(var(--timeline-marker-size) + 2px) 2px;
+    inset-inline-start: calc((var(--timeline-marker-size) - 2px) / 2);
+    inline-size: 2px;
+    border-radius: var(--radius-full);
+    background: var(--line);
+  }
+  .wl-timeline-marker {
+    display: grid;
+    place-items: center;
+    inline-size: var(--timeline-marker-size);
+    block-size: var(--timeline-marker-size);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-sm);
+  }
+  .wl-timeline-marker:empty::before {
+    content: "";
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-full);
+    background: currentColor;
+  }
+
   /* ── 行列表：操作在悬停时出现 ── */
   .rows { background: var(--liner); border: 1px solid var(--line); border-radius: var(--radius-3xl); box-shadow: var(--flute-b);  }
   .rowi { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 20px; border-top: 1px solid var(--line); }

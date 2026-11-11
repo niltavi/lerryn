@@ -27,6 +27,9 @@ func TestCLITaskExportImport(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "lerryn.yaml"), `name: digest
 runtime: {language: python, version: "3.12"}
 entrypoint: [python, main.py]
+workflow:
+  - title: Print version
+    description: Write the script version to the run log.
 credentials: [{name: LLM_API_KEY}]
 `, 0o600)
 	writeFile(t, filepath.Join(dir, "main.py"), "print('v1')\n", 0o600)

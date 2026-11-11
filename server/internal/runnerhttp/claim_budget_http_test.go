@@ -33,7 +33,8 @@ func TestClaimBudgetDoesNotStrandRuns(t *testing.T) {
 				t.Fatal(err)
 			}
 			m := service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"},
-				Entrypoint: []string{"python", "main.py"}, Concurrency: service.ConcurrencyAllow}
+				Entrypoint: []string{"python", "main.py"}, Concurrency: service.ConcurrencyAllow,
+				Workflow: []service.WorkflowStep{{Title: "Print greeting", Description: "Write a greeting to the run log."}}}
 			task, err := e.tasks.Apply(e.ctx, e.user, service.ApplyTaskInput{ProjectID: e.user.PersonalProjectID, Name: "batch", Manifest: m,
 				Files: []service.FileInput{{Path: "main.py", Content: []byte("print('hello')")}}})
 			if err != nil {

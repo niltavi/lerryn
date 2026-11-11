@@ -120,7 +120,8 @@ func TestTaskStateAcrossRunners(t *testing.T) {
 		}
 		manifest := map[string]any{
 			"runtime": map[string]any{"language": source.language, "version": source.version}, "entrypoint": source.entrypoint,
-			"network": "none", "concurrency": "allow", "runner_labels": []string{label},
+			"workflow": []map[string]any{{"title": "累加运行计数", "description": "读取上次保存的计数，加一并保存。"}},
+			"network":  "none", "concurrency": "allow", "runner_labels": []string{label},
 			"limits": map[string]any{"timeout": "30s", "memory": "128Mi"},
 		}
 		var header []string

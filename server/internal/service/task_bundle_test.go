@@ -123,6 +123,8 @@ func TestImportTask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Older versions had no workflow; a mixed history is still portable.
+	b.Versions[0].Manifest.Workflow = nil
 	project := bob.PersonalProjectID
 
 	preview, err := f.tasks.Import(f.ctx, bob, service.ImportTaskInput{ProjectID: project, Bundle: b, DryRun: true})
@@ -163,6 +165,9 @@ func TestImportTask(t *testing.T) {
 		}
 		if got.Manifest.Title != want.Manifest.Title || got.Manifest.Description != want.Manifest.Description {
 			t.Errorf("version %d manifest = %+v", seq, got.Manifest)
+		}
+		if !slices.Equal(got.Manifest.Workflow, b.Versions[seq-1].Manifest.Workflow) {
+			t.Errorf("version %d workflow = %+v", seq, got.Manifest.Workflow)
 		}
 		for _, file := range got.Files {
 			if _, err := blob.ReadAll(f.ctx, f.blobs, file.BlobHash); err != nil {

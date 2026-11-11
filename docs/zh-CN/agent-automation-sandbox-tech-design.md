@@ -271,6 +271,13 @@ runtime:
   version: "3.12"
   lockfile: uv.lock
 entrypoint: ["python", "main.py"]
+workflow:
+  - title: 获取输入
+    description: 读取内部 CRM 中尚未汇总的线索。
+  - title: 生成摘要
+    description: 把线索交给模型，按主题整理摘要。
+  - title: 保存结果
+    description: 保存摘要并上报结果。
 params:
   source: internal-crm
 stages:                     # 可选。声明后控制台按此显示阶段
@@ -304,6 +311,8 @@ panels:                     # 可选。Agent 面板，数据来自 sbx result �
 ```
 
 任务标题 `title` 是可选的单行文字，支持中文，最多 120 个字符。提交新版本或导入任务包时，最新版本的标题与用途说明一起写入任务记录，供列表、详情和搜索读取。省略或留空时，列表和详情顶部显示任务名。
+
+`applyTask` 要求清单带有 `workflow`，预览和正式提交采用同一校验规则。步骤按清单顺序显示在 Web 任务详情中，标题和说明以纯文本渲染。说明随版本存储、比较和导出。已有版本和旧任务包可以省略此字段，后续提交新版本时需要补齐。`stages` 继续用于运行进度上报。
 
 凭证引用按名字而不是凭证 ID：清单里只写 `name`，凭证所有者用授权（`credential_grants`，按任务和引用名唯一）决定实际使用哪一个凭证。这样填写凭证、更换凭证都不产生新的任务版本，也就不需要重新测试；清单在别的部署中也能原样使用。
 
@@ -1179,7 +1188,7 @@ Skill 和参考文档同时作为 MCP resource 提供，内容与服务端版本
 `lerryn-automation` 引导 Agent 按以下顺序操作：
 
 1. 调用 `discover`，确认服务端版本、运行时和可用工具。Skill 版本与服务端不一致时，从服务端获取匹配的版本。
-2. 编写脚本和清单，声明阶段，用 `sbx result` 上报结果。
+2. 编写脚本和清单，在 `workflow` 中按执行顺序说明每一步，声明运行阶段并用 `sbx result` 上报结果。
 3. 用 `task_apply` 提交，先 `dry_run` 查看校验结果和差异。
 4. 缺少凭证时，转到 `lerryn-credentials`。
 5. 发起测试运行，读取日志和结果，确认业务结果符合用户的要求。

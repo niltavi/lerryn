@@ -2,12 +2,15 @@
 
 # 清单字段
 
-任务清单（`task_apply` 的 `manifest`）的全部字段，由接口契约中的 `Manifest` schema 生成。用法和示例见 [manifest.md](manifest.md)。清单不接受未列出的字段。`[]` 表示数组中的每一项。
+任务清单的全部字段，由接口契约中的 `Manifest` schema 生成。提交新任务或新版本时，`task_apply` 另外要求必填 `workflow`。用法和示例见 [manifest.md](manifest.md)。清单不接受未列出的字段。`[]` 表示数组中的每一项。
 
 | 字段 | 类型 | 必填 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
 | `title` | string |  |  | 最长 120 个字符 | 单行显示标题，支持中文。省略或留空时显示任务名。 |
 | `description` | string |  |  | 最长 500 个字符 | 任务用途，给人看。 |
+| `workflow` | array of object |  |  | 至少 1 项；最多 20 项 | 按执行顺序填写每步的标题和操作说明。 |
+| `workflow[].title` | string | 是 |  | 最短 1 个字符；最长 80 个字符 |  |
+| `workflow[].description` | string | 是 |  | 最短 1 个字符；最长 300 个字符 |  |
 | `runtime` | object | 是 |  |  | 运行时（技术设计第 7.3 节）。language 和 version 的组合只能从 `discover` 返回的运行时目录中选，不在目录中的组合以 422 `validation_failed` 拒绝。 |
 | `runtime.language` | string | 是 |  | 取值 `python`、`node`、`shell` | python 为 Python 3.12，用 uv 管理依赖；node 为 Node.js 22，用 npm 管理依赖，`.ts` 文件由 Node 的类型剥离直接运行；shell 为 Bash 5 和常用命令行工具，没有依赖管理。 |
 | `runtime.version` | string | 是 |  | 取值 `3.12`、`22`、`5` | 运行时版本：python 为 `3.12`，node 为 `22`，shell 为 `5`。与语言不对应的组合以 422 拒绝。 |

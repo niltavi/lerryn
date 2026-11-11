@@ -45,8 +45,9 @@ func TestArtifactHTTPDelivery(t *testing.T) {
 			tasks := service.NewTasks(db, authz, blobs, nil)
 			task, err := tasks.Apply(ctx, p, service.ApplyTaskInput{
 				ProjectID: p.PersonalProjectID, Name: "artifact",
-				Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"}, Entrypoint: []string{"python", "main.py"}, Concurrency: service.ConcurrencyAllow},
-				Files:    []service.FileInput{{Path: "main.py", Content: []byte("print('hi')\n")}},
+				Manifest: service.Manifest{Runtime: service.RuntimeSpec{Language: "python", Version: "3.12"}, Entrypoint: []string{"python", "main.py"}, Concurrency: service.ConcurrencyAllow,
+					Workflow: []service.WorkflowStep{{Title: "Print greeting", Description: "Write a greeting to the run log."}}},
+				Files: []service.FileInput{{Path: "main.py", Content: []byte("print('hi')\n")}},
 			})
 			if err != nil {
 				t.Fatal(err)

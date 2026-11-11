@@ -52,9 +52,10 @@ func (a *app) tasksApplyCmd(f *flags) *cobra.Command {
 		Short: "Create a task or submit a new version from a directory",
 		Long: `Create a task or submit a new version from a directory. The directory holds
 a manifest file, lerryn.yaml, and the task's files. The manifest has the
-fields of the task manifest (runtime, entrypoint, params, stages, limits,
-network, concurrency, ...) plus an optional name; the name defaults to the
-directory name.
+fields of the task manifest (runtime, entrypoint, workflow, params, stages,
+limits, ...) plus an optional name; the name defaults to the directory name.
+The workflow is required. List the steps in execution order, each with a
+title and a plain-language description of what the step does.
 
 Every other file is uploaded as UTF-8 text with its executable bit. Hidden
 files and directories (such as .git, .venv and .env), __pycache__ and

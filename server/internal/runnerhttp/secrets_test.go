@@ -26,6 +26,7 @@ func TestSecretsOverHTTP(t *testing.T) {
 	m := service.Manifest{
 		Runtime:     service.RuntimeSpec{Language: "python", Version: "3.12"},
 		Entrypoint:  []string{"python", "main.py"},
+		Workflow:    []service.WorkflowStep{{Title: "Use credential", Description: "Read the credential from the mounted file."}},
 		Concurrency: service.ConcurrencyAllow,
 		Credentials: []service.CredentialSpec{{Name: "LLM_API_KEY", As: "file"}},
 	}

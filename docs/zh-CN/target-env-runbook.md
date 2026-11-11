@@ -143,6 +143,9 @@ cat capacity-*/results.md
    description: 容量测试：每秒 500 行，持续 20 秒
    runtime: {language: shell, version: "5"}
    entrypoint: [bash, main.sh]
+   workflow:
+     - title: 生成测试日志
+       description: 持续 20 秒，每秒输出 500 行日志。
    network: none
    concurrency: allow
    limits: {timeout: 5m, cpu: 0.5, memory: 128Mi}

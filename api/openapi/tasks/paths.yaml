@@ -63,10 +63,8 @@ applyTask:
     tags: [tasks]
     summary: 提交任务
     description: |
-      按项目和任务名提交不可变的版本，新任务从第 1 版开始。运行记录指向实际使用的版本。
-      已有任务须用 `If-Match` 传最新版本号。不一致返回 412 `version_conflict`，缺少时返回 428 `precondition_required`。
-      `dry_run=true` 只校验和预览。响应含警告及与激活版本（否则为上一个版本）的差异。
-      新版本经测试后调用 setTaskActivation 激活，触发器才会使用它。
+      提交不可变的任务版本。`dry_run=true` 只校验和预览。
+      已有任务须用 `If-Match` 传最新版本号。测试通过后用 setTaskActivation 激活。
     x-operation-kind: mutate
     x-mcp:
       expose: true
@@ -74,6 +72,7 @@ applyTask:
       title: 提交任务
       description: |
         创建任务或提交新版本：给出完整的清单（manifest）和全部文件（files，UTF-8 文本）。
+        manifest.workflow 必填。按执行顺序，用用户的语言为每一步写 title 和 description，说明操作及结果。更新代码时同步更新流程说明。
         新建任务时建议默认填写 manifest.title，用用户的语言写一个简短标题，例如「GitHub 费用日报」。更新任务时沿用已有标题，除非用户要求更改或清除。
         project_id 用 discover 返回的 principal.personal_project_id。运行时只能从 discover 的 runtimes 中选。
         修改已有任务时 if_match 必填，值为读到的 latest_version.seq；收到 version_conflict 时先用 task_get 和差异确认别人的修改，不要直接覆盖。

@@ -22,6 +22,7 @@ import (
 type Manifest struct {
 	Title       string         `json:"title,omitempty"`
 	Description string         `json:"description,omitempty"`
+	Workflow    []WorkflowStep `json:"workflow,omitempty"`
 	Runtime     RuntimeSpec    `json:"runtime"`
 	Entrypoint  []string       `json:"entrypoint"`
 	Params      map[string]any `json:"params,omitempty"`
@@ -41,6 +42,12 @@ type Manifest struct {
 	Tools       []string    `json:"tools,omitempty"`
 	SideEffects *bool       `json:"side_effects,omitempty"`
 	Panels      []PanelSpec `json:"panels,omitempty"`
+}
+
+// WorkflowStep is one operation in the task's versioned workflow diagram.
+type WorkflowStep struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 // PanelSpec declares an agent panel over the run result's data.
@@ -136,6 +143,9 @@ const (
 	maxParamsBytes   = 16 << 10
 	maxTaskTitle     = 120
 	maxDescription   = 500
+	maxWorkflowSteps = 20
+	maxWorkflowTitle = 80
+	maxWorkflowText  = 300
 	maxEntrypoint    = 32
 	maxArgBytes      = 1024
 	maxStages        = 50
@@ -161,6 +171,7 @@ func validateManifest(v *validation, m *Manifest, paths map[string]bool) {
 	if utf8.RuneCountInString(m.Description) > maxDescription {
 		v.content(at+"/description", fmt.Sprintf("用途说明最多 %d 个字符", maxDescription))
 	}
+	validateWorkflow(v, m.Workflow)
 
 	validateRuntime(v, at+"/runtime", m.Runtime, paths)
 
@@ -231,6 +242,33 @@ func validateManifest(v *validation, m *Manifest, paths map[string]bool) {
 	}
 	validateRetry(v, at+"/retry", m.Retry)
 	validateReferences(v, m)
+}
+
+// validateWorkflow accepts an omitted workflow in older task bundles.
+// Apply separately requires a workflow for every new submission.
+func validateWorkflow(v *validation, steps []WorkflowStep) {
+	const at = "#/manifest/workflow"
+	if steps == nil {
+		return
+	}
+	if len(steps) == 0 || len(steps) > maxWorkflowSteps {
+		v.content(at, fmt.Sprintf("流程需要 1 到 %d 个步骤", maxWorkflowSteps))
+		return
+	}
+	for i, step := range steps {
+		if !validWorkflowText(step.Title, maxWorkflowTitle) ||
+			strings.ContainsFunc(step.Title, func(r rune) bool { return unicode.IsControl(r) || r == '\u2028' || r == '\u2029' }) {
+			v.content(fmt.Sprintf("%s/%d/title", at, i), fmt.Sprintf("步骤标题需要 1 到 %d 个字符，不能换行或包含控制字符", maxWorkflowTitle))
+		}
+		if !validWorkflowText(step.Description, maxWorkflowText) ||
+			strings.ContainsFunc(step.Description, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\r' && r != '\t' }) {
+			v.content(fmt.Sprintf("%s/%d/description", at, i), fmt.Sprintf("用 1 到 %d 个字符说明这一步做什么", maxWorkflowText))
+		}
+	}
+}
+
+func validWorkflowText(s string, limit int) bool {
+	return utf8.ValidString(s) && utf8.RuneCountInString(s) <= limit && strings.TrimSpace(s) != ""
 }
 
 // validateReferences checks the rules of credentials and panels that the

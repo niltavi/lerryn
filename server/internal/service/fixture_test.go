@@ -73,6 +73,7 @@ func basicManifest() service.Manifest {
 	return service.Manifest{
 		Runtime:    service.RuntimeSpec{Language: "python", Version: "3.12"},
 		Entrypoint: []string{"python", "main.py"},
+		Workflow:   []service.WorkflowStep{{Title: "Execute script", Description: "Run the Python script and capture its output."}},
 	}
 }
 

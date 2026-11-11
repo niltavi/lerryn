@@ -35,6 +35,7 @@ import {
 } from "@lerryn/core";
 import {
   AgentPanels,
+  CollapsiblePanel,
   CopyButton,
   CronDetails,
   CronText,
@@ -43,6 +44,7 @@ import {
   RunsStrip,
   StatusGlyph,
   ToneGlyph,
+  WaveGlyph,
 } from "@lerryn/ui-web";
 import { Link, useParams } from "@tanstack/react-router";
 import { Box, CalendarClock, Check, Clock, Copy, FileText, KeyRound, Link2, Webhook, X } from "lucide-react";
@@ -59,6 +61,7 @@ import { TaskListColumn } from "../TaskListColumn";
 import { EditTaskTagsButton, TaskTags } from "./TaskTags";
 import { VersionDiffDialog } from "./VersionDiffDialog";
 import { TaskActions } from "./TaskActions";
+import { TaskWorkflow } from "./TaskWorkflow";
 
 export function TaskPage() {
   const { taskId } = useParams({ from: "/app/tasks/$taskId" });
@@ -232,7 +235,8 @@ function TaskBoard({ task }: { task: Task }) {
         <OwnerChip task={task} />
       </div>
 
-      <LastResult task={task} runId={runItems.find((r) => r.result_status !== null)?.id} />
+      <TaskWorkflow key={`workflow-${task.id}`} version={version} />
+      <LastResult key={`result-${task.id}`} task={task} runId={runItems.find((r) => r.result_status !== null)?.id} />
 
       <VersionDiffDialog taskId={task.id} seq={diffSeq} onClose={() => setDiffSeq(null)} />
     </Board>
@@ -547,16 +551,14 @@ function ResultBody({ task, result, at }: { task: Task; result: RunResult; at: s
   const history = useResultHistory(task.id, need, need > 0);
   const histories = Object.fromEntries((manifest.panels ?? []).filter((p) => p.history).map((p) => [p.id, history.points]));
   const panels = agentPanels(manifest.panels, result.data, { history: histories, historyLabel: (iso) => formatDate(iso, locale) });
-  if (panels.length === 0) return <ResultPanel result={result} />;
+  if (panels.length === 0) return <ResultPanel result={result} collapsible />;
   return (
-    <section className="stack" aria-label={t("task.lastResult")}>
-      <span className="sec-label">
-        {t("task.lastResult")}
-        <span className="caption muted" style={{ fontWeight: 400 }}>
-          {formatDateTime(at, locale)}
-        </span>
-      </span>
+    <CollapsiblePanel
+      title={t("task.lastResult")}
+      icon={<WaveGlyph size={18} />}
+      aside={<span className="caption muted">{formatDateTime(at, locale)}</span>}
+    >
       <AgentPanels panels={panels} />
-    </section>
+    </CollapsiblePanel>
   );
 }

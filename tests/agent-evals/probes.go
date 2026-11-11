@@ -22,6 +22,7 @@ func probeRequest() map[string]any {
 		"manifest": map[string]any{
 			"runtime":    map[string]any{"language": "shell", "version": "5"},
 			"entrypoint": []string{"bash", "main.sh"},
+			"workflow":   []map[string]any{{"title": "记录探测结果", "description": "输出探测标记，供调用方确认脚本已运行。"}},
 			"network":    "none",
 		},
 		"files": []map[string]any{{"path": "main.sh", "content": "echo probe\n"}},

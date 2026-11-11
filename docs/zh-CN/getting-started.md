@@ -51,6 +51,9 @@ name: hello-lerryn
 description: 验证任务提交与结果读取
 runtime: {language: python, version: "3.12"}
 entrypoint: [python, main.py]
+workflow:
+  - title: 生成问候
+    description: 读取问候对象，输出问候语并上报结果。
 params: {who: world}
 limits: {timeout: "1m", memory: "128Mi"}
 network: none

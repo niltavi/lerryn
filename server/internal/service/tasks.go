@@ -146,6 +146,9 @@ func (t *Tasks) Apply(ctx context.Context, p *auth.Principal, in ApplyTaskInput)
 	}
 	paths := validateFiles(&v, in.Files)
 	validateManifest(&v, &in.Manifest, paths)
+	if in.Manifest.Workflow == nil {
+		v.content("#/manifest/workflow", "提交任务需要流程说明，请按执行顺序写明每一步做什么")
+	}
 	if err := v.err(); err != nil {
 		return ApplyResult{}, err
 	}

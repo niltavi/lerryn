@@ -161,6 +161,9 @@ func TestCLIEndToEnd(t *testing.T) {
 description: CLI end-to-end test
 runtime: {language: python, version: "3.12"}
 entrypoint: [python, main.py]
+workflow:
+  - title: Print greeting
+    description: Write a greeting to the run log.
 params: {who: world}
 `, 0o600)
 	writeFile(t, filepath.Join(dir, "main.py"), "print('hello')\n", 0o600)

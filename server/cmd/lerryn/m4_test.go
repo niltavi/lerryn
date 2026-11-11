@@ -200,7 +200,7 @@ func TestA18AccountsAndAgentAuthorization(t *testing.T) {
 	}
 	task := map[string]any{
 		"manifest": map[string]any{"description": "汇总", "runtime": map[string]any{"language": "python", "version": "3.12"},
-			"entrypoint": []string{"python", "main.py"}},
+			"entrypoint": []string{"python", "main.py"}, "workflow": []map[string]any{{"title": "输出问候", "description": "在日志中输出一条问候。"}}},
 		"files": []map[string]any{{"path": "main.py", "content": "print('hi')\n"}},
 	}
 	d.wantCode(http.MethodPut, "/api/v1/projects/"+aliceProject+"/tasks/digest", task, http.StatusNotFound, "not_found", agent...)

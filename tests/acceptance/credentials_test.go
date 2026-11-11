@@ -257,6 +257,7 @@ func (u *user) applyTask(name, main string, manifest map[string]any) task {
 	m := map[string]any{
 		"runtime":     map[string]any{"language": "python", "version": "3.12"},
 		"entrypoint":  []string{"python", "main.py"},
+		"workflow":    []map[string]any{{"title": "使用凭证", "description": "从注入的凭证读取授权信息并执行操作。"}},
 		"network":     "none",
 		"concurrency": "allow",
 		"credentials": []any{map[string]any{"name": "API_TOKEN"}},
@@ -397,7 +398,8 @@ func TestA06SensitiveValuesNeverShown(t *testing.T) {
 	rejectApply := alice.api(http.MethodPut, "/api/v1/projects/"+alice.project+"/tasks/leaky-copy", map[string]any{
 		"manifest": map[string]any{
 			"runtime": map[string]any{"language": "python", "version": "3.12"}, "entrypoint": []string{"python", "main.py"},
-			"params": map[string]any{"auth": basic},
+			"workflow": []map[string]any{{"title": "输出结果", "description": "运行脚本并记录结果。"}},
+			"params":   map[string]any{"auth": basic},
 		},
 		"files": []any{map[string]any{"path": "main.py", "content": "TOKEN = '" + url.QueryEscape(a06Secret) + "'\n"}},
 	}, http.StatusUnprocessableEntity, nil)

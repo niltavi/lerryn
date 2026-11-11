@@ -10,9 +10,12 @@
   "task_name": "weekday-digest",
   "manifest": {
     "title": "工作日 CRM 线索摘要",
-    "description": "工作日早上汇总 CRM 新线索",
+    "description": "验证任务结果上报",
     "runtime": {"language": "python", "version": "3.12"},
-    "entrypoint": ["python", "main.py"]
+    "entrypoint": ["python", "main.py"],
+    "workflow": [
+      {"title": "上报检查结果", "description": "将检查完成的结果发送给 Lerryn，供任务详情页查看。"}
+    ]
   },
   "files": [{"path": "main.py", "content": "import sbx\nsbx.result(\"ok\", \"完成\")\n"}]
 }
@@ -46,6 +49,8 @@
 `params` 是默认参数，运行时以 JSON 放在环境变量 `LERRYN_PARAMS` 中，`sbx.params()` 读取。`run_start` 和触发器的 `params` 整体替换它，不做合并。参数会出现在运行记录里，不放凭证。
 
 ## 阶段与结果
+
+每次提交都要填写 `workflow`。按执行顺序列出 1 到 20 步。每步给一个单行 `title`（最多 80 个字符）和一段 `description`（最多 300 个字符），用用户的语言说明输入、操作、输出，以及何时跳过某一步或提前结束。修改脚本时同步核对说明。任务详情的「任务说明」按清单顺序绘制流程图。
 
 `stages` 声明阶段（`id`、`name`、可选的 `after`），任务用 `sbx stage` 上报进度，控制台按声明的顺序显示。阶段 ID 是小写字母、数字、`_`、`-`。不声明也能上报，但声明后控制台能显示还没开始的阶段。
 

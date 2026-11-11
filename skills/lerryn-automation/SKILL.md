@@ -11,7 +11,7 @@ Lerryn 是企业自部署的自动化沙箱。你提交任务清单和文件，�
 ## 主流程
 
 1. **发现能力。** 调用 `discover`。记下 `principal.personal_project_id`（建任务用的 `project_id`）、`runtimes`（运行时只能从这里选）、`capabilities.network_policies` 和 `capabilities.require_test_before_activate`。`skills.version` 与本 Skill 目录下 `.lerryn-skill` 记录的版本不同时，提醒用户用同版本的 `lerryn skills install` 更新。
-2. **写脚本和清单。** 按 [references/manifest.md](references/manifest.md) 写清单，按 [references/sbx.md](references/sbx.md) 用 `sbx` 上报阶段和结果。三种运行时的完整示例在 [references/examples.md](references/examples.md)。字段的完整定义在 [references/manifest-fields.md](references/manifest-fields.md)。
+2. **写脚本和清单。** 按 [references/manifest.md](references/manifest.md) 写清单。在 `manifest.workflow` 中按执行顺序写出从输入到结果的每一步，用用户的语言说明操作及条件。按 [references/sbx.md](references/sbx.md) 用 `sbx` 上报阶段和结果。三种运行时的完整示例在 [references/examples.md](references/examples.md)。字段的完整定义在 [references/manifest-fields.md](references/manifest-fields.md)。
 3. **提交。** 新建任务时默认在 `manifest.title` 用用户的语言填写简短标题，例如「GitHub 费用日报」。修改任务时先 `task_get`，沿用原有标题，把 `latest_version.seq` 作为 `if_match`。先用 `task_apply` 带 `dry_run: true` 看校验结果和 `diff`，再正式提交。
 4. **凭证。** 清单引用了凭证而还没有绑定时（`warnings` 或 `task_validate` 里出现 `credential_missing`），用 `credential_request` 发起填写请求，把返回的 `url` 原样交给用户。交出链接后不要就此结束：在同一轮里用 `api_call`（参数放在 `arguments` 里：`{"operation_id": "getCredentialRequest", "arguments": {"request_id": "<id>"}}`） 调用一次 `getCredentialRequest`看 `status`，`fulfilled` 就直接继续第 5 步，`pending` 才结束这一轮，请用户填好后说一声。字段写法和更新、撤销见 `lerryn-credentials` Skill。
 5. **测试。** `run_start` 带 `test: true`，用 `run_get`（带 `wait`，最多 60 秒）等结束，用 `run_logs` 读日志。逐项核对 `result` 是否符合用户的要求。失败时转到 `lerryn-troubleshoot` Skill。
@@ -30,6 +30,7 @@ Lerryn 是企业自部署的自动化沙箱。你提交任务清单和文件，�
 6. `side_effects: true` 的任务失败后，不自动重跑，先向用户说明已经发生了什么，等用户确认。测试运行也真实执行代码，换了参数照样会发消息、写数据，所以这类任务的测试运行同样要先征得用户同意。
 7. 收到 `version_conflict` 时，先读最新版本和差异，把别人的修改合进来再提交；不要拿旧内容覆盖。
 8. 每完成一步对用户可见的操作，把响应里的 `links.console` 交给用户。
+9. 提交新任务或新版本时必须填写 `manifest.workflow`。先核对每一步与脚本一致，写清实际读取、生成或改动了什么。修改脚本时同步更新流程说明。
 
 ## 常见坑
 
