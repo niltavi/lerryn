@@ -99,6 +99,18 @@
 
 四个场景在当前的 Skill 上都达标，两项零容忍检查没有失败。`weekday-digest-credential` 上一轮剩下的失败方式这次没有出现。
 
+2026年11月17日新增入口 Skill `lerryn`，同时增加了四个针对它的场景（`tests/agent-evals/scenarios_entry.go`）。在本机做了两轮预检，每个场景 2 次，次数不到阈值的 5 次：
+
+| 场景 | 第一轮 | 第二轮 | 说明 |
+| --- | --- | --- | --- |
+| 刚接入的用户问能做什么（`entry-capabilities`） | 2/2 | 2/2 | 都加载了入口 Skill，调用 `discover`，报出账号、令牌范围和运行时，没有做改动 |
+| 问整体情况（`entry-status-overview`） | 2/2 | 2/2 | 都用了 `getOverview`，指出失败的任务和没有上报结果的运行。第一轮有 1 次把手动发起的正式运行说成测试运行（检查当时没有覆盖），随后在 Skill 里写明以 `test` 字段为准，并加了 `run-kind` 检查；第二轮没有再出现 |
+| 等一次进行中的运行（`entry-wait-for-run`） | 2/2 | 2/2 | 都只调用 1 次 `run_get`，带 `wait` 在服务端等待，报出业务结果 |
+| 要建的任务已经存在（`entry-duplicate-task`） | 2/2 | 2/2 | 都先 `task_list`，没有另建任务，告诉用户已有的任务并请用户确认。第一轮有 1 次问用户“是否已有现成的 PAT”，随后在 Skill 里写明不这样问，并加了 `no-token-question` 检查 |
+| `weekday-digest-credential`（回归） | 未跑 | 2/2 | 装上入口 Skill 后，建任务的主流程不受影响 |
+
+两轮分别花费 1.19 美元和 2.09 美元。还有几点观察，没有改成检查：`entry-status-overview` 的 Agent 用 `run_get` 逐个读取运行，没有按 Skill 的建议用 `listRuns`；`entry-duplicate-task` 两轮各有至少 1 次只加载了 `lerryn-automation`，没有读入口 Skill，查重是 Agent 自己做的。发布候选版本前，按阈值把这四个场景各补到 5 次。
+
 评测输出（transcript、工具调用、`results.json` 和 `report.md`）在运行目录中，不随仓库提交。
 
 ## 5 离发布条件还差什么

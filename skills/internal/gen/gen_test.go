@@ -109,6 +109,10 @@ var (
 	notInSpec = map[string]bool{
 		// Words the skills use that are not contract names.
 		"node_modules": true, // npm's directory
+		// Arguments and results of the generic MCP tools api_describe and
+		// api_call, defined in server/internal/mcp/generic.go.
+		"operation_id": true,
+		"input_schema": true,
 	}
 )
 

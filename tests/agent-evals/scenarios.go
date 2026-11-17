@@ -17,9 +17,10 @@ import (
 	"time"
 )
 
-// Scenarios are the evaluations of tech design 11.8, in its order.
+// Scenarios are the evaluations of tech design 11.8, in its order,
+// followed by those of the entry skill.
 func Scenarios() []Scenario {
-	return []Scenario{weekdayDigest(), fixDependency(), concurrentEdit(), sideEffectFailure()}
+	return append([]Scenario{weekdayDigest(), fixDependency(), concurrentEdit(), sideEffectFailure()}, entryScenarios()...)
 }
 
 // ---------------------------------------------------------------------

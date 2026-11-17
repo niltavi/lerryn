@@ -134,7 +134,7 @@ HTTP 错误响应中的 `code`、`errors`、`next_actions` 和 `request_id` 用�
 
 ## Agent Skill 与任务内置能力
 
-`lerryn skills install` 安装二进制内嵌的四份 Skill：`lerryn-automation`、`lerryn-credentials`、`lerryn-troubleshoot` 和 `lerryn-operate`。默认目录是 `~/.claude/skills`，其他客户端可用 `--dir <目录>` 指定安装位置。MCP 客户端也可读取 `lerryn://skills/<名称>/SKILL.md` resource。根据 `discover.skills.version` 保持版本匹配。
+`lerryn skills install` 安装二进制内嵌的五份 Skill：入口 Skill `lerryn`（能力、连接、内置工具、创建任务和查看进度的规范），以及 `lerryn-automation`、`lerryn-credentials`、`lerryn-troubleshoot` 和 `lerryn-operate`。默认目录是 `~/.claude/skills`，其他客户端可用 `--dir <目录>` 指定安装位置。MCP 客户端也可读取 `lerryn://skills/<名称>/SKILL.md` resource。根据 `discover.skills.version` 保持版本匹配。
 
 任务容器提供 Python、Node 和 Shell 的 `sbx`，无需在任务依赖中安装，用于阶段、结果和外部 MCP 调用：
 

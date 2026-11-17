@@ -179,7 +179,7 @@ lerryn skills install --project          # .claude/skills in the current directo
 lerryn skills install --dir <directory> --skill lerryn-automation
 ```
 
-The binary embeds four Skills matched to its contract: `lerryn-automation`, `lerryn-credentials`, `lerryn-troubleshoot`, and `lerryn-operate` (source: `skills/`). Installation creates a subdirectory per Skill and a `.lerryn-skill` version marker. Reinstallation replaces managed directories, removing files deleted in later versions and leaving unrelated directory contents alone. An existing same-name directory without the marker is refused with exit code 1; use `--force` when replacement is intended. Other Agent Skills clients can use `--dir` to select their directory.
+The binary embeds five Skills matched to its contract: `lerryn` (the entry Skill), `lerryn-automation`, `lerryn-credentials`, `lerryn-troubleshoot`, and `lerryn-operate` (source: `skills/`). Installation creates a subdirectory per Skill and a `.lerryn-skill` version marker. Reinstallation replaces managed directories, removing files deleted in later versions and leaving unrelated directory contents alone. An existing same-name directory without the marker is refused with exit code 1; use `--force` when replacement is intended. Other Agent Skills clients can use `--dir` to select their directory.
 
 Reinstall after upgrading the CLI or server so Skills match the server contract.
 

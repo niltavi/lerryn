@@ -37,7 +37,7 @@ make check
 | `design/` | Design tokens, native components, component gallery, and brand assets |
 | `deploy/` | Configuration examples and Compose deployments |
 | `runtimes/sdk/` | Python, Node, and Shell task helpers |
-| `skills/` | Agent Skills for automation, credentials, troubleshooting, and operations |
+| `skills/` | Agent Skills: entry point, automation, credentials, troubleshooting, and operations |
 | `tests/` | Acceptance tests, agent evaluations, and capacity tests |
 | `docs/` | Language index, English documents in `en/`, Chinese documents in `zh-CN/`, and shared assets in `assets/` |
 | `website/` | Standalone English and Chinese website for `lerryn.niltavi.com` |

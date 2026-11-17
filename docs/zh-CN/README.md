@@ -64,7 +64,7 @@ packages/core/         Web 与移动端共用的数据查询、日志和展示�
 packages/ui-web/       Web 控制台组件
 deploy/                部署文件：配置示例、单机和标准拓扑的 Compose 文件，说明见 docs/zh-CN/deploy.md
 runtimes/sdk/          Python、Node、Shell 的 sbx 辅助库（Apache-2.0）
-skills/                任务自动化、排错、凭证与运维的 Agent Skills（Apache-2.0）
+skills/                入口、任务自动化、排错、凭证与运维的 Agent Skills（Apache-2.0）
 tests/                 验收、Agent 评测和容量测试
 .claude/skills/        本仓库开发用的项目级 Skill
 ```

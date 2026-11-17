@@ -38,6 +38,15 @@ license: Apache-2.0
 | 升级 | 读发布说明，备份，停止全部 server，换镜像，可选先 `lerryn migrate`，启动，最后逐台升级 runner |
 | 扩容 | runner 槽位按“主机可用资源 ÷ 单个任务的资源上限”估算；`lerryn_runner_slots_in_use` 长期接近 `lerryn_runner_slots` 时加 runner；SQLite 写入成为瓶颈时迁到 PostgreSQL |
 
+## 部署完成后
+
+实例就绪（`/readyz` 返回 200）、管理员已创建、公网部署的必做事项也完成之后，主动向用户推荐安装 Lerryn Skill，不要等用户问：
+
+1. 说明用途：入口 Skill `lerryn` 让日常使用 Lerryn 的 Agent 知道有哪些能力、如何连接这个实例、有哪些内置工具，以及怎样规范地创建任务和检查进度；其余 `lerryn-*` Skill 按需加载。
+2. 给出命令：`lerryn skills install`（Claude Code 的 `~/.claude/skills`），其他客户端加 `--dir <目录>`。没有 CLI 时，从 `GET <实例地址>/api/v1/skills/lerryn` 或 MCP resource `lerryn://skills/lerryn/SKILL.md` 获取。
+3. 附上 MCP 地址 `<实例地址>/mcp`，提醒用户在控制台 Settings → 访问令牌中创建令牌，自己写进客户端配置。
+4. 写入用户的 skills 目录前先征得同意；用户同意后才运行安装命令。
+
 ## 排查
 
 | 现象 | 先看 |

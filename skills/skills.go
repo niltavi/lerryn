@@ -26,9 +26,9 @@ import (
 //go:generate go run ./internal/gen
 
 // Names lists the skills in the order they are presented.
-var Names = []string{"lerryn-automation", "lerryn-credentials", "lerryn-troubleshoot", "lerryn-operate"}
+var Names = []string{"lerryn", "lerryn-automation", "lerryn-credentials", "lerryn-troubleshoot", "lerryn-operate"}
 
-//go:embed lerryn-automation lerryn-credentials lerryn-troubleshoot lerryn-operate
+//go:embed lerryn lerryn-automation lerryn-credentials lerryn-troubleshoot lerryn-operate
 var files embed.FS
 
 // FS returns the embedded skill tree: one directory per skill.

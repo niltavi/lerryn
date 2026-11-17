@@ -265,8 +265,8 @@ func TestScenarioDefinitions(t *testing.T) {
 			t.Errorf("%s: bad prompt %q", s.Name, p)
 		}
 	}
-	if len(seen) != 4 {
-		t.Errorf("want the four scenarios of tech design 11.8, have %d", len(seen))
+	if want := 4 + len(entryScenarios()); len(seen) != want {
+		t.Errorf("want the four scenarios of tech design 11.8 and the entry skill's, %d in all; have %d", want, len(seen))
 	}
 }
 
@@ -286,5 +286,25 @@ func TestResponsePending(t *testing.T) {
 	var buf bytes.Buffer
 	if err := (Response{Body: []byte("x")}).Decode(&buf); err == nil {
 		t.Error("Decode accepted a non-JSON body")
+	}
+}
+
+func TestEntryScenarioPatterns(t *testing.T) {
+	for s, want := range map[string]bool{
+		"这些都是手动触发的测试运行。":           true,
+		"这三次运行都不是测试运行，是手动发起的正式运行。": false,
+		"它们均为正式运行。":                false,
+	} {
+		if got := calledTestRuns.MatchString(s); got != want {
+			t.Errorf("calledTestRuns(%q) = %v, want %v", s, got, want)
+		}
+	}
+	for s, want := range map[string]bool{
+		"是否已有现成的 PAT，还是需要我发起凭证填写请求":           true,
+		"需要一个有权限读取账单的 GitHub Token，我会发起填写请求。": false,
+	} {
+		if got := asksForExistingToken.MatchString(s); got != want {
+			t.Errorf("asksForExistingToken(%q) = %v, want %v", s, got, want)
+		}
 	}
 }

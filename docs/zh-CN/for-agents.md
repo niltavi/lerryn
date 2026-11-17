@@ -10,13 +10,14 @@ Lerryn 是自部署的自动化沙箱。你通过 MCP、HTTP API 或 CLI 维护 
 
 1. 确认用户要连接已有实例，还是部署一个新实例。已有实例从[快速入门](getting-started.md)开始；新实例按[部署与运维](deploy.md)选择单机或多节点方案，完成首次管理员注册后再开放访问。
 2. 按 [Tools 接入](tools.md)连接远程 MCP，或通过已登录的 `lerryn` CLI 使用 stdio 代理。凭证由用户在本地客户端或专用填写页提交。
-3. 调用 `discover`，读取当前身份、项目、运行时、能力和 Skill 版本。用 `lerryn skills install` 安装与实例版本匹配的操作 Skill；其他客户端可用 `--dir <目录>` 指定位置。MCP 客户端也可以读取 `lerryn://skills/<name>/SKILL.md`。
+3. 调用 `discover`，读取当前身份、项目、运行时、能力和 Skill 版本。用 `lerryn skills install` 安装与实例版本匹配的 Skill，先读入口 Skill [`lerryn`](../../skills/lerryn/SKILL.md)：它说明 Lerryn 的能力、连接方式、内置工具，以及创建任务和查看进度的规范；其他客户端可用 `--dir <目录>` 指定位置。MCP 客户端也可以读取 `lerryn://skills/<name>/SKILL.md`。
 4. 按[快速入门](getting-started.md)验证一个无网络、无凭证的测试任务，再按用户的目标继续。保留任务 ID、版本、运行 ID 和响应中的 `links.console`，方便之后接着处理。
 
 ## 操作目录
 
 | 用户的目标 | 阅读入口 |
 | --- | --- |
+| 了解 Lerryn 能做什么、连接实例、查看任务和运行进度 | [入口 Skill](../../skills/lerryn/SKILL.md)、[连接说明](../../skills/lerryn/references/connect.md)、[进度检查](../../skills/lerryn/references/progress.md) |
 | 安装、首次注册、公网访问、单机或多节点部署 | [部署与运维](deploy.md)、[运维 Skill](../../skills/lerryn-operate/SKILL.md) |
 | 登录、访问令牌、MCP、HTTP API、CLI 和能力发现 | [Tools 接入](tools.md)、[CLI 与 Agent 接入](cli.md) |
 | 创建、修改、预览、测试和激活任务 | [自动化任务 Skill](../../skills/lerryn-automation/SKILL.md) |
