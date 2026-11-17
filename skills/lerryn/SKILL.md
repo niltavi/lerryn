@@ -70,9 +70,16 @@ Lerryn 是企业自部署的自动化沙箱。你是调度侧：替用户把需�
 | --- | --- |
 | “这次运行怎么样了” | `run_get` 带 `wait`（最多 60 秒）；看 `status`、`stages`、`result`、`error`。需要细节时 `run_logs` 带 `tail` |
 | “这个任务最近跑得怎么样” | `task_get` 看 `state` 和 `active_version`；`api_call` 调用 `listRuns`，带 `task_id` 和 `limit` |
-| “整体情况、有什么要处理的” | `api_call` 调用 `getOverview`：`counts`、`attention`（失败、待填凭证等）、`active`（进行中）、`upcoming`（下次触发）。`attention` 不含业务结果有问题的运行，再用 `listRuns` 带 `since` 看最近运行的 `result_status` |
+| “整体情况、有什么要处理的” | 按下面两步，不要逐个 `task_get`、`run_get` |
 | “有哪些任务” | `task_list`，可按 `project_id`、`tag`、`q` 筛选 |
 | “产出了什么文件” | `api_call` 调用 `listArtifacts`；下载用 CLI 或控制台链接 |
+
+整体情况固定两次调用，参数已经给出，不必先 `api_describe`：
+
+1. `api_call` 传 `{"operation_id": "getOverview", "arguments": {}}`：`counts`、`attention`（运行失败、超时、中断，待填或将过期的凭证）、`active`（进行中）、`upcoming`（下次触发）。
+2. `api_call` 传 `{"operation_id": "listRuns", "arguments": {"since": "<用户时区今天 0 点，RFC 3339>", "limit": 50}}`：`attention` 不收业务结果有问题的运行，要从这里看。每条带 `status`、`result_status`、`result_summary`、`test`、`trigger`、`links`；`completed` 而 `result_status` 为 null，就是没有上报结果。
+
+先报需要处理的，再报进行中和接下来的触发，正常的一句带过。
 
 汇报时说清：状态、业务结果（`result.status` 和摘要）、失败在哪个阶段、下一次触发时间，并附 `links.console`。测试运行还是正式运行只看运行的 `test` 字段，来源看 `trigger.kind`（手动、定时、Webhook、自动重试），不要从任务是否激活去推断。下一步建议用用户的话说（“激活这个版本”），不要把工具名当成给用户的操作说明。运行失败或结果不对时转到 `lerryn-troubleshoot` Skill。
 

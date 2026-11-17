@@ -10,7 +10,7 @@ Lerryn 是企业自部署的自动化沙箱。你提交任务清单和文件，�
 
 ## 主流程
 
-1. **发现能力。** 调用 `discover`。记下 `principal.personal_project_id`（建任务用的 `project_id`）、`runtimes`（运行时只能从这里选）、`capabilities.network_policies` 和 `capabilities.require_test_before_activate`。`skills.version` 与本 Skill 目录下 `.lerryn-skill` 记录的版本不同时，提醒用户用同版本的 `lerryn skills install` 更新。
+1. **发现能力。** 调用 `discover`。记下 `principal.personal_project_id`（建任务用的 `project_id`）、`runtimes`（运行时只能从这里选）、`capabilities.network_policies` 和 `capabilities.require_test_before_activate`。`skills.version` 与本 Skill 目录下 `.lerryn-skill` 记录的版本不同时，提醒用户用同版本的 `lerryn skills install` 更新。新建任务前先用 `task_list`（`q` 填关键词）查有没有做同样事情的任务；找到时告诉用户它的名称、标题和现状，确认是修改它还是另建，不要直接新建重复任务。
 2. **写脚本和清单。** 按 [references/manifest.md](references/manifest.md) 写清单。在 `manifest.workflow` 中按执行顺序写出从输入到结果的每一步，用用户的语言说明操作及条件。按 [references/sbx.md](references/sbx.md) 用 `sbx` 上报阶段和结果。三种运行时的完整示例在 [references/examples.md](references/examples.md)。字段的完整定义在 [references/manifest-fields.md](references/manifest-fields.md)。
 3. **提交。** 新建任务时默认在 `manifest.title` 用用户的语言填写简短标题，例如「GitHub 费用日报」。修改任务时先 `task_get`，沿用原有标题，把 `latest_version.seq` 作为 `if_match`。先用 `task_apply` 带 `dry_run: true` 看校验结果和 `diff`，再正式提交。
 4. **凭证。** 清单引用了凭证而还没有绑定时（`warnings` 或 `task_validate` 里出现 `credential_missing`），用 `credential_request` 发起填写请求，把返回的 `url` 原样交给用户。交出链接后不要就此结束：在同一轮里用 `api_call`（参数放在 `arguments` 里：`{"operation_id": "getCredentialRequest", "arguments": {"request_id": "<id>"}}`） 调用一次 `getCredentialRequest`看 `status`，`fulfilled` 就直接继续第 5 步，`pending` 才结束这一轮，请用户填好后说一声。字段写法和更新、撤销见 `lerryn-credentials` Skill。
@@ -24,7 +24,7 @@ Lerryn 是企业自部署的自动化沙箱。你提交任务清单和文件，�
 
 1. 先调用 `discover` 再操作，不凭记忆猜接口、字段和运行时。不认识的参数用 `api_describe` 查。
 2. 只有测试运行成功、并且检查过 `result` 符合用户要求之后，才激活版本。
-3. 凭证只通过 `credential_request` 获取。不在对话中让用户粘贴，不写进代码、文件、`params`、清单或日志。
+3. 凭证只通过 `credential_request` 获取。不在对话中让用户粘贴，不写进代码、文件、`params`、清单或日志。也不问用户“有没有现成的 Token”或请他“提供”密钥，只说明会发起填写请求。
 4. cron 触发器必须带 `timezone`（IANA 时区名）。用户没说时区时问清楚，不默认 UTC。
 5. 运行没有上报 `result` 时，不向用户宣称业务成功。`completed` 只表示进程以 0 退出。
 6. `side_effects: true` 的任务失败后，不自动重跑，先向用户说明已经发生了什么，等用户确认。测试运行也真实执行代码，换了参数照样会发消息、写数据，所以这类任务的测试运行同样要先征得用户同意。
