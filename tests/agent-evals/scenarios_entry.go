@@ -146,7 +146,7 @@ const ordersExportMain = `print("exported 120 orders")
 func statusOverview() Scenario {
 	return Scenario{
 		Name:        "entry-status-overview",
-		Description: "用户问整体情况：用结构化接口（getOverview 或 listRuns）汇总；指出失败的任务和没有上报结果的运行；不做改动；附控制台链接",
+		Description: "用户问整体情况：用 getOverview 和 listRuns 汇总；指出失败的任务和没有上报结果的运行；不做改动；附控制台链接",
 		Setup: func(ctx context.Context, env *Env) error {
 			specs := []struct{ name, title, desc, main string }{
 				{"inventory-sync", "库存同步", "从上游库存接口同步库存", inventorySyncMain},
@@ -191,6 +191,13 @@ func statusOverview() Scenario {
 			{Name: "structured-overview", Run: func(_ context.Context, env *Env) (Verdict, string) {
 				ok := countOps(env.Proxy.Calls(), "api_call:getOverview", "api_call:listRuns") > 0
 				return verdict(ok, "read getOverview or listRuns", "did not read getOverview or listRuns")
+			}},
+			{Name: "listed-runs", Run: func(_ context.Context, env *Env) (Verdict, string) {
+				// getOverview's attention leaves out runs whose business
+				// result is missing or failed; listRuns carries
+				// result_status for every recent run in one call.
+				return verdict(countOps(env.Proxy.Calls(), "api_call:listRuns") > 0,
+					"read recent runs with listRuns", "did not call listRuns")
 			}},
 			{Name: "reported-failure", Run: func(_ context.Context, env *Env) (Verdict, string) {
 				l := lineWith(env.Transcript.Final, "inventory-sync", "库存同步")
