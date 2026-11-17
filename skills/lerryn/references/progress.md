@@ -47,7 +47,19 @@ CLI 对应：`lerryn runs get <运行> --wait 30s`、`lerryn runs wait <运行> 
 | `active` | 进行中的运行及其 `current_stage` |
 | `upcoming` | 已激活任务的下一次计划触发，带 `schedule_text` |
 
-先报 `attention`，再报进行中和接下来的触发。每一项附上 `link` 或 `links.console`。
+`attention` 只收运行失败、超时、中断，以及凭证和 runner 的问题。进程以 0 退出、但业务结果是 `failed` 或 `partial`，或者根本没有上报结果的运行，不会出现在这里。所以再用 `listRuns` 看最近的运行：
+
+```json
+{"operation_id": "listRuns", "arguments": {"since": "<用户时区今天 0 点，RFC 3339>", "limit": 50}}
+```
+
+每条有 `status`、`result_status`、`result_summary`、`test`、`trigger`、`current_stage` 和 `links`，不用再逐个 `run_get`。`status` 为 `completed` 而 `result_status` 为 null，就是没有上报结果。
+
+汇报顺序：先报需要处理的（`attention`，以及业务结果有问题的运行），再报进行中的和接下来的触发，最后一句带过正常的。每一项附上 `link` 或 `links.console`。
+
+### 测试运行还是正式运行
+
+只看运行的 `test` 字段：`true` 是测试运行，`false` 是正式运行。来源看 `trigger.kind`：`manual` 手动发起，`cron` 定时，`webhook` 由 Webhook 触发，`retry` 平台自动重试。任务没有激活不代表它的运行是测试运行：有权限的人可以手动发起正式运行。
 
 ## 运行事件
 

@@ -128,6 +128,12 @@ func (c Claude) Run(ctx context.Context, job Job) (Transcript, error) {
 	if err != nil && tr.Outcome == "" {
 		return tr, fmt.Errorf("claude: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
+	// A client that never reached the model (expired login, API outage)
+	// still ends with a result event. Report it as a harness error, so it
+	// is not scored as the agent ignoring the skills.
+	if tr.IsError && tr.CostUSD == 0 && len(tr.ToolUses) == 0 {
+		return tr, fmt.Errorf("claude did not reach the model: %s", tr.Final)
+	}
 	return tr, nil
 }
 
