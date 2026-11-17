@@ -17,7 +17,7 @@ PRD 说明要做什么，技术设计说明怎么做。这份文档回答剩下�
 | 设计语言与组件库 | 进行中：`design/tokens.json`、`design/ui-native`（`@lerryn/ui-native`，HeroUI Native + Uniwind）、`design/gallery`；现状见 [design-system.md](design-system.md) |
 | 仓库 | github.com/niltavi/lerryn，许可证 AGPL-3.0（`runtimes/sdk/`、`skills/` 为 Apache-2.0）。Go module 与 pnpm workspace（`design/ui-native`、`design/gallery`、`packages/api`，以及预留的 `apps/*`）并存 |
 | 服务端 | M1 至 M6 完成。`lerryn all-in-one` 在一个进程里提供 API、`/mcp`、Web 控制台和内嵌 runner；`lerryn server` 和 `lerryn runner` 分开部署时，多个 server 共用 PostgreSQL 和对象存储。任务、版本、触发器、运行、凭证、工具登记、账号与审计、通知、备份恢复和指标都已实现 |
-| CLI、Skill | CLI（`login`、`tasks`、`runs`、`api`、`mcp --stdio`、`skills install`）见 [cli.md](cli.md)；四个 Skill（`lerryn-automation`、`lerryn-troubleshoot`、`lerryn-credentials`、`lerryn-operate`）随二进制发布，四个评测场景按提议的阈值达标，见[验收矩阵](acceptance-matrix.md)第 4 节 |
+| CLI、Skill | CLI（`login`、`tasks`、`runs`、`api`、`mcp --stdio`、`skills install`）见 [cli.md](cli.md)；五个 Skill（`lerryn`、`lerryn-automation`、`lerryn-troubleshoot`、`lerryn-credentials`、`lerryn-operate`）随二进制发布，四个评测场景按提议的阈值达标，见[验收矩阵](acceptance-matrix.md)第 4 节 |
 | runner | 内嵌和独立部署两种模式；Python、Node、Shell 三种运行时；凭证经 stdin 注入、输出脱敏；脚本工具只读挂载，`sbx mcp call` 调用登记的 MCP 工具并记录调用。协议 2 增加跨运行 `/sbx/state`：领取时固定输入、成功事务发布、失败保留旧状态；双 server／双 runner 的真实容器验收见 `tests/acceptance/state_test.go`，协议升级边界见技术设计第 4.5 节 |
 | 控制台 | Web 控制台的全部页面已接入接口，经 SSE 实时更新；移动端为只读的 Expo 应用，扫码配对。A03、A04、A06、A13、A17 的界面部分已通过端到端测试；Android 未验证，详见[验收矩阵](acceptance-matrix.md) |
 | 验收 | A01 至 A18、B01 至 B03 的服务端部分都有真实进程和 Docker 上的测试，逐项结果和剩余缺口见[验收矩阵](acceptance-matrix.md) |

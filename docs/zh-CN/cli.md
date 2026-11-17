@@ -179,7 +179,7 @@ lerryn skills install --project          # 当前目录的 .claude/skills
 lerryn skills install --dir <目录> --skill lerryn-automation
 ```
 
-二进制里嵌入了与它的契约匹配的四个 Skill：`lerryn-automation`、`lerryn-credentials`、`lerryn-troubleshoot`、`lerryn-operate`（源文件在仓库的 `skills/`）。`install` 每个 Skill 写一个子目录，并留下 `.lerryn-skill` 标记记录版本。再次安装时替换这些目录，旧版本里删掉的文件不会残留，目录里的其他内容不动。同名目录不是 `install` 写的（没有标记）时拒绝覆盖并以 1 退出，确认要替换时加 `--force`。其他读取 Agent Skills 的客户端用 `--dir` 指定它的 skills 目录。
+二进制里嵌入了与它的契约匹配的五个 Skill：`lerryn`（入口）、`lerryn-automation`、`lerryn-credentials`、`lerryn-troubleshoot`、`lerryn-operate`（源文件在仓库的 `skills/`）。`install` 每个 Skill 写一个子目录，并留下 `.lerryn-skill` 标记记录版本。再次安装时替换这些目录，旧版本里删掉的文件不会残留，目录里的其他内容不动。同名目录不是 `install` 写的（没有标记）时拒绝覆盖并以 1 退出，确认要替换时加 `--force`。其他读取 Agent Skills 的客户端用 `--dir` 指定它的 skills 目录。
 
 升级 CLI 或服务端之后重新运行一次 `install`，让 Skill 与服务端的契约版本一致。
 

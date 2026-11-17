@@ -1178,6 +1178,7 @@ Skill 和参考文档同时作为 MCP resource 提供，内容与服务端版本
 
 | Skill | 触发场景 | 内容 |
 | --- | --- | --- |
+| `lerryn` | 第一次接入、问 Lerryn 能做什么、查看任务和运行进度 | 能力一览、连接实例（远程 MCP、stdio 代理、HTTP API）、内置工具、创建任务的规范、检查进度，以及转到其他 Skill 的入口；部署完成后由 `lerryn-operate` 主动推荐安装 |
 | `lerryn-automation` | 用户要建立或修改自动化任务 | 主流程、任务清单、运行时与依赖、阶段和结果上报、触发器、工具、完整示例 |
 | `lerryn-credentials` | 任务需要 Key、Cookie 或 Token | 发起填写请求、把链接交给用户、等待完成、引用、更新和撤销 |
 | `lerryn-troubleshoot` | 运行失败，或用户给出运行 ID | 读取结构化错误、按类别处理、修复后测试、关联重跑、副作用任务的重试判断 |
@@ -1227,7 +1228,7 @@ Skill 和参考文档同时作为 MCP resource 提供，内容与服务端版本
 - 服务端通过 `GET /api/v1/skills` 和 MCP resource 提供与自身版本匹配的 Skill。
 - `lerryn skills install` 把 Skill 写入客户端的 skills 目录，例如 Claude Code 的 `.claude/skills/`。
 
-实现：`skills/` 是 Go 包，用 go:embed 嵌入四个 Skill，CLI 随二进制分发，镜像构建时复制该目录。`lerryn skills install` 默认写入 `~/.claude/skills`，`--project` 写入当前目录的 `.claude/skills`，`--dir` 写入任意目录；每个 Skill 先写到同一目录下的临时目录再改名替换，旧版本里删掉的文件不会残留。安装的目录里有一个 `.lerryn-skill` 标记，记录安装时的版本；同名目录没有这个标记时（用户自己写的 Skill）拒绝覆盖，除非带 `--force`；符号链接只替换链接本身。`discover` 的 `skills.items`、`listSkills`、`getSkill` 和 MCP resource 都读同一份嵌入的 Skill，版本即服务端版本。MCP resource 的 URI 为 `lerryn://skills/<Skill 名>/<文件路径>`，每个文件一个，例如 `lerryn://skills/lerryn-automation/references/manifest.md`；第 10.7 节提到的 `lerryn://reference/manifest-schema` 没有单独提供，清单字段表已经是 `lerryn-automation` 的参考资料之一。
+实现：`skills/` 是 Go 包，用 go:embed 嵌入五个 Skill，CLI 随二进制分发，镜像构建时复制该目录。`lerryn skills install` 默认写入 `~/.claude/skills`，`--project` 写入当前目录的 `.claude/skills`，`--dir` 写入任意目录；每个 Skill 先写到同一目录下的临时目录再改名替换，旧版本里删掉的文件不会残留。安装的目录里有一个 `.lerryn-skill` 标记，记录安装时的版本；同名目录没有这个标记时（用户自己写的 Skill）拒绝覆盖，除非带 `--force`；符号链接只替换链接本身。`discover` 的 `skills.items`、`listSkills`、`getSkill` 和 MCP resource 都读同一份嵌入的 Skill，版本即服务端版本。MCP resource 的 URI 为 `lerryn://skills/<Skill 名>/<文件路径>`，每个文件一个，例如 `lerryn://skills/lerryn-automation/references/manifest.md`；第 10.7 节提到的 `lerryn://reference/manifest-schema` 没有单独提供，清单字段表已经是 `lerryn-automation` 的参考资料之一。
 
 ### 11.7 服务端兜底
 

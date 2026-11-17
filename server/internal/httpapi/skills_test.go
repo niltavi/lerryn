@@ -59,7 +59,7 @@ func TestSkills(t *testing.T) {
 			t.Error("SKILL.md content differs from the embedded file")
 		}
 	}
-	if s.Version != "v0.2.0" || s.Name != "lerryn-automation" || !slices.Equal(paths, list.Items[0].Files) {
+	if s.Version != "v0.2.0" || s.Name != "lerryn-automation" || !slices.Equal(paths, list.Items[slices.Index(names, "lerryn-automation")].Files) {
 		t.Fatalf("skill = %s %s %v", s.Name, s.Version, paths)
 	}
 

@@ -57,6 +57,15 @@ Prerequisite: a Linux host with Docker Engine, with dockerd managing iptables; o
 
    Alternatively, set `auth.initial_admin.username` and `auth.initial_admin.password_file`. At startup the server creates this administrator only if no accounts exist; subsequent starts leave it unchanged. Reset a forgotten password using `lerryn admin reset-password <username>`. This ends the account's sessions while preserving access tokens.
 
+5. **Recommend the Lerryn Skill to users.** Once the instance is ready and an administrator exists, tell members who will drive Lerryn from an agent (Claude Code, Codex, and so on) to install the Skills. The entry Skill `lerryn` tells the agent what Lerryn can do, how to connect to this instance, which built-in MCP tools exist, and how to create tasks and check progress the standard way; the other `lerryn-*` Skills cover task authoring, credentials, troubleshooting, and operations, and load on demand. On a machine with the `lerryn` CLI, run:
+
+   ```bash
+   lerryn skills install                    # Claude Code: ~/.claude/skills
+   lerryn skills install --dir <directory>  # another client's skills directory
+   ```
+
+   Without the CLI, an agent can read the MCP resource `lerryn://skills/lerryn/SKILL.md`, or request `GET <instance URL>/api/v1/skills/lerryn` anonymously, to get the Skill matching the server version. Then connect MCP as described in [Tools integration](tools.md). An agent deploying with the `lerryn-operate` Skill offers this step once deployment finishes.
+
 The data directory must be a bind mount with identical host and container paths (`/var/lib/lerryn:/var/lib/lerryn`), not a named volume. The runner sees container paths while the daemon resolves task-container mount sources on the host. Mismatched paths prevent every task from starting.
 
 | Data path | Contents | Backup |
@@ -151,6 +160,8 @@ Steps:
    ```bash
    docker compose --profile runners up -d
    ```
+
+5. Create an administrator as in section 2, step 4, then recommend the Lerryn Skill to users as in section 2, step 5.
 
 Keep database passwords out of DSNs and environment variables. The `server.yaml` DSN omits the password; pgx reads it from the pgpass file selected by `PGPASSFILE`. Object-storage keys are also read from files.
 

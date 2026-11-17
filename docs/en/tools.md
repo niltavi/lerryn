@@ -134,7 +134,7 @@ Use `code`, `errors`, `next_actions`, and `request_id` in HTTP error responses t
 
 ## Agent Skills and task helpers
 
-`lerryn skills install` installs four embedded Skills: `lerryn-automation`, `lerryn-credentials`, `lerryn-troubleshoot`, and `lerryn-operate`. The default directory is `~/.claude/skills`; use `--dir <directory>` for other clients. MCP clients can also read resources at `lerryn://skills/<name>/SKILL.md`. Match versions using `discover.skills.version`.
+`lerryn skills install` installs five embedded Skills: the entry Skill `lerryn` (capabilities, connecting, built-in tools, and conventions for creating tasks and checking progress), plus `lerryn-automation`, `lerryn-credentials`, `lerryn-troubleshoot`, and `lerryn-operate`. The default directory is `~/.claude/skills`; use `--dir <directory>` for other clients. MCP clients can also read resources at `lerryn://skills/<name>/SKILL.md`. Match versions using `discover.skills.version`.
 
 Task containers provide `sbx` for Python, Node, and Shell without installing it as a task dependency. It reports stages and results and calls external MCP tools:
 

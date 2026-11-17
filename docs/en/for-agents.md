@@ -10,15 +10,16 @@ Lerryn is a self-hosted automation sandbox. You maintain Python, Node, and Shell
 
 1. Establish whether the user wants to connect to an existing instance or deploy a new one. For an existing instance, follow [getting started](getting-started.md). For a new one, choose a single-node or multi-node setup in [deployment and operations](deploy.md), and create the first administrator before opening access.
 2. Follow [Tools integration](tools.md) to connect through remote MCP or the stdio proxy of an authenticated `lerryn` CLI. Users enter credentials in their local client or the dedicated credential form.
-3. Call `discover` to read the current identity, project, runtimes, capabilities, and Skill version. Install matching operation Skills with `lerryn skills install`; use `--dir <directory>` for another client. MCP clients can also read `lerryn://skills/<name>/SKILL.md`.
+3. Call `discover` to read the current identity, project, runtimes, capabilities, and Skill version. Install matching Skills with `lerryn skills install` and read the entry Skill [`lerryn`](../../skills/lerryn/SKILL.md) first: it covers what Lerryn can do, how to connect, the built-in tools, and conventions for creating tasks and checking progress; use `--dir <directory>` for another client. MCP clients can also read `lerryn://skills/<name>/SKILL.md`.
 4. Verify a test task with no network access or credentials using [getting started](getting-started.md), then continue with the user's goal. Retain task IDs, versions, run IDs, and returned `links.console` for follow-up work.
 
 ## Operation directory
 
-The four bundled Skills and their references are written in Chinese. User guides are available in both languages.
+The five bundled Skills and their references are written in Chinese. User guides are available in both languages.
 
 | User goal | Read |
 | --- | --- |
+| Learn what Lerryn can do, connect to an instance, or check task and run progress | [Entry Skill](../../skills/lerryn/SKILL.md), [connecting](../../skills/lerryn/references/connect.md), [checking progress](../../skills/lerryn/references/progress.md) |
 | Install, register the first administrator, expose an instance, or deploy multiple nodes | [Deployment and operations](deploy.md), [operations Skill](../../skills/lerryn-operate/SKILL.md) |
 | Authenticate, configure tokens, connect through MCP, HTTP API, or CLI, and discover capabilities | [Tools integration](tools.md), [CLI and agent access](cli.md) |
 | Create, update, preview, test, and activate tasks | [Automation Skill](../../skills/lerryn-automation/SKILL.md) |

@@ -57,6 +57,15 @@
 
    也可以设置 `auth.initial_admin.username` 和 `auth.initial_admin.password_file`，server 启动时发现还没有任何账号就创建这个管理员，之后的启动不再改动。忘记密码时用 `lerryn admin reset-password <用户名>` 重置，该账号的会话随之结束，访问令牌不受影响。
 
+5. **推荐使用者安装 Lerryn Skill。** 实例就绪、管理员创建好之后，提醒要用 Agent（Claude Code、Codex 等）操作 Lerryn 的成员安装 Skill。入口 Skill `lerryn` 告诉 Agent：Lerryn 有哪些能力、如何连接这个实例、有哪些内置 MCP 工具，以及怎样规范地创建任务、检查进度；其余 `lerryn-*` Skill 分别负责建任务、凭证、排错和运维，按需加载。在装有 `lerryn` CLI 的机器上运行：
+
+   ```bash
+   lerryn skills install                 # Claude Code：~/.claude/skills
+   lerryn skills install --dir <目录>     # 其他客户端的 skills 目录
+   ```
+
+   没有 CLI 时，Agent 可以读取 MCP resource `lerryn://skills/lerryn/SKILL.md`，或匿名请求 `GET <实例地址>/api/v1/skills/lerryn` 获取与服务端同版本的 Skill。之后按 [Tools 接入](tools.md) 连接 MCP。Agent 用 `lerryn-operate` Skill 部署时，会在部署完成后主动提出这一步。
+
 数据目录必须是同路径的绑定挂载（`/var/lib/lerryn:/var/lib/lerryn`），不能换成命名卷。runner 在容器里看到的是容器内的路径，而 daemon 创建任务容器时按宿主机路径解析挂载源，两边不一致时任务一个都启动不了。
 
 数据目录里的内容：
@@ -153,6 +162,8 @@ OrbStack 的 Docker 跑在它自己的 Linux 虚拟机里。compose 文件中 `/
    ```bash
    docker compose --profile runners up -d
    ```
+
+5. 按第 2 节第 4 步创建管理员，再按第 2 节第 5 步推荐使用者安装 Lerryn Skill。
 
 数据库口令不写在 DSN 和环境变量里：`server.yaml` 的 DSN 不带口令，pgx 按环境变量 `PGPASSFILE` 指向的 pgpass 文件读取口令。对象存储的密钥也通过文件读取。
 
