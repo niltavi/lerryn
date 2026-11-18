@@ -1,24 +1,26 @@
 import { useI18n } from "@lerryn/core";
 import { Button, ErrorState } from "@lerryn/ui-web";
-import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { ChevronDown } from "@gravity-ui/icons";
+import { useLocation } from "@tanstack/react-router";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
-/** The middle column: a titled list of items or sections. */
+const cx = (...parts: (string | false | undefined | null)[]) => parts.filter(Boolean).join(" ");
+
+/**
+ * A list pane beside the page: a titled, scrolling list of things to open.
+ * On narrow consoles it folds to its heading, which then toggles the list.
+ */
 export function ListColumn({
   title,
   count,
   label,
   tools,
-  inlineTools,
   children,
 }: {
   title: string;
   count?: ReactNode;
   label: string;
   tools?: ReactNode;
-  /** Put the tools right after the title instead of at the far end. */
-  inlineTools?: boolean;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -35,27 +37,27 @@ export function ListColumn({
   useEffect(() => setExpanded(false), [pathname]);
 
   return (
-    <section className="list" aria-label={label} data-expanded={expanded}>
-      <div className={inlineTools ? "list-head list-head--inline" : "list-head"}>
-        <h2 className="list-title">
-          <span className="list-heading">{heading}</span>
+    <section className="tpl-list lr-list" aria-label={label} data-expanded={expanded}>
+      <div className="tpl-list__head">
+        <h2 className="lr-list__title">
+          <span className="lr-list__heading">{heading}</span>
           <button
             ref={toggle}
             type="button"
-            className="list-toggle"
+            className="lr-list__toggle"
             aria-expanded={expanded}
             aria-controls={bodyId}
             onClick={() => setExpanded((value) => !value)}
           >
             {heading}
-            <ChevronDown className="wl-icon" aria-hidden="true" />
+            <ChevronDown aria-hidden="true" width={14} height={14} />
           </button>
         </h2>
-        {tools ? <div className="list-tools">{tools}</div> : null}
+        {tools ? <div className="lr-list__tools">{tools}</div> : null}
       </div>
       <div
         id={bodyId}
-        className="list-body"
+        className="tpl-list__items"
         onClick={(event) => {
           // Selecting even the current link should return the compact view to its board.
           if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -70,48 +72,53 @@ export function ListColumn({
   );
 }
 
-/** A section link in a list column, e.g. a settings page. */
-export function SectionLink({
-  to,
-  icon: Icon,
-  label,
-  meta,
-  metaBad,
-}: {
-  to: string;
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  meta?: ReactNode;
-  metaBad?: boolean;
-}) {
+/** The page's main area; `center` is for whole-page states. */
+export function Board({ children, center, label }: { children: ReactNode; center?: boolean; label?: string }) {
   return (
-    <Link to={to} className="li" activeProps={{ "aria-current": "page" }}>
-      <span className="li-ic">
-        <Icon className="wl-icon" />
-      </span>
-      <span className="li-name">{label}</span>
-      <span className={metaBad ? "li-meta bad" : "li-meta"}>{meta}</span>
-    </Link>
-  );
-}
-
-/** The board: the page's main area. */
-export function Board({ children, center, wide, label }: { children: ReactNode; center?: boolean; wide?: boolean; label?: string }) {
-  const className = ["board", center && "board--center", wide && "board--wide"].filter(Boolean).join(" ");
-  return (
-    <main className={className} aria-label={label}>
-      {children}
+    <main className="lr-main" aria-label={label}>
+      <div className={cx("nt-page", center && "nt-page--center")}>{children}</div>
     </main>
   );
 }
 
-/** A board heading with optional actions on the right. */
-export function BoardTop({ title, children }: { title: string; children?: ReactNode }) {
+/** The page heading with an optional description and the page's actions. */
+export function BoardTop({ title, description, children }: { title: ReactNode; description?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="board-top">
-      <h1 className="h2">{title}</h1>
-      {children}
+    <div className="nt-page__head">
+      <div>
+        <h1>{title}</h1>
+        {description ? <p>{description}</p> : null}
+      </div>
+      {children ? <div className="nt-page__actions">{children}</div> : null}
     </div>
+  );
+}
+
+/** A titled group of content inside a page. */
+export function Section({
+  title,
+  label,
+  actions,
+  children,
+  className,
+}: {
+  title?: string;
+  /** Accessible name when there is no visible title. */
+  label?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cx("lr-section", className)} aria-label={label ?? title}>
+      {title || actions ? (
+        <div className="lr-section__head">
+          {title ? <h2 className="lr-section__label">{title}</h2> : <span />}
+          {actions}
+        </div>
+      ) : null}
+      {children}
+    </section>
   );
 }
 
@@ -136,7 +143,7 @@ export function LoadMore({ show, pending, onPress }: { show: boolean; pending: b
   const { t } = useI18n();
   if (!show) return null;
   return (
-    <div className="row" style={{ justifyContent: "center" }}>
+    <div className="flex justify-center">
       <Button variant="ghost" size="sm" onPress={onPress} isPending={pending}>
         {t("common.showMore")}
       </Button>

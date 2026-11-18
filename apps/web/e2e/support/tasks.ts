@@ -35,9 +35,13 @@ sbx.result("ok", "生成 3 份报告", {
 })
 `;
 
+/** Every task version needs a plain-language workflow; the specs do not depend on its text. */
+const WORKFLOW = [{ title: "运行脚本", description: "按顺序执行脚本并上报结果。" }];
+
 export function dailyReport(description = "每日线索报告"): TaskBody {
   return {
     manifest: {
+workflow: WORKFLOW,
       description,
       runtime: python,
       entrypoint,
@@ -61,7 +65,7 @@ export function dailyReport(description = "每日线索报告"): TaskBody {
 
 /** No stages at all: the run page must not invent any. */
 export const plainEcho: TaskBody = {
-  manifest: { description: "简单输出", runtime: python, entrypoint, network: "none", limits: { timeout: "2m", memory: "128Mi" } },
+  manifest: { workflow: WORKFLOW, description: "简单输出", runtime: python, entrypoint, network: "none", limits: { timeout: "2m", memory: "128Mi" } },
   files: [
     {
       path: "main.py",
@@ -80,6 +84,7 @@ sbx.result("ok", "输出了 3 行")
 /** Fails inside its second stage with exit status 2. */
 export const broken: TaskBody = {
   manifest: {
+workflow: WORKFLOW,
     description: "会失败的导入",
     runtime: python,
     entrypoint,
@@ -113,6 +118,7 @@ with sbx.stage("load"):
  */
 export const bigLog: TaskBody = {
   manifest: {
+workflow: WORKFLOW,
     description: "大日志",
     runtime: python,
     entrypoint,
@@ -141,6 +147,7 @@ sbx.result("ok", f"printed {count} lines", {"count": count})
 /** Prints a numbered line every 200 ms until cancelled; for following a live log. */
 export const ticker: TaskBody = {
   manifest: {
+workflow: WORKFLOW,
     description: "持续输出",
     runtime: python,
     entrypoint,
@@ -166,6 +173,7 @@ with sbx.stage("tick"):
 /** Declares a credential nobody has filled in; it is never run. */
 export const needsKey: TaskBody = {
   manifest: {
+workflow: WORKFLOW,
     description: "需要 Key 的任务",
     runtime: python,
     entrypoint,

@@ -14,14 +14,18 @@ import {
   type TaskGroups,
   type TaskSummary,
 } from "@lerryn/core";
-import { IconButton } from "@lerryn/ui-web";
+import { Button, IconButton, ListBox, SearchField, Select } from "@lerryn/ui-web";
+import { Magnifier, Xmark } from "@gravity-ui/icons";
 import { Link } from "@tanstack/react-router";
-import { Search, X } from "lucide-react";
 import { useState } from "react";
 
 import { useNow } from "../lib/hooks";
 import { GlyphView, errorCodeLabel, shortWhen, taskGlyphLabel } from "../lib/present";
 import { ListColumn } from "../shell/layout";
+
+/** Select keys: "all", or a tag behind a prefix so no tag can collide with it. */
+const ALL_TAGS = "all";
+const tagKey = (tag: string) => `tag:${tag}`;
 
 /**
  * The task list beside the overview and task boards, grouped as needing
@@ -52,7 +56,7 @@ export function TaskListColumn({ currentTaskId, projectId = null }: { currentTas
         items.length > 0 ? (
           <IconButton
             label={searching ? t("task.closeSearch") : t("task.search")}
-            icon={searching ? X : Search}
+            icon={searching ? Xmark : Magnifier}
             onPress={() => {
               setSearching((s) => !s);
               setQuery("");
@@ -62,39 +66,56 @@ export function TaskListColumn({ currentTaskId, projectId = null }: { currentTas
       }
     >
       {tags.length > 0 ? (
-        <div className="list-search field-select">
-          <select value={selectedTag} onChange={(e) => setTag(e.target.value)} aria-label={t("task.filterByTag")}>
-            <option value="">{t("task.allTags")}</option>
-            {tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
-          </select>
+        <div className="lr-list__search">
+          <Select
+            fullWidth
+            aria-label={t("task.filterByTag")}
+            value={selectedTag ? tagKey(selectedTag) : ALL_TAGS}
+            onChange={(key) => setTag(key === null || key === ALL_TAGS ? "" : String(key).slice(tagKey("").length))}
+          >
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                <ListBox.Item id={ALL_TAGS} textValue={t("task.allTags")}>
+                  {t("task.allTags")}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+                {tags.map((tag) => (
+                  <ListBox.Item key={tag} id={tagKey(tag)} textValue={tag}>
+                    {tag}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
         </div>
       ) : null}
       {searching ? (
-        <div className="list-search">
-          <label className="log-find">
-            <Search className="wl-icon" aria-hidden="true" />
-            <input
-              type="search"
-              value={query}
-              autoFocus
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label={t("task.search")}
-              placeholder={t("task.searchPlaceholder")}
-            />
-          </label>
+        <div className="lr-list__search">
+          <SearchField fullWidth autoFocus aria-label={t("task.search")} value={query} onChange={setQuery}>
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder={t("task.searchPlaceholder")} />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
         </div>
       ) : null}
       {tasks.isError ? (
-        <div className="list-empty">
+        <div className="lr-list__empty">
           <span>{t("states.errorTitle")}</span>
-          <button className="link" type="button" style={{ border: 0, background: "none", cursor: "pointer", font: "inherit" }} onClick={() => void tasks.refetch()}>
+          <Button variant="ghost" size="sm" onPress={() => void tasks.refetch()}>
             {t("common.retry")}
-          </button>
+          </Button>
         </div>
       ) : tasks.data && items.length === 0 ? (
-        <div className="list-empty">{t("task.none")}</div>
+        <div className="lr-list__empty">{t("task.none")}</div>
       ) : tasks.data && shown.length === 0 ? (
-        <div className="list-empty">{t("task.noMatch")}</div>
+        <div className="lr-list__empty">{t("task.noMatch")}</div>
       ) : null}
       <Group label={t("overview.attention")} tasks={groups.attention} current={currentTaskId} now={now} kind="attention" />
       <Group label={t("overview.running")} tasks={groups.running} current={currentTaskId} now={now} kind="running" />
@@ -121,7 +142,7 @@ function Group({
   if (tasks.length === 0) return null;
   return (
     <div role="group" aria-label={label}>
-      <div className="list-group" aria-hidden="true">
+      <div className="lr-list__group" aria-hidden="true">
         {label}
       </div>
       {tasks.map((task) => (
@@ -155,8 +176,8 @@ function TaskItem({ task, current, now, kind }: { task: TaskSummary; current: bo
   return (
     <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="li" aria-current={current ? "page" : undefined}>
       <GlyphView glyph={glyph} label={glyphLabel} />
-      <span style={{ minWidth: 0 }}>
-        <span className="li-name" style={kind === "inactive" ? { color: "var(--ink-muted)" } : undefined}>
+      <span className="min-w-0">
+        <span className="li-name" data-quiet={kind === "inactive" ? "" : undefined}>
           {task.title || task.name}
         </span>
         {sub ? <span className="li-sub">{sub}</span> : null}

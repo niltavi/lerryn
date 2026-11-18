@@ -99,7 +99,7 @@ describe("pending credential requests in settings", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "关闭" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       expect(screen.queryByRole("region", { name: "待填写" })).toBeNull();
-      expect(rail().getByRole("link", { name: "密钥" })).toBeTruthy();
+      expect(rail().getByRole("link", { name: "凭证" })).toBeTruthy();
       expect(screen.getByText("CRED_000")).toBeTruthy();
     } finally {
       cleanup();
@@ -115,14 +115,14 @@ describe("pending credential requests in settings", () => {
     expect(cursors).toEqual([null]);
     expect(screen.queryByText("REQUEST_200")).toBeNull();
     expect(screen.getByText("200+ 待填")).toBeTruthy();
-    expect(rail().getByRole("link", { name: "密钥，200+ 个凭证待填写" })).toBeTruthy();
+    expect(rail().getByRole("link", { name: "凭证，200+ 个待填写" })).toBeTruthy();
     fireEvent.click(within(pending).getByRole("button", { name: "显示更多" }));
     await screen.findByText("REQUEST_399");
     expect(screen.getByText("400+ 待填")).toBeTruthy();
     fireEvent.click(within(pending).getByRole("button", { name: "显示更多" }));
     const oldest = await screen.findByText("REQUEST_400");
     expect(screen.getByText("401 待填")).toBeTruthy();
-    expect(rail().getByRole("link", { name: "密钥，401 个凭证待填写" })).toBeTruthy();
+    expect(rail().getByRole("link", { name: "凭证，401 个待填写" })).toBeTruthy();
     expect(within(pending).queryByRole("button", { name: "显示更多" })).toBeNull();
     expect(cursors).toEqual([null, "200", "400"]);
     fireEvent.click(oldest.closest("button")!);

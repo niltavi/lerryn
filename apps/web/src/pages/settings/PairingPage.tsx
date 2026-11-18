@@ -1,10 +1,10 @@
 import { formatAgo, useCreatePairingCode, useDevices, useI18n, useRevokeDevice, type Device } from "@lerryn/core";
-import { Button, ConsoleDialog, IconButton, QrCode, StateCard } from "@lerryn/ui-web";
-import { BookOpen, RefreshCw, ScanLine, Smartphone, Tablet, Trash2 } from "lucide-react";
+import { Button, Card, Chip, ConsoleDialog, IconButton, QrCode, StateCard } from "@lerryn/ui-web";
+import { ArrowsRotateRight, BookOpen, Display, QrCode as QrCodeIcon, Smartphone, TrashBin } from "@gravity-ui/icons";
 import { useEffect, useState } from "react";
 
 import { useNow } from "../../lib/hooks";
-import { Board, BoardTop, LoadError, usePageTitle } from "../../shell/layout";
+import { Board, BoardTop, LoadError, Section, usePageTitle } from "../../shell/layout";
 import { FormError } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
 
@@ -15,9 +15,8 @@ export function countdown(ms: number): string {
 }
 
 /**
- * Phone pairing (prototype Settings-Pairing.dc.html): a one-time code as a
- * QR code for the Lerryn app, valid for five minutes, and the phones
- * already signed in. Phone sessions are read-only.
+ * Phone pairing: a one-time code as a QR code for the Lerryn app, valid for
+ * five minutes, and the phones already signed in. Phone sessions are read-only.
  */
 export function PairingPage() {
   const { t } = useI18n();
@@ -41,52 +40,56 @@ export function PairingPage() {
   return (
     <Board label={t("pairing.title")}>
       <BoardTop title={t("pairing.title")} />
-      <div className="row" style={{ gap: 28, alignItems: "center" }}>
-        {code ? (
-          <QrCode value={code.uri} label={t("pairing.qr")} dimmed={expired} />
-        ) : (
-          <div className="qr qr--off" aria-hidden="true" />
-        )}
-        <div className="stack" style={{ gap: 10 }}>
-          <span className="row" style={{ gap: 8 }}>
-            <ScanLine className="wl-icon" width={18} aria-hidden="true" />
-            <span style={{ fontWeight: 600 }}>{t("pairing.scan")}</span>
-          </span>
-          {pairing.isError ? (
-            <FormError>{t(writeErrorMessage(pairing.error))}</FormError>
-          ) : code ? (
-            <span className="row" style={{ gap: 8 }}>
-              <span className="num" style={{ fontSize: 32, lineHeight: "38px", color: expired ? "var(--ink-muted)" : undefined }} aria-live="off">
-                {expired ? t("pairing.expired") : countdown(left)}
-              </span>
-              <IconButton label={t("pairing.regenerate")} icon={RefreshCw} isPending={pairing.isPending} onPress={() => mutate()} />
-            </span>
-          ) : null}
-          {code && !expired ? (
-            <span className="row caption muted" style={{ gap: 6 }}>
-              {t("pairing.manualCode")}
-              <span className="mono" style={{ color: "var(--ink)", letterSpacing: "0.08em" }}>
-                {code.code}
-              </span>
-            </span>
-          ) : null}
-          <span className="row caption muted" style={{ gap: 6 }}>
-            <BookOpen className="wl-icon" width={14} aria-hidden="true" />
-            {t("pairing.readOnly")}
-          </span>
+      <Card className="tpl-card nt-fade-up">
+        <div className="flex flex-wrap items-center gap-6">
+          {code ? (
+            <QrCode value={code.uri} label={t("pairing.qr")} dimmed={expired} />
+          ) : (
+            <div className="qr qr--off" aria-hidden="true" />
+          )}
+          <div className="flex min-w-48 flex-1 flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <QrCodeIcon className="text-muted" aria-hidden="true" width={16} height={16} />
+              <h2 className="text-sm font-semibold">{t("pairing.scan")}</h2>
+              <Chip size="sm" variant="soft">
+                <BookOpen aria-hidden="true" width={12} height={12} />
+                <Chip.Label>{t("pairing.readOnly")}</Chip.Label>
+              </Chip>
+            </div>
+            {pairing.isError ? (
+              <FormError>{t(writeErrorMessage(pairing.error))}</FormError>
+            ) : code ? (
+              <div className="flex items-center gap-2">
+                <span className={expired ? "text-3xl font-semibold tabular-nums text-muted" : "text-3xl font-semibold tabular-nums"} aria-live="off">
+                  {expired ? t("pairing.expired") : countdown(left)}
+                </span>
+                <IconButton label={t("pairing.regenerate")} icon={ArrowsRotateRight} isPending={pairing.isPending} onPress={() => mutate()} />
+              </div>
+            ) : null}
+            {code && !expired ? (
+              <dl className="kv text-sm">
+                <dt>{t("pairing.manualCode")}</dt>
+                <dd className="font-mono tracking-widest">{code.code}</dd>
+              </dl>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </Card>
 
       {devices.isError ? (
         <LoadError error={devices.error} onRetry={() => void devices.refetch()} />
       ) : devices.data && items.length === 0 ? (
         <StateCard icon={Smartphone} title={t("pairing.none")} />
       ) : items.length > 0 ? (
-        <div className="rows" role="list" aria-label={t("pairing.devices")}>
-          {items.map((d) => (
-            <DeviceRow key={d.id} device={d} onRemove={() => setRemoving(d)} />
-          ))}
-        </div>
+        <Section title={t("pairing.devices")}>
+          <Card className="tpl-card nt-fade-up">
+            <ul className="lr-rows" role="list" aria-label={t("pairing.devices")}>
+              {items.map((d) => (
+                <DeviceRow key={d.id} device={d} onRemove={() => setRemoving(d)} />
+              ))}
+            </ul>
+          </Card>
+        </Section>
       ) : null}
       <RemoveDialog device={removing} onClose={() => setRemoving(null)} />
     </Board>
@@ -95,22 +98,20 @@ export function PairingPage() {
 
 function DeviceRow({ device: d, onRemove }: { device: Device; onRemove: () => void }) {
   const { t, locale } = useI18n();
-  const Icon = /ipad|tablet/i.test(d.name) ? Tablet : Smartphone;
+  const DeviceIcon = /ipad|tablet/i.test(d.name) ? Display : Smartphone;
   return (
-    <div className="rowi" role="listitem">
-      <span className="ic-box" aria-hidden="true">
-        <Icon className="wl-icon" width={18} />
+    <li className="lr-row">
+      <span className="lr-row__icon" data-tone="idle" aria-hidden="true">
+        <DeviceIcon width={16} height={16} />
       </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="rowi-name">{d.name}</span>
-        <span className="rowi-sub">{[formatAgo(d.last_seen_at, locale), d.os_version].filter(Boolean).join(" · ")}</span>
+      <span className="lr-row__text">
+        <span className="lr-row__title">{d.name}</span>
+        <span className="lr-row__sub">{[formatAgo(d.last_seen_at, locale), d.os_version].filter(Boolean).join(" · ")}</span>
       </span>
-      <span className="rowi-end">
-        <span className="acts">
-          <IconButton variant="danger-soft" label={t("pairing.removeNamed", { name: d.name })} tip={t("pairing.remove")} icon={Trash2} onPress={onRemove} />
-        </span>
+      <span className="lr-row__end">
+        <IconButton variant="danger-soft" label={t("pairing.removeNamed", { name: d.name })} tip={t("pairing.remove")} icon={TrashBin} onPress={onRemove} />
       </span>
-    </div>
+    </li>
   );
 }
 
@@ -133,7 +134,7 @@ function RemoveDialog({ device, onClose }: { device: Device | null; onClose: () 
         </>
       }
     >
-      <p className="body-sm muted">{t("pairing.removeBody")}</p>
+      <p className="text-sm text-muted">{t("pairing.removeBody")}</p>
       {revoke.error ? <FormError>{t(writeErrorMessage(revoke.error))}</FormError> : null}
     </ConsoleDialog>
   );

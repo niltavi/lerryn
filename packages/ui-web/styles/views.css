@@ -1,0 +1,162 @@
+/*
+ * Data views: logs, results, stages, timelines, strips and agent panels.
+ * Flat surfaces, 1px rings and separators, theme radii; semantic variables only.
+ * Sizes the layout code depends on arrive as custom properties or inline styles
+ * from the components (LogViewer's --log-row, stageGraph.ts's node box), so the
+ * styles here never restate a JS constant.
+ */
+
+/* ---------- Log viewer ---------- */
+.log { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border-radius: var(--radius-3xl); background: var(--surface); color: var(--surface-foreground); box-shadow: var(--surface-shadow); }
+.log-bar { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3); border-bottom: 1px solid var(--separator); }
+.log-bar__gap { flex: 1; }
+.log-follow { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); color: var(--muted); font-size: .75rem; }
+.log-note { display: flex; align-items: center; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4); border-bottom: 1px solid var(--separator); font-size: .8125rem; }
+.log-note--warn { background: var(--warning-soft); color: var(--warning-soft-foreground); }
+.log-note--run { color: var(--info-soft-foreground); }
+.log-empty { display: flex; align-items: center; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 4); color: var(--muted); font-size: .8125rem; }
+.log-empty--tail { padding-block: calc(var(--spacing) * 1) calc(var(--spacing) * 2); }
+.log-wrap { position: relative; }
+.log-body { position: relative; box-sizing: border-box; max-height: 70vh; padding: var(--log-pad) 0; overflow: auto; overscroll-behavior: contain; font-family: var(--font-mono); font-size: .75rem; line-height: var(--log-row); scrollbar-width: thin; }
+.log-body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.log-rows { position: relative; width: 100%; }
+/* Rows are placed by the virtualizer with a transform. */
+.log-rows > * { position: absolute; top: 0; right: 0; left: 0; }
+.ll { display: grid; grid-template-columns: calc(var(--spacing) * 13) calc(var(--spacing) * 21) minmax(0, 1fr); column-gap: calc(var(--spacing) * 3); padding: 0 calc(var(--spacing) * 4); }
+.ll .n { color: var(--muted); text-align: right; user-select: none; }
+.ll .t { color: var(--muted); white-space: nowrap; }
+.ll .m { color: var(--foreground); white-space: pre-wrap; word-break: break-word; }
+/* A tint behind small red text loses contrast on the log surface; a rule at the edge marks the row instead. */
+.ll--stderr { box-shadow: inset 2px 0 0 var(--danger); }
+.ll--stderr .m { color: var(--danger-soft-foreground); }
+.ll--system .m { color: var(--info-soft-foreground); }
+.ll--stage .m { font-family: var(--font-sans); font-weight: 600; }
+.ll--hit::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: calc(var(--spacing) * .75); background: var(--warning); }
+.ll mark { border-radius: var(--radius-xs); background: var(--warning); color: var(--warning-foreground); }
+.log-more { display: flex; align-items: center; justify-content: center; border-block: 1px dashed var(--border); font-family: var(--font-sans); }
+.log-jump { position: absolute; right: calc(var(--spacing) * 4); bottom: calc(var(--spacing) * 3); z-index: 2; border-radius: var(--radius-full); background: var(--surface); }
+/* Phones drop the time column and give the text its width. */
+@media (max-width: 560px) {
+  .ll { grid-template-columns: calc(var(--spacing) * 10) minmax(0, 1fr); column-gap: calc(var(--spacing) * 2.5); padding: 0 calc(var(--spacing) * 3); }
+  .ll .t { display: none; }
+}
+
+/* ---------- Stage bar: width by duration ---------- */
+.flutes { display: flex; flex-wrap: wrap; align-items: stretch; gap: calc(var(--spacing) * 1.5); }
+.flute { display: flex; flex: 1 1 0; flex-direction: column; gap: calc(var(--spacing) * 2); min-width: calc(var(--spacing) * 22); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--foreground); font: inherit; text-align: left; cursor: var(--cursor-interactive, pointer); }
+.flute:disabled { cursor: default; }
+.flute:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.flute-bar { height: calc(var(--spacing) * 2); border-radius: var(--radius-full); background: var(--success); transform-origin: center; transition: transform var(--motion-fast) var(--motion-ease); }
+.flute:enabled:hover .flute-bar { transform: scaleY(1.5); }
+.flute--run .flute-bar { background: var(--info); }
+.flute--bad .flute-bar { background: var(--danger); }
+.flute--idle .flute-bar { border: 1px dashed var(--field-border, var(--border)); background: none; }
+.flute-name { display: flex; align-items: center; gap: calc(var(--spacing) * 1.5); min-width: 0; font-size: .8125rem; font-weight: 500; }
+.flute-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flute-name > svg { flex-shrink: 0; }
+.flute--bad .flute-name { color: var(--danger-soft-foreground); }
+.flute--idle .flute-name { color: var(--muted); font-weight: 400; }
+.flute-t { color: var(--muted); font-family: var(--font-mono); font-size: .75rem; }
+
+/* ---------- Stage graph and list ----------
+ * The graph is laid out in stageGraph.ts and its nodes are placed absolutely;
+ * a narrow board swaps it for the list. */
+.stages { container-type: inline-size; min-width: 0; }
+.stages > .stages-list { display: none; }
+@container (max-width: 559px) {
+  .stages > .stages-graph { display: none; }
+  .stages > .stages-list { display: flex; }
+}
+.sgraph { margin: calc(var(--spacing) * -1) calc(var(--spacing) * -1) 0; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 1) calc(var(--spacing) * 2); overflow-x: auto; scrollbar-width: thin; }
+.sgraph-canvas { position: relative; }
+.sgraph-edges { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.sedge { fill: none; stroke: var(--field-border, var(--border)); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.sedge--done { stroke: var(--muted); stroke-dasharray: none; }
+.snode { position: absolute; display: flex; align-items: center; gap: calc(var(--spacing) * 2.5); box-sizing: border-box; padding: 0 calc(var(--spacing) * 3); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); color: var(--foreground); font: inherit; text-align: left; cursor: var(--cursor-interactive, pointer); }
+.snode:enabled:hover { background: var(--default); }
+.snode:disabled { cursor: default; }
+.snode:focus-visible, .sitem:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.snode--run { border-color: var(--info); }
+.snode--bad { border-color: var(--danger); }
+.snode--idle { border-style: dashed; border-color: var(--field-border, var(--border)); }
+.snode-text, .sitem-text { display: flex; flex-direction: column; min-width: 0; }
+.snode-name, .sitem-name { overflow: hidden; font-size: .8125rem; font-weight: 500; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.snode-meta, .sitem-meta { overflow: hidden; color: var(--muted); font-size: .75rem; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.snode--bad .snode-name, .sitem--bad .sitem-name { color: var(--danger-soft-foreground); }
+.snode--idle .snode-name, .sitem--idle .sitem-name { color: var(--muted); font-weight: 400; }
+.slist { display: flex; flex-direction: column; gap: calc(var(--spacing) * .5); margin: 0; padding: 0; list-style: none; }
+.sitem { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: calc(var(--spacing) * 3); width: 100%; padding: calc(var(--spacing) * 2); border: 0; border-radius: var(--radius-lg); background: none; color: var(--foreground); font: inherit; text-align: left; cursor: var(--cursor-interactive, pointer); }
+.sitem:enabled:hover { background: var(--default); }
+.sitem:disabled { cursor: default; }
+.sitem-t { color: var(--muted); font-family: var(--font-mono); font-size: .75rem; }
+
+/* ---------- Timeline: numbered steps on a rail ----------
+ * The rail stretches with wrapped content and stops at the last marker. */
+.timeline { --timeline-marker: calc(var(--spacing) * 5.5); margin: 0; padding: 0; list-style: none; }
+.timeline__item { display: grid; grid-template-columns: var(--timeline-marker) minmax(0, 1fr); gap: calc(var(--spacing) * 3); }
+.timeline__item:not(:last-child) > .timeline__content { padding-bottom: calc(var(--spacing) * 4); }
+.timeline__content { overflow-wrap: anywhere; }
+.timeline__rail { position: relative; }
+.timeline__item:not(:last-child) > .timeline__rail::after { content: ""; position: absolute; top: calc(var(--timeline-marker) + var(--spacing) * .5); bottom: calc(var(--spacing) * .5); left: calc(var(--timeline-marker) / 2); width: 1px; background: var(--separator); }
+.timeline__marker { display: grid; place-items: center; width: var(--timeline-marker); height: var(--timeline-marker); border: 1px solid var(--border); border-radius: var(--radius-full); color: var(--muted); font-family: var(--font-mono); font-size: .6875rem; }
+.timeline__marker:empty::before { content: ""; width: calc(var(--spacing) * 1.5); height: calc(var(--spacing) * 1.5); border-radius: var(--radius-full); background: currentColor; }
+
+/* ---------- Strips: a day in half hours, a task's recent runs ----------
+ * Height carries the count or the duration; colour only marks what is not ordinary. */
+.strip { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1.5); min-width: 0; }
+.strip-plot { position: relative; display: flex; align-items: flex-end; gap: calc(var(--spacing) * .75); height: calc(var(--spacing) * 31); margin-top: calc(var(--spacing) * 5); }
+.ridge { position: relative; display: block; flex: 1 1 0; min-width: calc(var(--spacing) * .75); border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--chart-1); text-decoration: none; }
+a.ridge { transition: opacity var(--motion-fast) var(--motion-ease); }
+a.ridge:hover { opacity: .8; }
+a.ridge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ridge--empty { background: var(--default); }
+.ridge--bad { background: var(--danger); }
+.ridge--warn { background: var(--warning); }
+.ridge--run { background: var(--info); }
+.ridge--plan { border: 1px dashed var(--field-border, var(--border)); border-bottom-width: 0; background: none; }
+.strip-now { position: absolute; top: calc(var(--spacing) * -5); bottom: 0; width: 1px; background: var(--foreground); pointer-events: none; }
+.strip-now span { position: absolute; top: calc(var(--spacing) * -1); left: calc(var(--spacing) * 1.5); color: var(--foreground); font-family: var(--font-mono); font-size: .75rem; line-height: 1.4; white-space: nowrap; }
+.strip-axis { display: flex; justify-content: space-between; color: var(--muted); font-family: var(--font-mono); font-size: .75rem; }
+.strip-legend { flex-wrap: wrap; row-gap: calc(var(--spacing) * 1.5); }
+.strip-key { display: inline-block; flex-shrink: 0; box-sizing: border-box; width: calc(var(--spacing) * 2.5); height: calc(var(--spacing) * 2.5); border-radius: var(--radius-xs); background: var(--chart-1); }
+.strip-key[data-tone="bad"] { background: var(--danger); }
+.strip-key[data-tone="warn"] { background: var(--warning); }
+.strip-key[data-tone="run"] { background: var(--info); }
+.strip-key[data-tone="plan"] { border: 1px dashed var(--field-border, var(--border)); background: none; }
+.runs-strip { display: flex; align-items: flex-end; gap: calc(var(--spacing) * 1); height: calc(var(--spacing) * 24); padding-top: calc(var(--spacing) * 2); }
+.runs-strip .ridge { flex: 0 0 calc(var(--spacing) * 3.5); }
+@media (max-width: 560px) {
+  .strip-plot { gap: 1px; height: calc(var(--spacing) * 24); }
+  .ridge { min-width: calc(var(--spacing) * .5); border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+  .runs-strip .ridge { flex-basis: calc(var(--spacing) * 2); }
+}
+
+/* ---------- Result and agent panels ---------- */
+.view-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(calc(var(--spacing) * 75), 100%), 1fr)); gap: calc(var(--spacing) * 4); }
+.view-head { flex-wrap: wrap; align-items: center; }
+.view-title { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); min-width: 0; font-size: .9375rem; font-weight: 600; }
+.view-title > svg { flex-shrink: 0; color: var(--muted); }
+.view-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 2); }
+.view-summary { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.view-text { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.view-metrics { display: flex; flex-wrap: wrap; align-items: flex-end; gap: calc(var(--spacing) * 3) calc(var(--spacing) * 9); }
+.view-metric { display: flex; flex-direction: column; gap: calc(var(--spacing) * 1); min-width: 0; }
+.view-metric__value { overflow-wrap: anywhere; font-size: 1.75rem; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.view-metric__value small { margin-left: calc(var(--spacing) * 1); color: var(--muted); font-size: .875rem; font-weight: 500; letter-spacing: 0; }
+.view-metric__label { color: var(--muted); font-size: .75rem; }
+.view-pre { max-height: calc(var(--spacing) * 90); margin: 0; padding: calc(var(--spacing) * 3); overflow: auto; border-radius: var(--field-radius); background: var(--surface-tertiary); font-family: var(--font-mono); font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+.view-pre:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Bars: one series, so one chart colour; the peak and the newest bar carry their value. */
+.bars { display: flex; align-items: flex-end; gap: calc(var(--spacing) * .5); height: calc(var(--spacing) * 28); padding-top: calc(var(--spacing) * 5); }
+.bar { position: relative; flex: 1 1 0; max-width: calc(var(--spacing) * 14); min-height: calc(var(--spacing) * .5); border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--chart-1); color: inherit; text-decoration: none; }
+a.bar { transition: opacity var(--motion-fast) var(--motion-ease); }
+a.bar:hover { opacity: .8; }
+.bar b { position: absolute; bottom: calc(100% + var(--spacing) * 1); left: 50%; transform: translateX(-50%); color: var(--foreground); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.4; white-space: nowrap; }
+.bars-axis { display: flex; gap: calc(var(--spacing) * .5); }
+.bars-axis span { flex: 1 1 0; min-width: 0; max-width: calc(var(--spacing) * 14); overflow: hidden; color: var(--muted); font-family: var(--font-mono); font-size: .75rem; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+/* Shares of a whole, each a Meter; the fill takes the first chart colour like the bars. */
+.view-shares { --meter-fill: var(--chart-1); display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .flute-bar, a.ridge, a.bar { transition: none; }
+}

@@ -1,0 +1,5 @@
+/* Admin pages. Semantic theme variables only. */
+
+/* Runner totals: three figures at most, so they keep to the start instead of spreading over four columns. */
+.lr-admin-kpis { grid-template-columns: repeat(auto-fit, minmax(calc(var(--spacing) * 40), 1fr)); }
+.lr-admin-kpis__of { margin-inline-start: calc(var(--spacing) * 1); color: var(--muted); font-size: .875rem; font-weight: 400; }

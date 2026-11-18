@@ -12,26 +12,35 @@ import {
 import type { Schemas } from "@lerryn/api";
 import {
   Button,
+  Card,
+  Checkbox,
+  CheckboxGroup,
+  Chip,
   ConsoleDialog,
   CopyButton,
   ErrorState,
+  FieldError,
   IconButton,
+  Label,
   StateCard,
+  Table,
+  ToggleButton,
+  ToggleButtonGroup,
   WaveGlyph,
 } from "@lerryn/ui-web";
+import { Ban, BookOpen, Check, Clock, Copy, PencilToLine, Play, Plus } from "@gravity-ui/icons";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Ban, BookOpen, Check, Clock, Copy, PenLine, Play, Plus, type LucideIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type ComponentType, type FormEvent, type SVGProps } from "react";
 
 import { origin } from "../../lib/hooks";
-import { Board, usePageTitle } from "../../shell/layout";
+import { Board, BoardTop, Section, usePageTitle } from "../../shell/layout";
 import { FormError, TextInput } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
 
 type Scope = Schemas["TokenScope"];
-const SCOPES: { scope: Scope; icon: LucideIcon }[] = [
+const SCOPES: { scope: Scope; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { scope: "read", icon: BookOpen },
-  { scope: "write", icon: PenLine },
+  { scope: "write", icon: PencilToLine },
   { scope: "execute", icon: Play },
 ];
 /** Expiry choices in days; null means no expiry. */
@@ -64,13 +73,12 @@ export function TokensPage() {
 
   return (
     <Board label={t("tokens.title")}>
-      <div className="board-top">
-        <h1 className="h2">{t("tokens.title")}</h1>
+      <BoardTop title={t("tokens.title")}>
         <Button size="sm" onPress={() => openCreate(true)}>
-          <Plus className="wl-icon" aria-hidden="true" />
+          <Plus aria-hidden="true" width={14} height={14} />
           {t("tokens.new")}
         </Button>
-      </div>
+      </BoardTop>
 
       {tokens.isError ? (
         <ErrorState
@@ -83,14 +91,31 @@ export function TokensPage() {
       ) : tokens.data && tokens.data.items.length === 0 ? (
         <StateCard icon={Clock} title={t("tokens.empty")} />
       ) : tokens.data ? (
-        <div className="rows" role="list" aria-label={t("tokens.title")}>
-          {tokens.data.items.map((token) => (
-            <TokenRow key={token.id} token={token} onRevoke={() => setRevoking(token)} />
-          ))}
-        </div>
+        <Card className="tpl-card nt-fade-up">
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label={t("tokens.title")} className="min-w-140">
+                <Table.Header>
+                  <Table.Column isRowHeader>{t("tokens.name")}</Table.Column>
+                  <Table.Column>{t("tokens.scopes")}</Table.Column>
+                  <Table.Column>{t("tokens.expiry")}</Table.Column>
+                  <Table.Column>{t("tokens.status")}</Table.Column>
+                  <Table.Column className="text-end">
+                    <span className="sr-only">{t("tokens.revoke")}</span>
+                  </Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {tokens.data.items.map((token) => (
+                    <TokenRow key={token.id} token={token} onRevoke={() => setRevoking(token)} />
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </Card>
       ) : null}
       {tokens.data?.hasMore ? (
-        <div>
+        <div className="flex justify-center">
           <Button variant="ghost" size="sm" onPress={() => void tokens.fetchNextPage()} isPending={tokens.isFetchingNextPage}>
             {t("log.loadMore")}
           </Button>
@@ -105,63 +130,70 @@ export function TokensPage() {
   );
 }
 
+const STATE_CHIP = {
+  active: { color: "success", label: "tokens.active" },
+  expired: { color: "warning", label: "tokens.expired" },
+  revoked: { color: "default", label: "tokens.revoked" },
+} as const;
+
 function TokenRow({ token, onRevoke }: { token: AccessToken; onRevoke: () => void }) {
   const { t, locale } = useI18n();
   const state = tokenState(token);
+  const active = state === "active";
   const days = token.expires_at ? daysUntil(token.expires_at) : null;
-  const soon = state === "active" && days !== null && days <= SOON_DAYS;
+  const soon = active && days !== null && days <= SOON_DAYS;
   const used = token.last_used_at ? formatAgo(token.last_used_at, locale) : t("tokens.neverUsed");
-  const sub = state === "revoked" ? t("tokens.revoked") : state === "expired" ? t("tokens.expired") : used;
 
   return (
-    <div className={state === "active" ? "rowi" : "rowi rowi--quiet"} role="listitem">
-      <span className="ic-box" style={state === "active" ? undefined : { color: "var(--ink-muted)" }} aria-hidden="true">
-        {state === "active" ? <WaveGlyph size={18} /> : state === "revoked" ? <Ban className="wl-icon" width={18} /> : <Clock className="wl-icon" width={18} />}
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="rowi-name">{token.name}</span>
-        <span className="rowi-sub">
-          <span className="mono-sm">{token.prefix}••••</span> · {sub}
-        </span>
-      </span>
-      <span className="rowi-end">
-        {state === "active" ? (
-          <span className="scopes">
-            {SCOPES.map(({ scope, icon: Icon }) => {
-              const on = token.scopes.includes(scope);
-              return on ? (
-                <span key={scope} data-tip={t(`tokens.scope.${scope}`)} data-tip-pos="top" aria-label={t(`tokens.scope.${scope}`)} role="img">
-                  <Icon className="wl-icon" />
-                </span>
-              ) : (
-                <span key={scope} className="off" aria-hidden="true">
-                  <Icon className="wl-icon" />
-                </span>
-              );
-            })}
+    <Table.Row id={token.id}>
+      <Table.Cell>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="lr-row__icon" data-tone={active ? undefined : "idle"} aria-hidden="true">
+            {active ? <WaveGlyph size={16} /> : state === "revoked" ? <Ban width={16} height={16} /> : <Clock width={16} height={16} />}
           </span>
-        ) : null}
+          <div className="flex min-w-0 flex-col">
+            <span className={active ? "truncate text-sm font-medium" : "truncate text-sm text-muted"}>{token.name}</span>
+            <span className="truncate text-xs text-muted">
+              <span className="font-mono">{token.prefix}••••</span> · {used}
+            </span>
+          </div>
+        </div>
+      </Table.Cell>
+      <Table.Cell>
+        <div className="flex flex-wrap gap-1">
+          {SCOPES.filter(({ scope }) => token.scopes.includes(scope)).map(({ scope, icon: Icon }) => (
+            <Chip key={scope} size="sm" variant="soft" color={active ? "accent" : "default"}>
+              <Icon aria-hidden="true" width={12} height={12} />
+              <Chip.Label>{t(`tokens.scope.${scope}`)}</Chip.Label>
+            </Chip>
+          ))}
+        </div>
+      </Table.Cell>
+      <Table.Cell>
         <span
-          className="mono-sm"
-          style={soon ? { color: "var(--warning-ink)" } : state === "active" ? { color: "var(--ink-muted)" } : undefined}
-          data-tip={soon && days !== null ? t("tokens.expiresIn", { count: days }) : undefined}
-          data-tip-pos="top"
+          className={soon ? "font-mono text-xs text-warning-soft-foreground" : "font-mono text-xs text-muted"}
+          title={soon && days !== null ? t("tokens.expiresIn", { count: days }) : undefined}
         >
           {token.expires_at ? formatFullDate(token.expires_at, locale) : t("tokens.noExpiry")}
         </span>
-        {state === "active" ? (
-          <span className="acts">
-            <IconButton
-              variant="danger-soft"
-              label={t("tokens.revokeNamed", { name: token.name })}
-              tip={t("tokens.revoke")}
-              icon={Ban}
-              onPress={onRevoke}
-            />
-          </span>
+      </Table.Cell>
+      <Table.Cell>
+        <Chip size="sm" variant="soft" color={STATE_CHIP[state].color}>
+          {t(STATE_CHIP[state].label)}
+        </Chip>
+      </Table.Cell>
+      <Table.Cell className="text-end">
+        {active ? (
+          <IconButton
+            variant="danger-soft"
+            label={t("tokens.revokeNamed", { name: token.name })}
+            tip={t("tokens.revoke")}
+            icon={Ban}
+            onPress={onRevoke}
+          />
         ) : null}
-      </span>
-    </div>
+      </Table.Cell>
+    </Table.Row>
   );
 }
 
@@ -176,20 +208,17 @@ function ConnectSection() {
     { tag: "Skill", value: "lerryn skills install", label: t("tokens.copySkills") },
   ];
   return (
-    <section className="stack" style={{ gap: 10 }} aria-label={t("tokens.connect")}>
-      <span className="sec-label">{t("tokens.connect")}</span>
-      <div className="copygrid">
+    <Section title={t("tokens.connect")}>
+      <div className="lr-keys__copies">
         {lines.map((l) => (
-          <div className="copyline" key={l.tag}>
-            <span className="tag tag--mono" style={{ background: "var(--liner)" }}>
-              {l.tag}
-            </span>
+          <div className="lr-copy" key={l.tag}>
+            <span className="lr-copy__tag">{l.tag}</span>
             <code>{l.value}</code>
             <CopyButton value={l.value} label={l.label} icon={Copy} />
           </div>
         ))}
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -200,6 +229,7 @@ function CreateTokenDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenCh
   const [scopes, setScopes] = useState<Scope[]>(["read", "write", "execute"]);
   const [expiry, setExpiry] = useState<(typeof EXPIRY)[number]>(90);
   const [errors, setErrors] = useState<{ name?: string; scopes?: string }>({});
+  const expiryLabelId = useId();
   const created: CreatedToken | undefined = create.data;
 
   const close = () => {
@@ -233,15 +263,15 @@ function CreateTokenDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenCh
         isDismissable={false}
         title={
           <>
-            <span className="g g--ok g--lg" aria-hidden="true">
-              <Check className="wl-icon" />
+            <span className="lr-row__icon" data-tone="ok" aria-hidden="true">
+              <Check width={16} height={16} />
             </span>
             {t("tokens.onceTitle")}
           </>
         }
         footer={<Button onPress={close}>{t("common.done")}</Button>}
       >
-        <div className="copyline copyline--wrap">
+        <div className="lr-copy lr-copy--wrap">
           <code data-testid="created-token">{created.token}</code>
           <CopyButton value={created.token} label={t("tokens.copyToken")} icon={Copy} />
         </div>
@@ -269,7 +299,7 @@ function CreateTokenDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenCh
         </>
       }
     >
-      <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit}>
+      <form className="flex flex-col gap-5" onSubmit={submit}>
         <TextInput
           name="name"
           label={t("tokens.name")}
@@ -279,38 +309,46 @@ function CreateTokenDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenCh
           autoFocus
           error={errors.name}
         />
-        <fieldset className="stack" style={{ gap: 8, border: 0, margin: 0, padding: 0 }}>
-          <legend className="label-text" style={{ marginBottom: 8 }}>
-            {t("tokens.scopes")}
-          </legend>
-          <div className="row">
+        <CheckboxGroup name="scopes" value={scopes} onChange={(next) => setScopes(next as Scope[])} isInvalid={!!errors.scopes}>
+          <Label>{t("tokens.scopes")}</Label>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
             {SCOPES.map(({ scope, icon: Icon }) => (
-              <label className="choice" key={scope}>
-                <input
-                  type="checkbox"
-                  checked={scopes.includes(scope)}
-                  onChange={(e) =>
-                    setScopes((s) => (e.target.checked ? [...s, scope] : s.filter((x) => x !== scope)))
-                  }
-                />
-                <Icon className="wl-icon" aria-hidden="true" />
-                {t(`tokens.scope.${scope}`)}
-              </label>
+              <Checkbox key={scope} value={scope}>
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Icon aria-hidden="true" width={14} height={14} />
+                  {t(`tokens.scope.${scope}`)}
+                </Checkbox.Content>
+              </Checkbox>
             ))}
           </div>
-          {errors.scopes ? <span className="caption" style={{ color: "var(--danger)" }}>{errors.scopes}</span> : null}
-        </fieldset>
-        <div className="stack" style={{ gap: 8 }}>
-          <span className="label-text" id="expiry-label">
+          <FieldError>{errors.scopes}</FieldError>
+        </CheckboxGroup>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium" id={expiryLabelId}>
             {t("tokens.expiry")}
           </span>
-          <div className="seg seg--block" role="group" aria-labelledby="expiry-label">
-            {EXPIRY.map((d) => (
-              <button key={String(d)} type="button" aria-pressed={expiry === d} onClick={() => setExpiry(d)}>
+          {/* Multiple mode keeps each choice a pressed button; the handler holds it to one. */}
+          <ToggleButtonGroup
+            aria-labelledby={expiryLabelId}
+            size="sm"
+            fullWidth
+            selectionMode="multiple"
+            selectedKeys={[String(expiry)]}
+            onSelectionChange={(keys) => {
+              const next = EXPIRY.find((d) => d !== expiry && keys.has(String(d)));
+              if (next !== undefined) setExpiry(next);
+            }}
+          >
+            {EXPIRY.map((d, index) => (
+              <ToggleButton key={String(d)} id={String(d)}>
+                {index > 0 ? <ToggleButtonGroup.Separator /> : null}
                 {expiryLabel(d)}
-              </button>
+              </ToggleButton>
             ))}
-          </div>
+          </ToggleButtonGroup>
         </div>
         {create.error ? <FormError>{t(writeErrorMessage(create.error))}</FormError> : null}
         {/* Enter in the name field submits. */}
@@ -329,8 +367,8 @@ function RevokeTokenDialog({ token, onClose }: { token: AccessToken | null; onCl
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={
         <>
-          <span className="g g--bad g--lg" aria-hidden="true">
-            <Ban className="wl-icon" />
+          <span className="lr-row__icon" data-tone="bad" aria-hidden="true">
+            <Ban width={16} height={16} />
           </span>
           {token ? t("tokens.revokeTitle", { name: token.name }) : null}
         </>
@@ -350,7 +388,7 @@ function RevokeTokenDialog({ token, onClose }: { token: AccessToken | null; onCl
         </>
       }
     >
-      <p className="body-sm muted">{t("tokens.revokeBody")}</p>
+      <p className="text-sm text-muted">{t("tokens.revokeBody")}</p>
       {revoke.error ? <FormError>{t(writeErrorMessage(revoke.error))}</FormError> : null}
     </ConsoleDialog>
   );

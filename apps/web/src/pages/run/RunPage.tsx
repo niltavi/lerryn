@@ -27,7 +27,22 @@ import {
   type ToolCallView,
 } from "@lerryn/core";
 import {
+  ArrowRotateLeft,
+  Calendar,
+  Check,
+  ChevronLeft,
+  Flask,
+  Hashtag,
+  Link as LinkIcon,
+  LogoWebhook,
+  Server,
+  Wrench,
+  Xmark,
+} from "@gravity-ui/icons";
+import {
   AgentPanels,
+  Alert,
+  Chip,
   CopyButton,
   InfoChip,
   LogViewer,
@@ -38,26 +53,11 @@ import {
   ToneGlyph,
 } from "@lerryn/ui-web";
 import { Link, useParams } from "@tanstack/react-router";
-import {
-  CalendarClock,
-  Check,
-  ChevronLeft,
-  CircleAlert,
-  FlaskConical,
-  Hash,
-  Link2,
-  RotateCcw,
-  Server,
-  TriangleAlert,
-  Webhook,
-  Wrench,
-  X,
-} from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { saveText, useNow } from "../../lib/hooks";
 import { errorCodeLabel, skipReasonLabel, triggerLabel } from "../../lib/present";
-import { Board, LoadError, usePageTitle } from "../../shell/layout";
+import { Board, BoardTop, LoadError, usePageTitle } from "../../shell/layout";
 import { NotFoundBody } from "../NotFoundPage";
 import { storedRunsView } from "../RunsPage";
 import { Artifacts } from "./Artifacts";
@@ -130,89 +130,85 @@ function RunBoard({ run }: { run: Run }) {
       tone: meta.tone,
     });
   }
-  const TriggerIcon = run.trigger.kind === "webhook" ? Webhook : run.trigger.kind === "cron" ? CalendarClock : run.rerun_of || run.trigger.kind === "retry" ? RotateCcw : Hash;
+  const TriggerIcon = run.trigger.kind === "webhook" ? LogoWebhook : run.trigger.kind === "cron" ? Calendar : run.rerun_of || run.trigger.kind === "retry" ? ArrowRotateLeft : Hashtag;
 
   return (
     <Board label={t("run.info")}>
-      <div className="board-top">
-        <nav className="eyebrow" aria-label={t("run.location")}>
-          <Link to="/runs" search={{ view: storedRunsView(), run: run.id }}>
-            <ChevronLeft className="wl-icon" width={16} aria-hidden="true" />
-            {t("nav.runs")}
-          </Link>
-          <span aria-hidden="true">/</span>
-          <Link to="/tasks/$taskId" params={{ taskId: run.task_id }}>
-            {taskName ?? t("run.taskLink")}
-          </Link>
-          <span className="mono-sm">{shortId(run.id)}</span>
-          {run.archived_at ? <span className="tag">{t("run.archived")}</span> : null}
-        </nav>
-        <div className="tools">
-          <ArchiveRunButton key={run.id} run={run} />
-          {!active && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
-          <CopyButton value={run.id} label={t("run.copyId")} icon={Hash} />
-          <CopyButton value={run.links.console} label={t("run.copyLink")} icon={Link2} />
-        </div>
-      </div>
+      <nav className="run-crumbs" aria-label={t("run.location")}>
+        <Link to="/runs" search={{ view: storedRunsView(), run: run.id }}>
+          <ChevronLeft width={14} height={14} aria-hidden="true" />
+          {t("nav.runs")}
+        </Link>
+        <span aria-hidden="true">/</span>
+        <Link to="/tasks/$taskId" params={{ taskId: run.task_id }}>
+          {taskName ?? t("run.taskLink")}
+        </Link>
+        <span className="font-mono text-xs">{shortId(run.id)}</span>
+        {run.archived_at ? <Chip size="sm" variant="soft">{t("run.archived")}</Chip> : null}
+      </nav>
 
-      <div className={`verdict verdict--${meta.tone}`}>
-        <div className="verdict-main">
-          <span className={`g g--${meta.tone} g--lg`} aria-hidden="true">
-            <StatusIcon icon={meta.icon} size="md" />
+      <BoardTop
+        title={
+          <span className="run-verdict" data-tone={meta.tone}>
+            <span className={`g g--${meta.tone}`} aria-hidden="true">
+              <StatusIcon icon={meta.icon} />
+            </span>
+            <span aria-live="polite">{t(meta.label)}</span>
           </span>
-          <h1 className="verdict-word" aria-live="polite">
-            {t(meta.label)}
-          </h1>
-        </div>
-        {duration !== null ? <span className="verdict-time">{formatDuration(duration, { whole: active })}</span> : null}
-        <span className="muted">
-          {t(run.started_at ? "run.startedAt" : "run.queuedAt", { time: formatDateTime(start, locale, now) })}
-        </span>
-      </div>
+        }
+        description={
+          <span className="run-verdict__meta">
+            {duration !== null ? <span className="verdict-time">{formatDuration(duration, { whole: active })}</span> : null}
+            <span>{t(run.started_at ? "run.startedAt" : "run.queuedAt", { time: formatDateTime(start, locale, now) })}</span>
+          </span>
+        }
+      >
+        <ArchiveRunButton key={run.id} run={run} />
+        {!active && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
+        <CopyButton value={run.id} label={t("run.copyId")} icon={Hashtag} />
+        <CopyButton value={run.links.console} label={t("run.copyLink")} icon={LinkIcon} />
+      </BoardTop>
 
       {run.error ? (
-        <div className={meta.tone === "warn" ? "cause cause--warn" : "cause"} role="status">
-          <CircleAlert className="wl-icon" aria-hidden="true" />
-          <span>
-            {errorStage ? (
-              <>
-                <b>{errorStage.name}</b>
-                {" · "}
-              </>
-            ) : null}
-            {run.error.message}
-            {errorCodeLabel(run.error.code, t) ? <span className="muted"> · {errorCodeLabel(run.error.code, t)}</span> : null}
-          </span>
-        </div>
+        <Cause tone={meta.tone === "warn" ? "warning" : "danger"}>
+          {errorStage ? (
+            <>
+              <b className="font-semibold">{errorStage.name}</b>
+              {" · "}
+            </>
+          ) : null}
+          {run.error.message}
+          {errorCodeLabel(run.error.code, t) ? <span className="text-muted"> · {errorCodeLabel(run.error.code, t)}</span> : null}
+        </Cause>
       ) : skip ? (
-        <div className="cause cause--warn" role="status">
-          <CircleAlert className="wl-icon" aria-hidden="true" />
-          <span>{skip}</span>
-        </div>
+        <Cause tone="warning">{skip}</Cause>
       ) : null}
 
       {summary.warnings.map((w) => (
-        <div className="cause cause--warn" role="status" key={w.ts + w.message}>
-          <TriangleAlert className="wl-icon" aria-hidden="true" />
-          <span>{w.message}</span>
-        </div>
+        <Cause tone="warning" key={w.ts + w.message}>
+          {w.message}
+        </Cause>
       ))}
 
-      <div className="chips" aria-label={t("run.info")}>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("run.info")}>
         {rerun ? (
-          <Link to="/runs/$runId" params={{ runId: rerun.id }} className="chip">
-            <RotateCcw className="wl-icon" aria-hidden="true" />
-            {t("run.rerunDone")}
-            <StatusGlyph status={rerun.status} />
-            <span className="mono-sm muted">v{rerun.version}</span>
+          <Link to="/runs/$runId" params={{ runId: rerun.id }} className="run-link">
+            <Chip variant="soft">
+              <ArrowRotateLeft width={12} height={12} aria-hidden="true" />
+              <Chip.Label>{t("run.rerunDone")}</Chip.Label>
+              <StatusGlyph status={rerun.status} />
+              <span className="font-mono text-xs text-muted">v{rerun.version}</span>
+            </Chip>
           </Link>
         ) : null}
         {origin.data ? (
-          <Link to="/runs/$runId" params={{ runId: origin.data.id }} className="chip">
-            <RotateCcw className="wl-icon" aria-hidden="true" />
-            {run.rerun_of ? t("run.rerunOf") : t("run.retryOf")}
-            <StatusGlyph status={origin.data.status} />
-            <span className="mono-sm muted">v{origin.data.version}</span>
+          <Link to="/runs/$runId" params={{ runId: origin.data.id }} className="run-link">
+            <Chip variant="soft">
+              <ArrowRotateLeft width={12} height={12} aria-hidden="true" />
+              <Chip.Label>{run.rerun_of ? t("run.rerunOf") : t("run.retryOf")}</Chip.Label>
+              <StatusGlyph status={origin.data.status} />
+              <span className="font-mono text-xs text-muted">v{origin.data.version}</span>
+            </Chip>
           </Link>
         ) : null}
         <InfoChip
@@ -229,7 +225,7 @@ function RunBoard({ run }: { run: Run }) {
             </ol>
           }
         >
-          <TriggerIcon className="wl-icon" aria-hidden="true" />
+          <TriggerIcon width={14} height={14} aria-hidden="true" />
           {triggerLabel(run, t)}
         </InfoChip>
         <InfoChip
@@ -237,11 +233,11 @@ function RunBoard({ run }: { run: Run }) {
           details={
             <dl className="kv">
               <dt>{t("run.version")}</dt>
-              <dd className="mono-sm">{origin.data && origin.data.version !== run.version ? `v${origin.data.version} → v${run.version}` : `v${run.version}`}</dd>
+              <dd className="font-mono text-xs">{origin.data && origin.data.version !== run.version ? `v${origin.data.version} → v${run.version}` : `v${run.version}`}</dd>
               {run.environment ? (
                 <>
                   <dt>{t("run.environment")}</dt>
-                  <dd className="mono-sm">{run.environment.slice(0, 16)}</dd>
+                  <dd className="font-mono text-xs">{run.environment.slice(0, 16)}</dd>
                 </>
               ) : null}
               {version.data?.manifest.limits?.timeout ? (
@@ -259,8 +255,8 @@ function RunBoard({ run }: { run: Run }) {
             </dl>
           }
         >
-          <span className="mono-sm">v{run.version}</span>
-          {run.test ? <FlaskConical className="wl-icon" aria-label={t("run.test")} /> : null}
+          <span className="font-mono text-xs">v{run.version}</span>
+          {run.test ? <Flask width={14} height={14} role="img" aria-label={t("run.test")} /> : null}
         </InfoChip>
         <InfoChip
           detailsLabel={t("run.execution")}
@@ -269,7 +265,7 @@ function RunBoard({ run }: { run: Run }) {
               {run.exit_code !== null ? (
                 <>
                   <dt>{t("run.exitCode")}</dt>
-                  <dd className="mono-sm">{run.exit_code}</dd>
+                  <dd className="font-mono text-xs">{run.exit_code}</dd>
                 </>
               ) : null}
               <dt>{t("run.attempt")}</dt>
@@ -277,7 +273,7 @@ function RunBoard({ run }: { run: Run }) {
                 {run.attempt} / {run.max_attempts}
               </dd>
               <dt>{t("run.runId")}</dt>
-              <dd className="mono-sm">{run.id}</dd>
+              <dd className="font-mono text-xs">{run.id}</dd>
               {run.cancel_requested ? (
                 <>
                   <dt>{t("run.eventCancelRequested")}</dt>
@@ -287,7 +283,7 @@ function RunBoard({ run }: { run: Run }) {
             </dl>
           }
         >
-          <Server className="wl-icon" aria-hidden="true" />
+          <Server width={14} height={14} aria-hidden="true" />
           {run.runner?.name ?? t("run.execution")}
         </InfoChip>
         {summary.toolCallCount > 0 ? (
@@ -296,9 +292,9 @@ function RunBoard({ run }: { run: Run }) {
             detailsLabel={t("run.toolCalls")}
             details={<ToolCalls calls={summary.calls} failed={summary.toolFailedCount} stages={run.stages} />}
           >
-            <Wrench className="wl-icon" aria-hidden="true" />
+            <Wrench width={14} height={14} aria-hidden="true" />
             {t("run.toolCount", { count: summary.toolCallCount })}
-            {summary.toolFailedCount ? <span className="dot dot--bad" role="img" aria-label={t("run.toolFailed", { count: summary.toolFailedCount })} /> : null}
+            {summary.toolFailedCount ? <span className="run-dot dot--bad" role="img" aria-label={t("run.toolFailed", { count: summary.toolFailedCount })} /> : null}
           </InfoChip>
         ) : null}
       </div>
@@ -348,48 +344,53 @@ function ToolCalls({ calls, failed, stages }: { calls: ToolCallView[]; failed: n
   const { t } = useI18n();
   const stageName = new Map(stages.map((s) => [s.id, s.name]));
   return (
-    <div className="stack" style={{ gap: 0 }}>
-      <div className="pop-title">
+    <div className="flex flex-col">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-muted">
         <span>{t("run.toolCalls")}</span>
-        {failed ? <span style={{ color: "var(--danger)" }}>{t("run.toolFailed", { count: failed })}</span> : null}
+        {failed ? <span className="text-danger-soft-foreground">{t("run.toolFailed", { count: failed })}</span> : null}
       </div>
       <div className="tool-calls" role="list">
         {calls.map((c) => {
           const where = c.stage ? (stageName.get(c.stage) ?? c.stage) : null;
           return (
-            <div className="pop-row" role="listitem" key={c.seq} style={{ alignItems: "flex-start" }}>
-              <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-                <span className="mono-sm" style={{ color: "var(--ink)", overflowWrap: "anywhere" }}>
-                  {c.method ? `${c.tool} · ${c.method}` : c.tool}
-                </span>
+            <div className="pop-row" role="listitem" key={c.seq}>
+              <span className="flex min-w-0 flex-col gap-0.5 [overflow-wrap:anywhere]">
+                <span className="font-mono text-xs text-foreground">{c.method ? `${c.tool} · ${c.method}` : c.tool}</span>
                 {where || c.args ? (
-                  <span className="caption muted" style={{ overflowWrap: "anywhere" }}>
+                  <span className="text-xs text-muted">
                     {where}
                     {where && c.args ? " · " : null}
                     {c.args ? (
-                      <span className="mono-sm" title={c.argsFull ?? undefined}>
+                      <span className="font-mono" title={c.argsFull ?? undefined}>
                         {c.args}
                       </span>
                     ) : null}
                   </span>
                 ) : null}
-                {c.error ? (
-                  <span className="caption" style={{ color: "var(--danger)", overflowWrap: "anywhere" }}>
-                    {c.error}
-                  </span>
-                ) : null}
+                {c.error ? <span className="text-xs text-danger-soft-foreground">{c.error}</span> : null}
               </span>
-              <span className="row" style={{ gap: 6, flex: "none" }}>
-                <span className="mono-sm muted">{formatCallDuration(c.durationMs)}</span>
-                <ToneGlyph tone={c.ok ? "ok" : "bad"} icon={c.ok ? Check : X} label={c.ok ? t("run.toolOk") : t("run.toolError")} />
+              <span className="flex shrink-0 items-center gap-1.5">
+                <span className="font-mono text-xs text-muted">{formatCallDuration(c.durationMs)}</span>
+                <ToneGlyph tone={c.ok ? "ok" : "bad"} icon={c.ok ? Check : Xmark} label={c.ok ? t("run.toolOk") : t("run.toolError")} />
               </span>
             </div>
           );
         })}
       </div>
-      <span className="caption muted" style={{ marginTop: 8 }}>
-        {t("run.toolCallsNote")}
-      </span>
+      <span className="mt-2 text-xs text-muted">{t("run.toolCallsNote")}</span>
     </div>
+  );
+}
+
+/** Why a run failed, was skipped or warned: one line under the heading. */
+function Cause({ tone, children }: { tone: "danger" | "warning"; children: ReactNode }) {
+  return (
+    // A status, not an alert: it is there from the first paint and must not interrupt.
+    <Alert status={tone} role="status">
+      <Alert.Indicator />
+      <Alert.Content>
+        <Alert.Description className="[overflow-wrap:anywhere]">{children}</Alert.Description>
+      </Alert.Content>
+    </Alert>
   );
 }

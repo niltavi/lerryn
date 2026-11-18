@@ -1,9 +1,10 @@
 // @lerryn/ui-web: the Lerryn web component library. It re-exports HeroUI v3
-// as-is (themed by styles/theme.css) and adds the Lerryn components, so
+// as-is (themed by styles/theme/) and adds the Lerryn components, so
 // pages import every component from here.
 export * from "@heroui/react";
 
 export { Logo, type LogoProps } from "./components/Logo";
+export { ForestScene } from "./components/ForestScene";
 export { WaveGlyph, WaveLoader, wavePath, type WaveGlyphProps, type WaveLoaderProps } from "./components/Wave";
 export {
   ResultStatusPill,
@@ -27,7 +28,7 @@ export {
 } from "./components/stageGraph";
 export { ResultPanel, viewOfData, type DataView, type ResultPanelProps } from "./components/ResultPanel";
 export { LogViewer, highlight, type LogViewerProps } from "./components/LogViewer";
-export { CopyButton, IconButton, type CopyButtonProps, type IconButtonProps } from "./components/IconButton";
+export { CopyButton, IconButton, type CopyButtonProps, type IconButtonProps, type IconType } from "./components/IconButton";
 export { InfoChip, type InfoChipProps } from "./components/InfoChip";
 export { ConsoleDialog, type ConsoleDialogProps } from "./components/ConsoleDialog";
 export { ErrorState, NotFoundState, StateCard, UnavailableState, type StateCardProps } from "./components/StateCard";

@@ -1,6 +1,6 @@
 import { stageDependencies, type RunStage } from "@lerryn/core";
 
-/** Node and gap sizes in CSS pixels; console.css sizes the node contents to fit. */
+/** Node and gap sizes in CSS pixels; views.css sizes the node contents to fit. */
 export const STAGE_NODE = { width: 168, height: 56, colGap: 36, rowGap: 12 } as const;
 
 export interface StageGraphNode {

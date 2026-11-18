@@ -17,10 +17,10 @@ import {
   useTask,
   type Run,
 } from "@lerryn/core";
-import { CopyButton, RunStages, StatusGlyph, StatusIcon, WaveLoader } from "@lerryn/ui-web";
+import { ArrowRotateLeft, ArrowUpRight, Hashtag } from "@gravity-ui/icons";
+import { Alert, Chip, CopyButton, RunStages, StatusGlyph, StatusIcon, WaveLoader, buttonVariants } from "@lerryn/ui-web";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, CircleAlert, Hash, RotateCcw } from "lucide-react";
 
 import { useNow } from "../lib/hooks";
 import { shortWhen } from "../lib/present";
@@ -74,59 +74,63 @@ function PreviewBody({ run }: { run: Run }) {
 
   return (
     <>
-      <div className="board-top">
-        <span className="eyebrow mono-sm">{shortId(run.id)}</span>
-        <div className="tools" style={{ gap: 8 }}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-mono text-xs text-muted">{shortId(run.id)}</span>
+        <div className="flex flex-wrap items-center gap-1">
+          {run.archived_at ? <Chip size="sm" variant="soft">{t("run.archived")}</Chip> : null}
           <ArchiveRunButton key={run.id} run={run} />
-          {run.archived_at ? <span className="tag">{t("run.archived")}</span> : null}
           {isAttentionStatus(run.status) && task.data ? <RetryButton run={run} taskArchived={!!task.data.archived_at} /> : null}
-          <CopyButton value={run.id} label={t("run.copyId")} icon={Hash} />
-          <Link to="/runs/$runId" params={{ runId: run.id }} className="chip" style={{ height: 36 }}>
+          <CopyButton value={run.id} label={t("run.copyId")} icon={Hashtag} />
+          <Link to="/runs/$runId" params={{ runId: run.id }} className={buttonVariants({ size: "sm", variant: "primary" })}>
             {t("runs.open")}
-            <ArrowUpRight className="wl-icon" aria-hidden="true" />
+            <ArrowUpRight width={16} height={16} aria-hidden="true" />
           </Link>
         </div>
       </div>
 
-      <div className="stack" style={{ gap: 16 }}>
-        <Link to="/tasks/$taskId" params={{ taskId: run.task_id }} className="h3" style={{ color: "var(--ink)", textDecoration: "none" }}>
+      <div className="flex min-w-0 flex-col gap-2">
+        <Link to="/tasks/$taskId" params={{ taskId: run.task_id }} className="self-start text-base font-semibold text-foreground hover:underline">
           {task.data?.name ?? t("run.taskLink")}
         </Link>
-        <div className={`verdict verdict--${meta.tone}`}>
-          <div className="verdict-main">
-            <span className={`g g--${meta.tone} g--lg`} aria-hidden="true">
-              <StatusIcon icon={meta.icon} size="md" />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="run-verdict" data-tone={meta.tone}>
+            <span className={`g g--${meta.tone}`} aria-hidden="true">
+              <StatusIcon icon={meta.icon} />
             </span>
-            <span className="verdict-word">{t(meta.label)}</span>
-          </div>
-          {duration !== null ? <span className="verdict-time">{formatDuration(duration, { whole: active })}</span> : null}
-          <span className="muted">
-            {shortWhen(run.started_at ?? run.queued_at, locale, now)} · v{run.version}
+            <span className="run-verdict__word">{t(meta.label)}</span>
+          </span>
+          <span className="run-verdict__meta">
+            {duration !== null ? <span className="verdict-time">{formatDuration(duration, { whole: active })}</span> : null}
+            <span>
+              {shortWhen(run.started_at ?? run.queued_at, locale, now)} · v{run.version}
+            </span>
           </span>
         </div>
       </div>
 
       {cause ? (
-        <div className={meta.tone === "warn" ? "cause cause--warn" : "cause"} role="status">
-          <CircleAlert className="wl-icon" aria-hidden="true" />
-          <span>
-            {cause.stage ? (
-              <>
-                <b>{cause.stage}</b>
-                {" · "}
-              </>
-            ) : null}
-            {cause.message}
-          </span>
-        </div>
+        <Alert status={meta.tone === "warn" ? "warning" : "danger"} role="status">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>
+              {cause.stage ? (
+                <>
+                  <b className="font-semibold">{cause.stage}</b>
+                  {" · "}
+                </>
+              ) : null}
+              {cause.message}
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
       ) : null}
 
       <RunStages stages={run.stages} now={now} />
 
-      {logsExpired ? <span className="caption muted">{t("log.expired")}</span> : null}
+      {logsExpired ? <span className="text-xs text-muted">{t("log.expired")}</span> : null}
       {lines.length > 0 ? (
-        <section className="log" aria-label={t("runs.logTail")}>
-          <div className="log-body" role="log" style={{ maxHeight: 240 }}>
+        <section aria-label={t("runs.logTail")}>
+          <div className="run-tail" role="log">
             {lines.map((l) => (
               <div key={l.seq} className={`ll ll--${l.stream}`}>
                 <span className="n">{l.seq}</span>
@@ -139,13 +143,15 @@ function PreviewBody({ run }: { run: Run }) {
       ) : null}
 
       {rerun ? (
-        <Link to="/runs/$runId" params={{ runId: rerun.id }} className="chip" style={{ alignSelf: "flex-start" }}>
-          <RotateCcw className="wl-icon" aria-hidden="true" />
-          {t("run.rerunDone")}
-          <StatusGlyph status={rerun.status} />
-          <span className="mono-sm muted">
-            {shortWhen(rerun.started_at ?? rerun.queued_at, locale, now)} · v{rerun.version}
-          </span>
+        <Link to="/runs/$runId" params={{ runId: rerun.id }} className="run-link self-start">
+          <Chip variant="soft">
+            <ArrowRotateLeft width={12} height={12} aria-hidden="true" />
+            <Chip.Label>{t("run.rerunDone")}</Chip.Label>
+            <StatusGlyph status={rerun.status} />
+            <span className="font-mono text-xs text-muted">
+              {shortWhen(rerun.started_at ?? rerun.queued_at, locale, now)} · v{rerun.version}
+            </span>
+          </Chip>
         </Link>
       ) : null}
     </>

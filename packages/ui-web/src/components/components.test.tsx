@@ -22,8 +22,10 @@ describe("RunStatusBadge", () => {
 
   it("uses the PRD wording and the design tones", () => {
     renderIn(<RunStatusBadge status="interrupted" />);
-    const badge = screen.getByText("运行中断");
+    // The text sits in the chip's label; the tone is on the chip itself.
+    const badge = screen.getByText("运行中断").closest(".rs")!;
     expect(badge.className).toContain("rs--warn");
+    expect(badge.getAttribute("data-status")).toBe("interrupted");
   });
 
   it("follows the locale", () => {
@@ -162,7 +164,7 @@ describe("LogViewer", () => {
     renderIn(<LogViewer lines={lines} loaded complete={false} dropped={12400} reconnectAttempt={3} />);
     expect(screen.getByText("超出日志上限，已丢弃 12,400 行")).toBeTruthy();
     expect(screen.getByText("重新连接 · 第 3 次")).toBeTruthy();
-    expect(screen.getByRole("switch", { name: "跟随最新输出" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole<HTMLInputElement>("switch", { name: "跟随最新输出" }).checked).toBe(true);
   });
 
   it("hides the follow switch once the run has ended", () => {

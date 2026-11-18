@@ -11,7 +11,6 @@ import {
 } from "@tanstack/react-router";
 
 import { safeRedirect } from "./lib/redirect";
-import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AdminAuditPage } from "./pages/admin/AdminAuditPage";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { AdminRunnersPage } from "./pages/admin/AdminRunnersPage";
@@ -27,7 +26,6 @@ import { AccountPage } from "./pages/settings/AccountPage";
 import { CredentialsPage } from "./pages/settings/CredentialsPage";
 import { NotificationsPage } from "./pages/settings/NotificationsPage";
 import { PairingPage } from "./pages/settings/PairingPage";
-import { AccountSettingsLayout, KeySettingsLayout } from "./pages/settings/SettingsLayout";
 import { TokensPage } from "./pages/settings/TokensPage";
 import { ToolsPage } from "./pages/settings/ToolsPage";
 import { TaskPage } from "./pages/task/TaskPage";
@@ -79,7 +77,7 @@ const registerRoute = createRoute({
   component: RegisterPage,
 });
 
-/** Every console page below needs a session; the shell draws the rail. */
+/** Every console page below needs a session; the shell draws the sidebar. */
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "app",
@@ -106,9 +104,9 @@ const runRoute = createRoute({ getParentRoute: () => appRoute, path: "runs/$runI
 const taskRoute = createRoute({ getParentRoute: () => appRoute, path: "tasks/$taskId", component: TaskPage });
 
 const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings", component: Outlet });
-// Pathless groups keep existing console links while separating the two menus.
-const keySettingsRoute = createRoute({ getParentRoute: () => settingsRoute, id: "_key", component: KeySettingsLayout });
-const accountSettingsRoute = createRoute({ getParentRoute: () => settingsRoute, id: "_account", component: AccountSettingsLayout });
+// Pathless groups keep the route ids pages already search from.
+const keySettingsRoute = createRoute({ getParentRoute: () => settingsRoute, id: "_key", component: Outlet });
+const accountSettingsRoute = createRoute({ getParentRoute: () => settingsRoute, id: "_account", component: Outlet });
 const settingsIndexRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/",
@@ -140,7 +138,7 @@ const adminRoute = createRoute({
   beforeLoad: ({ context }) => {
     if (!context.me.is_admin) throw notFound();
   },
-  component: AdminLayout,
+  component: Outlet,
 });
 const adminIndexRoute = createRoute({
   getParentRoute: () => adminRoute,

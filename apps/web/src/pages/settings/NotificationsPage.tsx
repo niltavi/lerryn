@@ -15,26 +15,65 @@ import {
   type NotificationDelivery,
   type NotificationEventType,
 } from "@lerryn/core";
-import { Button, ConsoleDialog, CopyButton, Disclosure, IconButton, StateCard, Toggle, ToneGlyph } from "@lerryn/ui-web";
-import { Bell, Check, Clock, Copy, History, KeyRound, MessageSquare, Plus, Send, Timer, Trash2, Unplug, Webhook, X, type LucideIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import {
+  Button,
+  Card,
+  Checkbox,
+  CheckboxGroup,
+  Chip,
+  ConsoleDialog,
+  CopyButton,
+  FieldError,
+  IconButton,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  StateCard,
+  Toggle,
+  ToneGlyph,
+} from "@lerryn/ui-web";
+import {
+  Bell,
+  Check,
+  CircleCheckFill,
+  Clock,
+  ClockArrowRotateLeft,
+  Comment,
+  Copy,
+  Key,
+  LinkSlash,
+  LogoWebhook,
+  PaperPlane,
+  Plus,
+  Stopwatch,
+  TrashBin,
+  Xmark,
+} from "@gravity-ui/icons";
+import { useId, useState, type ComponentType, type FormEvent, type SVGProps } from "react";
 
 import { Board, BoardTop, LoadError, LoadMore, usePageTitle } from "../../shell/layout";
 import { FormError, TextInput } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
+import { Segmented } from "./AccountPage";
 
-const EVENTS: { type: NotificationEventType; icon: LucideIcon }[] = [
-  { type: "run_failed", icon: X },
-  { type: "run_timed_out", icon: Timer },
-  { type: "run_interrupted", icon: Unplug },
-  { type: "credential_expiring", icon: KeyRound },
+type Icon = ComponentType<SVGProps<SVGSVGElement>>;
+
+const EVENTS: { type: NotificationEventType; icon: Icon }[] = [
+  { type: "run_failed", icon: Xmark },
+  { type: "run_timed_out", icon: Stopwatch },
+  { type: "run_interrupted", icon: LinkSlash },
+  { type: "credential_expiring", icon: Key },
 ];
 const KINDS: NotificationChannelKind[] = ["feishu", "slack", "webhook"];
+/** The task picker's entry for a subscription to the whole project. */
+const ALL_TASKS = "all";
+const STATUS_COLOR = { delivered: "success", failed: "danger", pending: "default" } as const;
 
 /**
- * Notification channels and what they subscribe to (prototype
- * Settings-Notify.dc.html), with a test send and the delivery log. Target
- * addresses come back masked; a webhook's signing secret is shown once.
+ * Notification channels and what they subscribe to, with a test send and the
+ * delivery log. Target addresses come back masked; a webhook's signing secret
+ * is shown once.
  */
 export function NotificationsPage() {
   const { t } = useI18n();
@@ -49,7 +88,7 @@ export function NotificationsPage() {
     <Board label={t("notifications.title")}>
       <BoardTop title={t("notifications.title")}>
         <Button size="sm" onPress={() => setAdding(true)}>
-          <Plus className="wl-icon" aria-hidden="true" />
+          <Plus aria-hidden="true" width={16} height={16} />
           {t("notifications.add")}
         </Button>
       </BoardTop>
@@ -58,11 +97,13 @@ export function NotificationsPage() {
       ) : channels.data && items.length === 0 ? (
         <StateCard icon={Bell} title={t("notifications.empty")} />
       ) : items.length > 0 ? (
-        <div className="rows" role="list" aria-label={t("notifications.title")}>
-          {items.map((c) => (
-            <ChannelRow key={c.id} channel={c} onLog={() => setLog(c)} onDelete={() => setRemoving(c)} />
-          ))}
-        </div>
+        <Card className="tpl-card nt-fade-up">
+          <ul className="lr-rows" role="list" aria-label={t("notifications.title")}>
+            {items.map((c) => (
+              <ChannelRow key={c.id} channel={c} onLog={() => setLog(c)} onDelete={() => setRemoving(c)} />
+            ))}
+          </ul>
+        </Card>
       ) : null}
       <AddChannelDialog isOpen={adding} onClose={() => setAdding(false)} />
       <DeliveriesDialog channel={log} onClose={() => setLog(null)} />
@@ -83,34 +124,43 @@ function ChannelRow({ channel: c, onLog, onDelete }: { channel: NotificationChan
   const scope = c.subscriptions
     .map((s) => (s.task ? t("notifications.scopeTask", { name: s.task.name }) : t("notifications.scopeProject", { name: s.project.name })))
     .join(" · ");
-  const Icon = c.kind === "webhook" ? Webhook : MessageSquare;
-  const names = EVENTS.filter((e) => subscribed.has(e.type)).map((e) => t(`notifications.event.${e.type}`));
+  const KindIcon = c.kind === "webhook" ? LogoWebhook : Comment;
+  const events = EVENTS.filter((e) => subscribed.has(e.type));
 
   return (
-    <div className={c.enabled ? "rowi" : "rowi rowi--quiet"} role="listitem">
-      <span className="ic-box" aria-hidden="true">
-        <Icon className="wl-icon" width={18} />
+    <li className="lr-row" data-quiet={c.enabled ? undefined : true}>
+      <span className="lr-row__icon" data-tone={c.enabled ? undefined : "idle"} aria-hidden="true">
+        <KindIcon width={16} height={16} />
       </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="rowi-name" style={c.enabled ? undefined : { color: "var(--ink-muted)" }}>
-          {c.name}
+      <span className="lr-row__text">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="lr-row__title">{c.name}</span>
+          <Chip size="sm" variant="soft" className="shrink-0">
+            {kindLabel(c.kind, t)}
+          </Chip>
         </span>
-        <span className="rowi-sub">{[kindLabel(c.kind, t), scope || t("notifications.noSubscription")].join(" · ")}</span>
+        <span className="lr-row__sub">{scope || t("notifications.noSubscription")}</span>
       </span>
-      <span className="rowi-end">
-        <span className="acts">
-          <IconButton label={t("notifications.testNamed", { name: c.name })} tip={t("notifications.test")} icon={Send} isPending={test.isPending} onPress={() => test.mutate(c.id)} />
-          <IconButton label={t("notifications.logNamed", { name: c.name })} tip={t("notifications.log")} icon={History} onPress={onLog} />
-          <IconButton label={t("notifications.deleteNamed", { name: c.name })} tip={t("common.delete")} icon={Trash2} onPress={onDelete} />
-        </span>
-        <span className="scopes" role="img" aria-label={names.length ? t("notifications.subscribedTo", { events: names.join("、") }) : t("notifications.noSubscription")}>
-          {EVENTS.map(({ type, icon: EIcon }) => (
-            <span key={type} className={subscribed.has(type) ? undefined : "off"} data-tip={subscribed.has(type) ? t(`notifications.event.${type}`) : undefined} data-tip-pos="top" aria-hidden="true">
-              <EIcon className="wl-icon" />
-            </span>
-          ))}
-        </span>
+      <span className="lr-row__end">
+        {events.length > 0 ? (
+          <span
+            className="lr-events"
+            role="img"
+            aria-label={t("notifications.subscribedTo", { events: events.map((e) => t(`notifications.event.${e.type}`)).join("、") })}
+          >
+            {events.map(({ type, icon: EventIcon }) => (
+              <span key={type} title={t(`notifications.event.${type}`)}>
+                <EventIcon aria-hidden="true" width={14} height={14} />
+              </span>
+            ))}
+          </span>
+        ) : null}
         <LastDelivery delivery={test.data ?? c.last_delivery} />
+        <span className="flex items-center gap-1">
+          <IconButton label={t("notifications.testNamed", { name: c.name })} tip={t("notifications.test")} icon={PaperPlane} isPending={test.isPending} onPress={() => test.mutate(c.id)} />
+          <IconButton label={t("notifications.logNamed", { name: c.name })} tip={t("notifications.log")} icon={ClockArrowRotateLeft} onPress={onLog} />
+          <IconButton label={t("notifications.deleteNamed", { name: c.name })} tip={t("common.delete")} icon={TrashBin} onPress={onDelete} />
+        </span>
         <Toggle
           size="sm"
           checked={c.enabled}
@@ -119,7 +169,7 @@ function ChannelRow({ channel: c, onLog, onDelete }: { channel: NotificationChan
           onChange={(enabled) => update.mutate({ channelId: c.id, body: { enabled } })}
         />
       </span>
-    </div>
+    </li>
   );
 }
 
@@ -127,44 +177,49 @@ function LastDelivery({ delivery }: { delivery: NotificationDelivery | null }) {
   const { t, locale } = useI18n();
   if (!delivery) return <ToneGlyph tone="idle" icon={Clock} label={t("notifications.neverSent")} />;
   const when = formatDateTime(delivery.delivered_at ?? delivery.last_attempt_at ?? delivery.created_at, locale);
-  const tone = delivery.status === "delivered" ? "ok" : delivery.status === "failed" ? "bad" : "idle";
   const label =
     delivery.status === "delivered"
       ? t("notifications.delivered", { time: when })
       : delivery.status === "failed"
         ? t("notifications.failed", { time: when })
         : t("notifications.pendingSend");
+  const StatusIcon = delivery.status === "delivered" ? Check : delivery.status === "failed" ? Xmark : Clock;
   return (
-    <Disclosure
-      alignRight
-      triggerClassName={`g g--${tone} g-btn`}
-      label={label}
-      detailsLabel={t("notifications.lastSend")}
-      trigger={tone === "ok" ? <Check className="wl-icon" aria-hidden="true" /> : tone === "bad" ? <X className="wl-icon" aria-hidden="true" /> : <Clock className="wl-icon" aria-hidden="true" />}
-      details={<DeliveryDetail delivery={delivery} />}
-    />
+    <Popover>
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        aria-label={label}
+        className={delivery.status === "delivered" ? "text-success-soft-foreground" : delivery.status === "failed" ? "text-danger-soft-foreground" : "text-muted"}
+      >
+        <StatusIcon aria-hidden="true" width={16} height={16} />
+      </Button>
+      <Popover.Content placement="bottom end" className="min-w-56">
+        <Popover.Dialog>
+          <Popover.Heading>{t("notifications.lastSend")}</Popover.Heading>
+          <DeliveryDetail delivery={delivery} />
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
   );
 }
 
 function DeliveryDetail({ delivery: d }: { delivery: NotificationDelivery }) {
   const { t, locale } = useI18n();
   return (
-    <div className="stack" style={{ gap: 0 }}>
-      <div className="pop-row">
+    <div className="mt-2 flex flex-col gap-1 text-sm">
+      <div className="flex items-center justify-between gap-4">
         <span>{formatDateTime(d.last_attempt_at ?? d.created_at, locale)}</span>
-        <span className="mono-sm" style={d.status === "failed" ? { color: "var(--danger)" } : undefined}>
+        <span className={d.status === "failed" ? "font-mono text-xs text-danger-soft-foreground" : "font-mono text-xs"}>
           {d.http_status ? `HTTP ${d.http_status}` : t(`notifications.status.${d.status}`)}
         </span>
       </div>
-      <div className="pop-row">
+      <div className="flex items-center justify-between gap-4">
         <span>{t("notifications.attempts")}</span>
-        <span className="mono-sm">{d.attempts}</span>
+        <span className="font-mono text-xs">{d.attempts}</span>
       </div>
-      {d.error ? (
-        <div className="pop-row">
-          <span className="caption muted">{d.error}</span>
-        </div>
-      ) : null}
+      {d.error ? <p className="text-xs text-muted">{d.error}</p> : null}
     </div>
   );
 }
@@ -173,6 +228,7 @@ function AddChannelDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   const { t } = useI18n();
   const create = useCreateNotificationChannel();
   const projects = useProjects();
+  const kindLabelId = useId();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<NotificationChannelKind>("feishu");
   const [url, setUrl] = useState("");
@@ -225,19 +281,17 @@ function AddChannelDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         onOpenChange={(open) => (open ? undefined : close())}
         title={
           <>
-            <span className="g g--ok g--lg" aria-hidden="true">
-              <Check className="wl-icon" />
-            </span>
+            <CircleCheckFill className="shrink-0 text-success" aria-hidden="true" width={18} height={18} />
             {t("notifications.secretTitle")}
           </>
         }
         footer={<Button onPress={close}>{t("common.done")}</Button>}
       >
-        <div className="copyline copyline--wrap">
+        <div className="lr-copy lr-copy--wrap">
           <code data-testid="signing-secret">{secret}</code>
           <CopyButton value={secret} label={t("notifications.copySecret")} icon={Copy} />
         </div>
-        <p className="body-sm muted">{t("notifications.secretBody")}</p>
+        <p className="text-sm text-muted">{t("notifications.secretBody")}</p>
       </ConsoleDialog>
     );
   }
@@ -259,65 +313,96 @@ function AddChannelDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         </>
       }
     >
-      <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit}>
-        <div className="stack" style={{ gap: 8 }}>
-          <span className="label-text" id="kind-label">
+      <form className="flex flex-col gap-4" onSubmit={submit}>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium" id={kindLabelId}>
             {t("notifications.kindLabel")}
           </span>
-          <div className="seg seg--block" role="group" aria-labelledby="kind-label">
-            {KINDS.map((k) => (
-              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
-                {kindLabel(k, t)}
-              </button>
-            ))}
-          </div>
+          <Segmented labelledBy={kindLabelId} fullWidth options={KINDS.map((k) => ({ id: k, label: kindLabel(k, t) }))} value={kind} onChange={setKind} />
         </div>
         <TextInput name="name" label={t("notifications.name")} value={name} onChange={setName} placeholder={t("notifications.namePlaceholder")} autoFocus error={errors.name} />
         <TextInput name="url" label={t("notifications.url")} value={url} onChange={setUrl} placeholder="https://" error={errors.url} />
-        <div className="field-row">
-          <label className="field-select">
-            <span className="label-text">{t("notifications.project")}</span>
-            <select value={project} onChange={(e) => (setProjectId(e.target.value), setTaskId(""))}>
-              {projectItems.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.is_personal ? t("overview.personalProject") : p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field-select">
-            <span className="label-text">{t("notifications.task")}</span>
-            <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
-              <option value="">{t("notifications.allTasks")}</option>
-              {(tasks.data?.items ?? [])
-                .filter((x) => x.project_id === project)
-                .map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+        <div className="grid grid-cols-2 gap-3">
+          <Select
+            fullWidth
+            selectedKey={project || null}
+            onSelectionChange={(key) => {
+              if (key === null) return;
+              setProjectId(String(key));
+              setTaskId("");
+            }}
+          >
+            <Label>{t("notifications.project")}</Label>
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {projectItems.map((p) => {
+                  const label = p.is_personal ? t("overview.personalProject") : p.name;
+                  return (
+                    <ListBox.Item key={p.id} id={p.id} textValue={label}>
+                      {label}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  );
+                })}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+          <Select
+            fullWidth
+            selectedKey={taskId || ALL_TASKS}
+            onSelectionChange={(key) => {
+              if (key !== null) setTaskId(key === ALL_TASKS ? "" : String(key));
+            }}
+          >
+            <Label>{t("notifications.task")}</Label>
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                <ListBox.Item id={ALL_TASKS} textValue={t("notifications.allTasks")}>
+                  {t("notifications.allTasks")}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+                {(tasks.data?.items ?? [])
+                  .filter((x) => x.project_id === project)
+                  .map((x) => (
+                    <ListBox.Item key={x.id} id={x.id} textValue={x.name}>
+                      {x.name}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
         </div>
-        <fieldset className="stack" style={{ gap: 8, border: 0, margin: 0, padding: 0 }}>
-          <legend className="label-text" style={{ marginBottom: 8 }}>
-            {t("notifications.events")}
-          </legend>
-          <div className="row">
-            {EVENTS.map(({ type, icon: Icon }) => (
-              <label className="choice" key={type}>
-                <input
-                  type="checkbox"
-                  checked={events.includes(type)}
-                  onChange={(e) => setEvents((s) => (e.target.checked ? [...s, type] : s.filter((x) => x !== type)))}
-                />
-                <Icon className="wl-icon" aria-hidden="true" />
-                {t(`notifications.event.${type}`)}
-              </label>
+        <CheckboxGroup
+          value={events}
+          onChange={(next) => setEvents(next as NotificationEventType[])}
+          isInvalid={!!errors.events}
+          validationBehavior="aria"
+        >
+          <Label>{t("notifications.events")}</Label>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {EVENTS.map(({ type, icon: EventIcon }) => (
+              <Checkbox key={type} value={type}>
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <EventIcon className="text-muted" aria-hidden="true" width={14} height={14} />
+                  {t(`notifications.event.${type}`)}
+                </Checkbox.Content>
+              </Checkbox>
             ))}
           </div>
-          {errors.events ? <span className="caption" style={{ color: "var(--danger)" }}>{errors.events}</span> : null}
-        </fieldset>
+          <FieldError>{errors.events}</FieldError>
+        </CheckboxGroup>
         {create.error ? (
           <FormError>{isApiError(create.error) && create.error.code === "validation_failed" ? t("notifications.errors.url") : t(writeErrorMessage(create.error))}</FormError>
         ) : null}
@@ -345,26 +430,32 @@ function DeliveriesDialog({ channel, onClose }: { channel: NotificationChannel |
             : deliveries.refetch({ cancelRefetch: false })
         )} />
       ) : null}
-      {deliveries.data && items.length === 0 && !deliveries.hasNextPage && !deliveries.isError ? <p className="body-sm muted">{t("notifications.neverSent")}</p> : null}
+      {deliveries.data && items.length === 0 && !deliveries.hasNextPage && !deliveries.isError ? <p className="text-sm text-muted">{t("notifications.neverSent")}</p> : null}
       {items.length > 0 ? (
-        <div className="stack" style={{ gap: 0 }}>
+        <ul className="lr-rows">
           {items.map((d) => (
-            <div className="pop-row" key={d.id}>
-              <span className="stack" style={{ gap: 0, minWidth: 0 }}>
-                <span className="body-sm">
-                  {d.event_type === "test" ? t("notifications.testEvent") : t(`notifications.event.${d.event_type as NotificationEventType}`)}
-                  {d.task ? ` · ${d.task.name}` : ""}
-                  {d.merged_count > 1 ? ` · ×${d.merged_count}` : ""}
+            // pop-row is the hook the end-to-end suite counts delivery rows by.
+            <li className="lr-row pop-row" key={d.id}>
+              <span className="lr-row__text">
+                <span className="lr-row__title text-sm">
+                  {[
+                    d.event_type === "test" ? t("notifications.testEvent") : t(`notifications.event.${d.event_type as NotificationEventType}`),
+                    d.task?.name,
+                    d.merged_count > 1 ? `×${d.merged_count}` : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
-                <span className="caption muted">{formatDateTime(d.created_at, locale)}</span>
+                <span className="lr-row__sub">{formatDateTime(d.created_at, locale)}</span>
               </span>
-              <span className="mono-sm" style={d.status === "failed" ? { color: "var(--danger)" } : d.status === "delivered" ? { color: "var(--success)" } : undefined}>
-                {t(`notifications.status.${d.status}`)}
-                {d.http_status ? ` · ${d.http_status}` : ""}
+              <span className="lr-row__end">
+                <Chip size="sm" variant="soft" color={STATUS_COLOR[d.status]}>
+                  {`${t(`notifications.status.${d.status}`)}${d.http_status ? ` · ${d.http_status}` : ""}`}
+                </Chip>
               </span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : null}
       <LoadMore
         show={!!deliveries.hasNextPage && !deliveries.isError}
@@ -394,7 +485,7 @@ function DeleteDialog({ channel, onClose }: { channel: NotificationChannel | nul
         </>
       }
     >
-      <p className="body-sm muted">{t("notifications.deleteBody")}</p>
+      <p className="text-sm text-muted">{t("notifications.deleteBody")}</p>
       {remove.error ? <FormError>{t(writeErrorMessage(remove.error))}</FormError> : null}
     </ConsoleDialog>
   );

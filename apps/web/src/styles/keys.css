@@ -1,0 +1,15 @@
+/* Tokens, credentials and tools. Semantic theme variables only. */
+
+/* Connection values to copy, two to a row where there is room. */
+.lr-keys__copies { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--spacing) * 70)), 1fr)); gap: calc(var(--spacing) * 2); }
+
+/* A pending request: the whole row opens the fill dialog. */
+.lr-keys__request { display: flex; flex: 1; align-items: center; gap: calc(var(--spacing) * 3); min-width: 0; border-radius: var(--radius-lg); color: inherit; text-align: start; cursor: var(--cursor-interactive); }
+.lr-keys__request:hover .lr-row__title { color: var(--accent-soft-foreground); }
+.lr-keys__request:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* A multi-line secret (certificate, cookie) stays hidden like a password until shown. */
+.lr-keys__masked { -webkit-text-security: disc; }
+
+/* A short command sample. */
+.lr-keys__code { margin: 0; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); overflow-x: auto; border-radius: var(--field-radius); background: var(--surface-tertiary); font-family: var(--font-mono); font-size: .8125rem; line-height: 1.6; }

@@ -1,0 +1,131 @@
+/* HeroUI BEM extensions. Colors and states come from the semantic theme. */
+@layer components {
+  .surface--controls {
+    padding: var(--spacing);
+    border-radius: var(--radius-4xl);
+  }
+
+  .surface--example {
+    padding: calc(var(--spacing) * 4);
+    border-radius: var(--radius-3xl);
+  }
+
+  /* Card choices share one flow layout, including wrapped labels. */
+  .checkbox--card,
+  .radio--card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .choice-card {
+    display: grid;
+    flex: 1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: calc(var(--spacing) * 3);
+    width: 100%;
+    padding: calc(var(--spacing) * 4);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--field-radius);
+    background: var(--surface);
+    transition: background-color 150ms, border-color 150ms;
+  }
+
+  .choice-card--with-icon {
+    grid-template-columns: calc(var(--spacing) * 5) minmax(0, 1fr) auto;
+  }
+
+  .choice-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .choice-card--with-icon .choice-card__body { grid-column: 2; }
+
+  .choice-card__icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: calc(var(--spacing) * 5);
+    height: calc(var(--spacing) * 5);
+    color: var(--accent-soft-foreground);
+  }
+
+  .choice-card > :is(.checkbox__control, .radio__control) {
+    grid-column: -2;
+    grid-row: 1;
+    margin-block-start: calc(var(--spacing) * 0.5);
+  }
+
+  .choice-card__detail { grid-column: 1 / -1; }
+
+  .choice-card[data-selected="true"] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .checkbox-group--cards,
+  .radio-group--cards { gap: calc(var(--spacing) * 3); }
+
+  .choice-group__heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+  }
+
+  .choice-list {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .choice-list--columns {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  }
+
+  .checkbox-group--cards .choice-list > .checkbox,
+  .radio-group--cards .choice-list > .radio { margin-block-start: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .choice-card { transition: none; }
+  }
+
+  .button--secondary {
+    --button-bg: var(--secondary);
+    --button-bg-hover: var(--secondary-hover);
+    --button-bg-pressed: var(--secondary-hover);
+    --button-fg: var(--secondary-foreground);
+  }
+
+  .button--tertiary {
+    --button-bg: var(--tertiary);
+    --button-bg-hover: var(--tertiary-hover);
+    --button-bg-pressed: var(--tertiary-hover);
+    --button-fg: var(--tertiary-foreground);
+  }
+
+  .button--rufous {
+    --button-bg: var(--rufous);
+    --button-bg-hover: var(--rufous-hover);
+    --button-bg-pressed: var(--rufous-hover);
+    --button-fg: var(--rufous-foreground);
+  }
+
+  .chip--rufous.chip--soft {
+    --chip-bg: var(--rufous-soft);
+    --chip-fg: var(--rufous-soft-foreground);
+  }
+
+  .chip--info.chip--soft {
+    --chip-bg: var(--info-soft);
+    --chip-fg: var(--info-soft-foreground);
+  }
+
+  /* Prefix and suffix live inside one field: no dividing rules, a tighter inner gap. */
+  .input-group__prefix,
+  .input-group__suffix { border-inline-width: 0; }
+  .input-group__prefix { padding-inline-end: calc(var(--spacing) * 2); }
+  .input-group__suffix { padding-inline-start: calc(var(--spacing) * 2); }
+}

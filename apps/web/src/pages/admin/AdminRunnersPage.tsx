@@ -1,15 +1,16 @@
 import { formatAgo, formatDate, formatDateTime, useCreateRunnerToken, useI18n, useRunners, useUpdateRunner, type Runner } from "@lerryn/core";
-import { ActionMenu, Button, ConsoleDialog, CopyButton, Disclosure, StateCard, ToneGlyph } from "@lerryn/ui-web";
-import { Ban, Check, Copy, Ellipsis, Plus, Server, Unplug } from "lucide-react";
+import { ActionMenu, Button, Card, Chip, ConsoleDialog, CopyButton, Meter, StateCard } from "@lerryn/ui-web";
+import { Ban, Check, Copy, Ellipsis, LinkSlash, Plus, Server } from "@gravity-ui/icons";
 import { useState, type FormEvent } from "react";
 
 import { Board, BoardTop, LoadError, LoadMore, usePageTitle } from "../../shell/layout";
 import { FormError, TextInput } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
+import { PressedGroup } from "./AdminAuditPage";
 
 const EXPIRY_HOURS = [1, 24, 168] as const;
 
-/** Runners (prototype Admin-Runners.dc.html): capacity, status, disable, registration tokens. */
+/** Runners: capacity, status, disable, registration tokens. */
 export function AdminRunnersPage() {
   const { t } = useI18n();
   usePageTitle(t("admin.runners"));
@@ -25,7 +26,7 @@ export function AdminRunnersPage() {
     <Board label={t("admin.runners")}>
       <BoardTop title={t("admin.runners")}>
         <Button size="sm" onPress={() => setCreating(true)}>
-          <Plus className="wl-icon" aria-hidden="true" />
+          <Plus aria-hidden="true" width={14} height={14} />
           {t("admin.registrationToken")}
         </Button>
       </BoardTop>
@@ -36,30 +37,32 @@ export function AdminRunnersPage() {
         <StateCard icon={Server} title={t("admin.noRunners")} />
       ) : items.length > 0 ? (
         <>
-          <div className="hero">
-            <div className={running > 0 ? "stat stat--run" : "stat"}>
-              <span className="stat-n stat-n--md">
+          <div className="hero tpl-grid tpl-grid--kpi lr-admin-kpis">
+            <Card className="tpl-kpi stat">
+              <span className="tpl-kpi__label">{t(runners.hasNextPage ? "admin.shownRunningOfCapacity" : "admin.runningOfCapacity")}</span>
+              <span className="tpl-kpi__value stat-n">
                 {running}
-                <small>/ {slots}</small>
+                <small className="lr-admin-kpis__of">/ {slots}</small>
               </span>
-              <span className="stat-l">{t(runners.hasNextPage ? "admin.shownRunningOfCapacity" : "admin.runningOfCapacity")}</span>
-            </div>
-            <div className="stat">
-              <span className="stat-n stat-n--md">{online}</span>
-              <span className="stat-l">{t(runners.hasNextPage ? "admin.shownOnline" : "admin.online")}</span>
-            </div>
+            </Card>
+            <Card className="tpl-kpi stat">
+              <span className="tpl-kpi__label">{t(runners.hasNextPage ? "admin.shownOnline" : "admin.online")}</span>
+              <span className="tpl-kpi__value stat-n">{online}</span>
+            </Card>
             {offline > 0 ? (
-              <div className="stat stat--bad">
-                <span className="stat-n stat-n--md">{offline}</span>
-                <span className="stat-l">{t(runners.hasNextPage ? "admin.shownOffline" : "admin.offline")}</span>
-              </div>
+              <Card className="tpl-kpi stat">
+                <span className="tpl-kpi__label">{t(runners.hasNextPage ? "admin.shownOffline" : "admin.offline")}</span>
+                <span className="tpl-kpi__value stat-n text-danger-soft-foreground">{offline}</span>
+              </Card>
             ) : null}
           </div>
-          <div className="rows" role="list" aria-label={t("admin.runners")}>
-            {items.map((r) => (
-              <RunnerRow key={r.id} runner={r} />
-            ))}
-          </div>
+          <Card className="tpl-card">
+            <div className="lr-rows" role="list" aria-label={t("admin.runners")}>
+              {items.map((r) => (
+                <RunnerRow key={r.id} runner={r} />
+              ))}
+            </div>
+          </Card>
         </>
       ) : null}
       <LoadMore show={!!runners.hasNextPage && !runners.isError} pending={runners.isFetching} onPress={() => void runners.fetchNextPage({ cancelRefetch: false })} />
@@ -71,86 +74,66 @@ export function AdminRunnersPage() {
 function RunnerRow({ runner: r }: { runner: Runner }) {
   const { t, locale } = useI18n();
   const update = useUpdateRunner();
-  const sub = [r.labels.join(" · "), r.version].filter(Boolean).join(" · ");
-  const pct = r.slots ? Math.min(100, (r.running / r.slots) * 100) : 0;
-  if (r.status === "disabled") {
-    return (
-      <div className="rowi rowi--quiet" role="listitem">
-        <span className="ic-box" aria-hidden="true" style={{ color: "var(--ink-muted)" }}>
-          <Server className="wl-icon" width={18} />
-        </span>
-        <span style={{ minWidth: 0 }}>
-          <span className="rowi-name mono" style={{ fontSize: 14 }}>
-            {r.name}
-          </span>
-          <span className="rowi-sub mono-sm">{sub}</span>
-        </span>
-        <span className="rowi-end">
-          {r.running > 0 ? (
-            <span className="mono-sm" style={{ width: 36 }} aria-label={t("admin.slotsUsed", { running: r.running, slots: r.slots })}>
-              {r.running}/{r.slots}
-            </span>
-          ) : null}
-          <ToneGlyph tone="idle" icon={Ban} label={t("admin.disabledOn", { date: formatDate(r.disabled_at ?? r.last_seen_at, locale) })} />
-          <Button variant="secondary" size="sm" isPending={update.isPending} onPress={() => update.mutate({ runnerId: r.id, disabled: false })}>
-            {t("admin.enable")}
-          </Button>
-        </span>
-      </div>
-    );
-  }
+  const disabled = r.status === "disabled";
   const offline = r.status === "offline";
+  // An offline node says when it was last heard from, since that is what decides whether to disable it.
+  const sub = [r.labels.join(" · "), r.version, offline ? formatDateTime(r.last_seen_at, locale) : null].filter(Boolean).join(" · ");
   return (
-    <div className={offline ? "rowi rowi--bad" : "rowi"} role="listitem">
-      <span className="ic-box" aria-hidden="true">
-        {offline ? <Unplug className="wl-icon" width={18} /> : <Server className="wl-icon" width={18} />}
+    <div className="lr-row" role="listitem" data-quiet={disabled || undefined}>
+      <span className="lr-row__icon" data-tone={disabled ? "idle" : offline ? "bad" : "ok"} aria-hidden="true">
+        {offline ? <LinkSlash width={16} height={16} /> : <Server width={16} height={16} />}
       </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="rowi-name mono" style={{ fontSize: 14 }}>
-          {r.name}
-        </span>
-        <span className="rowi-sub mono-sm" style={offline ? { color: "var(--ink)" } : undefined}>
-          {sub || "—"}
-        </span>
+      <span className="lr-row__text">
+        <span className="lr-row__title font-mono text-sm">{r.name}</span>
+        <span className="lr-row__sub font-mono">{sub || "—"}</span>
       </span>
-      <span className="rowi-end">
-        <span className="meter" aria-hidden="true">
-          <span style={{ width: `${pct}%` }} />
-        </span>
-        <span className="mono-sm" style={{ width: 36 }} aria-label={t("admin.slotsUsed", { running: r.running, slots: r.slots })}>
-          {r.running}/{r.slots}
-        </span>
-        {offline ? (
+      <span className="lr-row__end">
+        {/* A disabled node only shows its slots while runs are still draining from it. */}
+        {!disabled || r.running > 0 ? (
+          <Meter
+            aria-label={t("admin.slotsUsed", { running: r.running, slots: r.slots })}
+            value={r.running}
+            maxValue={Math.max(r.slots, 1)}
+            size="sm"
+            color={disabled ? "default" : "accent"}
+            className="flex w-28 items-center gap-2"
+          >
+            <Meter.Track className="flex-1">
+              <Meter.Fill />
+            </Meter.Track>
+            <Meter.Output className="font-mono text-xs font-normal text-muted">
+              {r.running}/{r.slots}
+            </Meter.Output>
+          </Meter>
+        ) : null}
+        {disabled ? (
           <>
-            <Disclosure
-              alignRight
-              triggerClassName="g g--bad g-btn"
-              label={t("admin.offlineDetails")}
-              detailsLabel={r.name}
-              trigger={<Unplug className="wl-icon" aria-hidden="true" />}
-              details={
-                <div className="pop-row">
-                  <span>{t("admin.offline")}</span>
-                  <span className="mono-sm">{formatDateTime(r.last_seen_at, locale)}</span>
-                </div>
-              }
-            />
+            <Chip size="sm" variant="soft">
+              {t("admin.disabledOn", { date: formatDate(r.disabled_at ?? r.last_seen_at, locale) })}
+            </Chip>
+            <Button variant="secondary" size="sm" isPending={update.isPending} onPress={() => update.mutate({ runnerId: r.id, disabled: false })}>
+              {t("admin.enable")}
+            </Button>
+          </>
+        ) : offline ? (
+          <>
+            <Chip size="sm" variant="soft" color="danger">
+              {t("admin.offline")}
+            </Chip>
             <Button variant="secondary" size="sm" isPending={update.isPending} onPress={() => update.mutate({ runnerId: r.id, disabled: true })}>
               {t("admin.disable")}
             </Button>
           </>
         ) : (
           <>
-            <span data-tip={t("admin.onlineSeen", { time: formatAgo(r.last_seen_at, locale) })} data-tip-pos="top">
-              <ToneGlyph tone="ok" icon={Check} label={t("admin.online")} />
-            </span>
-            <span className="acts">
-              <ActionMenu
-                label={t("admin.actionsFor", { name: r.name })}
-                icon={Ellipsis}
-                items={[{ label: t("admin.disable"), icon: Ban, danger: true, onSelect: () => update.mutate({ runnerId: r.id, disabled: true }) }]}
-              />
-            </span>
+            <Chip size="sm" variant="soft" color="success" title={t("admin.onlineSeen", { time: formatAgo(r.last_seen_at, locale) })}>
+              {t("admin.online")}
+            </Chip>
+            <ActionMenu
+              label={t("admin.actionsFor", { name: r.name })}
+              icon={Ellipsis}
+              items={[{ label: t("admin.disable"), icon: Ban, danger: true, onSelect: () => update.mutate({ runnerId: r.id, disabled: true }) }]}
+            />
           </>
         )}
       </span>
@@ -184,23 +167,25 @@ function RunnerTokenDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         isDismissable={false}
         onOpenChange={(open) => (open ? undefined : close())}
         title={
-          <>
-            <span className="g g--ok g--lg" aria-hidden="true">
-              <Check className="wl-icon" />
+          <span className="flex items-center gap-3">
+            <span className="lr-row__icon" data-tone="ok" aria-hidden="true">
+              <Check width={16} height={16} />
             </span>
             {t("tokens.onceTitle")}
-          </>
+          </span>
         }
         footer={<Button onPress={close}>{t("common.done")}</Button>}
       >
-        <div className="copyline copyline--wrap">
-          <code data-testid="runner-token">{token.token}</code>
-          <CopyButton value={token.token} label={t("tokens.copyToken")} icon={Copy} />
+        <div className="flex flex-col gap-3">
+          <div className="lr-copy lr-copy--wrap">
+            <code data-testid="runner-token">{token.token}</code>
+            <CopyButton value={token.token} label={t("tokens.copyToken")} icon={Copy} />
+          </div>
+          <p className="text-sm text-muted">
+            {t("admin.tokenUse")} <span className="font-mono text-xs">runner.registration_token_file</span>
+          </p>
+          <p className="text-sm text-muted">{t("admin.tokenExpires", { time: formatDateTime(token.expires_at, locale) })}</p>
         </div>
-        <p className="body-sm muted">
-          {t("admin.tokenUse")} <span className="mono-sm">runner.registration_token_file</span>
-        </p>
-        <p className="body-sm muted">{t("admin.tokenExpires", { time: formatDateTime(token.expires_at, locale) })}</p>
       </ConsoleDialog>
     );
   }
@@ -222,19 +207,13 @@ function RunnerTokenDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         </>
       }
     >
-      <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit}>
+      <form className="flex flex-col gap-4" onSubmit={submit}>
         <TextInput name="name" label={t("admin.tokenNote")} value={name} onChange={setName} placeholder={t("auth.optional")} autoFocus />
-        <div className="stack" style={{ gap: 8 }}>
-          <span className="label-text" id="rt-exp">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium" id="rt-exp">
             {t("tokens.expiry")}
           </span>
-          <div className="seg seg--block" role="group" aria-labelledby="rt-exp">
-            {EXPIRY_HOURS.map((h) => (
-              <button key={h} type="button" aria-pressed={hours === h} onClick={() => setHours(h)}>
-                {label(h)}
-              </button>
-            ))}
-          </div>
+          <PressedGroup labelledBy="rt-exp" fullWidth value={hours} onChange={setHours} options={EXPIRY_HOURS.map((h) => ({ id: h, label: label(h) }))} />
         </div>
         {create.error ? <FormError>{t(writeErrorMessage(create.error))}</FormError> : null}
         <button type="submit" hidden disabled={create.isPending} />

@@ -1,0 +1,50 @@
+/*
+ * Shared primitives: status shapes, popover rows, the collapsible panel, the wave
+ * loader and the QR plate. Semantic theme variables only; spacing follows the
+ * Tailwind scale.
+ */
+
+/* ---------- Status shapes ---------- */
+/* A round soft shape that carries an icon; the tone is never the only signal. */
+.g { display: inline-grid; place-items: center; flex: none; width: calc(var(--spacing) * 6); height: calc(var(--spacing) * 6); border-radius: 50%; background: var(--default); color: var(--muted); }
+.g--lg { width: calc(var(--spacing) * 10); height: calc(var(--spacing) * 10); }
+.g--ok { background: var(--success-soft); color: var(--success-soft-foreground); }
+.g--bad { background: var(--danger-soft); color: var(--danger-soft-foreground); }
+.g--warn { background: var(--warning-soft); color: var(--warning-soft-foreground); }
+.g--run { background: var(--info-soft); color: var(--info-soft-foreground); }
+.g--idle { background: var(--default); color: var(--muted); }
+.g--key { background: var(--accent-soft); color: var(--accent-soft-foreground); }
+/* A shape that opens something. */
+.g-btn { padding: 0; border: 0; font: inherit; cursor: var(--cursor-interactive); }
+.g-btn:focus-visible,
+.g-btn[data-focus-visible="true"] { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Status chips keep their icon from shrinking next to a long label. */
+.rs { gap: calc(var(--spacing) * 1); white-space: nowrap; vertical-align: middle; }
+.rs > svg { flex: none; }
+
+/* ---------- Popover details ---------- */
+/* One line of label and value inside a popover or a dialog. */
+.pop-row { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 4); padding: calc(var(--spacing) * 1.5) 0; }
+.pop-row + .pop-row { border-top: 1px solid var(--separator); }
+
+/* ---------- Collapsible panel ---------- */
+.lr-panel__head { display: flex; align-items: center; }
+.lr-panel__aside { flex-shrink: 0; padding-inline-end: calc(var(--spacing) * 5); }
+.lr-panel__trigger { display: flex; align-items: center; gap: calc(var(--spacing) * 3); width: 100%; padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5); text-align: start; }
+.lr-panel__title { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); min-width: 0; font-size: .9375rem; font-weight: 600; }
+.lr-panel__title > svg { flex: none; color: var(--accent-soft-foreground); }
+
+/* ---------- Wave loader ---------- */
+/* The path is one period longer than its window, so sliding by a period loops seamlessly. */
+.lr-wave { display: inline-block; overflow: hidden; vertical-align: middle; }
+.lr-wave svg { display: block; animation: lr-wave 900ms linear infinite; }
+@keyframes lr-wave { to { transform: translateX(calc(var(--wave-period) * -1)); } }
+@media (prefers-reduced-motion: reduce) { .lr-wave svg { animation: none; } }
+
+/* ---------- QR code ---------- */
+/* Plate and bark stay the same in both themes: scanners need dark modules on a light ground. */
+.qr { flex: none; box-sizing: border-box; width: calc(var(--spacing) * 50); height: calc(var(--spacing) * 50); padding: calc(var(--spacing) * 3.5); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--plate); }
+.qr svg { display: block; width: 100%; height: 100%; }
+.qr svg path { fill: var(--bark); }
+.qr--off { opacity: .25; }

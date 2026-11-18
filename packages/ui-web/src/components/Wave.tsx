@@ -28,16 +28,16 @@ export interface WaveLoaderProps {
 /**
  * The flowing corrugation that marks work in progress. It takes the text
  * colour of its parent and stops moving when the system asks for reduced
- * motion (console.css).
+ * motion (domain.css).
  */
 export function WaveLoader({ size = "md", label, className }: WaveLoaderProps) {
   const spec = LOADER[size];
   const height = spec.amplitude * 2 + spec.stroke;
   const length = spec.width + spec.period;
-  const style = { width: spec.width, height, "--wl-period": `${spec.period}px` } as CSSProperties;
+  const style = { width: spec.width, height, "--wave-period": `${spec.period}px` } as CSSProperties;
   const a11y = label ? { role: "progressbar" as const, "aria-label": label } : { "aria-hidden": true as const };
   return (
-    <span className={["wl-loader", className].filter(Boolean).join(" ")} style={style} {...a11y}>
+    <span className={["lr-wave", className].filter(Boolean).join(" ")} style={style} {...a11y}>
       <svg width={length} height={height} viewBox={`0 0 ${length} ${height}`} fill="none">
         <path
           d={wavePath(length, spec.period, spec.amplitude, spec.amplitude + spec.stroke / 2)}
@@ -56,11 +56,11 @@ export interface WaveGlyphProps {
   className?: string;
 }
 
-/** Two static crests on a 24 grid, used where Lucide has no fitting icon for agent work. */
+/** Two static crests on a 24 grid, used where the icon set has no fitting icon for agent work. */
 export function WaveGlyph({ size = 24, strokeWidth = 2, className }: WaveGlyphProps) {
   return (
     <svg
-      className={["wl-icon", className].filter(Boolean).join(" ")}
+      className={className}
       width={size}
       height={size}
       viewBox="0 0 24 24"

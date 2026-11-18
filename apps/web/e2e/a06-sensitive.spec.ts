@@ -127,18 +127,17 @@ test("a filled credential never shows in the console", async ({ page, agent, sta
   expect(file).toContain("raw [REDACTED]");
   expectNoSecret("downloaded log", file);
 
-  // The task page with its credential details open. Test runs stay out of
+  // The task page, which lists the credentials the task refers to. Test runs stay out of
   // the task's run history, so the page has none to show.
   await page.goto(`/tasks/${task.id}`);
-  await page.getByRole("main", { name }).getByRole("button", { name: "凭证 1" }).click();
-  await expect(page.getByRole("group", { name: "引用的凭证" }).getByRole("img", { name: "有效" })).toBeVisible();
+  await expect(page.getByRole("main", { name }).getByRole("region", { name: "引用的凭证" }).getByRole("img", { name: "有效" })).toBeVisible();
   await expectPageClean(page, "task credentials");
   await page.keyboard.press("Escape");
 
   // Where else the credential and the run appear; each page waits for the
   // row that mentions this task or credential.
   for (const [path, shows] of [
-    ["/settings/credentials", page.getByRole("list", { name: "凭证" }).getByText("API_TOKEN").first()],
+    ["/settings/credentials", page.getByRole("main", { name: "凭证" }).getByRole("grid").getByText("API_TOKEN").first()],
     ["/runs", page.getByRole("region", { name: "运行列表" }).getByRole("link", { name: new RegExp(name) })],
     ["/", page.getByRole("region", { name: "任务列表" }).getByRole("link", { name: new RegExp(name) })],
   ] as const) {

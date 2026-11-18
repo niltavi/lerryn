@@ -9,8 +9,8 @@ import {
   useI18n,
   type AdminUser,
 } from "@lerryn/core";
-import { ActionMenu, Button, ConsoleDialog, CopyButton, StateCard, ToneGlyph } from "@lerryn/ui-web";
-import { Ban, Building2, Copy, Ellipsis, KeyRound, Plus, RefreshCw, Search, ShieldCheck, ShieldOff, Users } from "lucide-react";
+import { ActionMenu, Avatar, Button, Card, Checkbox, Chip, ConsoleDialog, CopyButton, SearchField, StateCard, Table } from "@lerryn/ui-web";
+import { ArrowsRotateRight, Ban, Copy, Ellipsis, Key, Persons, Plus, Shield, ShieldCheck } from "@gravity-ui/icons";
 import { useState, type FormEvent } from "react";
 
 import { initialOf, useCurrentUser } from "../../shell/AppShell";
@@ -26,10 +26,11 @@ export function generatePassword(): string {
   return `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8, 12)}`;
 }
 
-/** Accounts (prototype Admin-Users.dc.html): search, create, reset passwords, admin role, disable. */
+/** Accounts: search, create, reset passwords, admin role, disable. */
 export function AdminUsersPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   usePageTitle(t("admin.users"));
+  const me = useCurrentUser();
   const [q, setQ] = useState("");
   const users = useAdminUsers({ q });
   const [creating, setCreating] = useState(false);
@@ -39,27 +40,87 @@ export function AdminUsersPage() {
   return (
     <Board label={t("admin.users")}>
       <BoardTop title={t("admin.users")}>
-        <div className="tools" style={{ gap: 8 }}>
-          <label className="log-find" style={{ height: 36 }}>
-            <Search className="wl-icon" aria-hidden="true" />
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("admin.searchUsers")} style={{ width: 140, fontFamily: "var(--font-sans)", fontSize: 13 }} />
-          </label>
-          <Button size="sm" onPress={() => setCreating(true)}>
-            <Plus className="wl-icon" aria-hidden="true" />
-            {t("common.create")}
-          </Button>
-        </div>
+        <SearchField aria-label={t("admin.searchUsers")} value={q} onChange={setQ}>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input className="w-40" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+        <Button size="sm" onPress={() => setCreating(true)}>
+          <Plus aria-hidden="true" width={14} height={14} />
+          {t("common.create")}
+        </Button>
       </BoardTop>
       {users.isError ? (
         <LoadError error={users.error} onRetry={() => void users.refetch()} />
       ) : users.data && items.length === 0 ? (
-        <StateCard icon={Users} title={q ? t("admin.noMatch") : t("admin.noUsers")} />
+        <StateCard icon={Persons} title={q ? t("admin.noMatch") : t("admin.noUsers")} />
       ) : items.length > 0 ? (
-        <div className="rows" role="list" aria-label={t("admin.users")}>
-          {items.map((u) => (
-            <UserRow key={u.id} user={u} onReset={() => setResetting(u)} />
-          ))}
-        </div>
+        <Card className="tpl-card nt-fade-up">
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label={t("admin.users")} className="min-w-[560px]">
+                <Table.Header>
+                  <Table.Column isRowHeader>{t("admin.users")}</Table.Column>
+                  <Table.Column>{t("admin.role")}</Table.Column>
+                  <Table.Column>{t("admin.lastSeen")}</Table.Column>
+                  <Table.Column className="text-end">
+                    <span className="sr-only">{t("admin.rowActions")}</span>
+                  </Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {items.map((u) => {
+                    const disabled = !!u.disabled_at;
+                    return (
+                      <Table.Row key={u.id} id={u.id}>
+                        <Table.Cell>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <Avatar size="sm" color={u.id === me.id ? "accent" : "default"} aria-hidden="true">
+                              <Avatar.Fallback>{initialOf(u)}</Avatar.Fallback>
+                            </Avatar>
+                            <div className="flex min-w-0 flex-col">
+                              <span className={disabled ? "truncate text-sm text-muted" : "truncate text-sm font-medium"}>{u.display_name || u.username}</span>
+                              <span className="truncate font-mono text-xs text-muted">{u.username}</span>
+                            </div>
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <div className="flex flex-wrap items-center gap-1">
+                            {u.is_admin ? (
+                              <Chip size="sm" variant="soft" color="accent">
+                                {t("account.admin")}
+                              </Chip>
+                            ) : null}
+                            {u.sso ? (
+                              <Chip size="sm" variant="soft">
+                                {t("admin.ssoUser")}
+                              </Chip>
+                            ) : null}
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell className="text-muted">
+                          {disabled ? (
+                            <Chip size="sm" variant="soft">
+                              {t("admin.disabledOn", { date: formatDate(u.disabled_at!, locale) })}
+                            </Chip>
+                          ) : u.last_seen_at ? (
+                            formatAgo(u.last_seen_at, locale)
+                          ) : (
+                            t("tokens.neverUsed")
+                          )}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <UserActions user={u} self={u.id === me.id} onReset={() => setResetting(u)} />
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  })}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </Card>
       ) : null}
       <LoadMore show={!!users.data?.hasMore} pending={users.isFetchingNextPage} onPress={() => void users.fetchNextPage()} />
       <CreateUserDialog isOpen={creating} onClose={() => setCreating(false)} />
@@ -68,58 +129,30 @@ export function AdminUsersPage() {
   );
 }
 
-function UserRow({ user: u, onReset }: { user: AdminUser; onReset: () => void }) {
-  const { t, locale } = useI18n();
-  const me = useCurrentUser();
+/** What an admin can do to one account; nothing for their own, so they cannot lock themselves out. */
+function UserActions({ user: u, self, onReset }: { user: AdminUser; self: boolean; onReset: () => void }) {
+  const { t } = useI18n();
   const update = useAdminUpdateUser();
-  const self = u.id === me.id;
-  const name = u.display_name || u.username;
-  const disabled = !!u.disabled_at;
   return (
-    <div className={disabled ? "rowi rowi--quiet" : "rowi"} role="listitem">
-      <span className={self ? "avatar avatar--md" : "avatar avatar--md avatar--quiet"} aria-hidden="true" style={disabled ? { color: "var(--ink-muted)" } : undefined}>
-        {initialOf(u)}
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="rowi-name">{name}</span>
-        <span className="rowi-sub mono-sm">{u.username}</span>
-      </span>
-      <span className="rowi-end">
-        {u.is_admin ? <span className="tag tag--kraft">{t("account.admin")}</span> : null}
-        {u.sso ? (
-          <span className="muted" role="img" aria-label={t("admin.ssoUser")} data-tip={t("admin.ssoUser")} data-tip-pos="top">
-            <Building2 className="wl-icon" width={16} aria-hidden="true" />
-          </span>
-        ) : null}
-        {disabled ? (
-          <>
-            <ToneGlyph tone="idle" icon={Ban} label={t("admin.disabledOn", { date: formatDate(u.disabled_at!, locale) })} />
-            <Button variant="secondary" size="sm" isPending={update.isPending} onPress={() => update.mutate({ userId: u.id, body: { disabled: false } })}>
-              {t("admin.restore")}
-            </Button>
-          </>
-        ) : (
-          <>
-            <span className="caption muted">{u.last_seen_at ? formatAgo(u.last_seen_at, locale) : t("tokens.neverUsed")}</span>
-            {self ? null : (
-              <span className="acts">
-                <ActionMenu
-                  label={t("admin.actionsFor", { name })}
-                  icon={Ellipsis}
-                  items={[
-                    ...(u.has_password ? [{ label: t("admin.resetPassword"), icon: KeyRound, onSelect: onReset }] : []),
-                    u.is_admin
-                      ? { label: t("admin.revokeAdmin"), icon: ShieldOff, onSelect: () => update.mutate({ userId: u.id, body: { is_admin: false } }) }
-                      : { label: t("admin.makeAdmin"), icon: ShieldCheck, onSelect: () => update.mutate({ userId: u.id, body: { is_admin: true } }) },
-                    { label: t("admin.disable"), icon: Ban, danger: true, onSelect: () => update.mutate({ userId: u.id, body: { disabled: true } }) },
-                  ]}
-                />
-              </span>
-            )}
-          </>
-        )}
-        {update.isError ? <span className="caption" style={{ color: "var(--danger)" }}>{t(writeErrorMessage(update.error))}</span> : null}
-      </span>
+    <div className="flex items-center justify-end gap-2">
+      {update.isError ? <span className="text-xs text-danger-soft-foreground">{t(writeErrorMessage(update.error))}</span> : null}
+      {u.disabled_at ? (
+        <Button variant="secondary" size="sm" isPending={update.isPending} onPress={() => update.mutate({ userId: u.id, body: { disabled: false } })}>
+          {t("admin.restore")}
+        </Button>
+      ) : self ? null : (
+        <ActionMenu
+          label={t("admin.actionsFor", { name: u.display_name || u.username })}
+          icon={Ellipsis}
+          items={[
+            ...(u.has_password ? [{ label: t("admin.resetPassword"), icon: Key, onSelect: onReset }] : []),
+            u.is_admin
+              ? { label: t("admin.revokeAdmin"), icon: Shield, onSelect: () => update.mutate({ userId: u.id, body: { is_admin: false } }) }
+              : { label: t("admin.makeAdmin"), icon: ShieldCheck, onSelect: () => update.mutate({ userId: u.id, body: { is_admin: true } }) },
+            { label: t("admin.disable"), icon: Ban, danger: true, onSelect: () => update.mutate({ userId: u.id, body: { disabled: true } }) },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -162,11 +195,13 @@ function CreateUserDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         title={t("admin.createdTitle", { name: created.username })}
         footer={<Button onPress={close}>{t("common.done")}</Button>}
       >
-        <div className="copyline copyline--wrap">
-          <code>{createdPassword}</code>
-          <CopyButton value={createdPassword} label={t("admin.copyPassword")} icon={Copy} />
+        <div className="flex flex-col gap-3">
+          <div className="lr-copy lr-copy--wrap">
+            <code>{createdPassword}</code>
+            <CopyButton value={createdPassword} label={t("admin.copyPassword")} icon={Copy} />
+          </div>
+          <p className="text-sm text-muted">{t("admin.passwordOnce")}</p>
         </div>
-        <p className="body-sm muted">{t("admin.passwordOnce")}</p>
       </ConsoleDialog>
     );
   }
@@ -188,21 +223,25 @@ function CreateUserDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         </>
       }
     >
-      <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit}>
+      <form className="flex flex-col gap-4" onSubmit={submit}>
         <TextInput name="username" label={t("auth.username")} value={username} onChange={setUsername} autoFocus placeholder={t("auth.usernamePlaceholder")} error={error ?? (taken ? t("auth.errors.usernameTaken") : undefined)} />
-        <div className="stack" style={{ gap: 6 }}>
-          <span className="label-text">{t("admin.initialPassword")}</span>
-          <div className="copyline">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium">{t("admin.initialPassword")}</span>
+          <div className="lr-copy">
             <code>{password}</code>
             <Button variant="ghost" size="sm" isIconOnly isDisabled={create.isPending} aria-label={t("admin.regenerate")} onPress={() => setPassword(generatePassword())}>
-              <RefreshCw className="wl-icon" />
+              <ArrowsRotateRight aria-hidden="true" width={16} height={16} />
             </Button>
           </div>
         </div>
-        <label className="check">
-          <input type="checkbox" checked={admin} onChange={(e) => setAdmin(e.target.checked)} />
-          {t("account.admin")}
-        </label>
+        <Checkbox isSelected={admin} onChange={setAdmin}>
+          <Checkbox.Content>
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            {t("account.admin")}
+          </Checkbox.Content>
+        </Checkbox>
         {create.error && !taken ? <FormError>{t(writeErrorMessage(create.error))}</FormError> : null}
         <button type="submit" hidden />
       </form>
@@ -243,18 +282,20 @@ function ResetPasswordDialog({ user, onClose }: { user: AdminUser | null; onClos
         )
       }
     >
-      <div className="copyline copyline--wrap">
-        <code>{shownPassword}</code>
-        {reset.isSuccess ? (
-          <CopyButton value={shownPassword} label={t("admin.copyPassword")} icon={Copy} />
-        ) : (
-          <Button variant="ghost" size="sm" isIconOnly isDisabled={reset.isPending} aria-label={t("admin.regenerate")} onPress={() => setPassword(generatePassword())}>
-            <RefreshCw className="wl-icon" />
-          </Button>
-        )}
+      <div className="flex flex-col gap-3">
+        <div className="lr-copy lr-copy--wrap">
+          <code>{shownPassword}</code>
+          {reset.isSuccess ? (
+            <CopyButton value={shownPassword} label={t("admin.copyPassword")} icon={Copy} />
+          ) : (
+            <Button variant="ghost" size="sm" isIconOnly isDisabled={reset.isPending} aria-label={t("admin.regenerate")} onPress={() => setPassword(generatePassword())}>
+              <ArrowsRotateRight aria-hidden="true" width={16} height={16} />
+            </Button>
+          )}
+        </div>
+        <p className="text-sm text-muted">{reset.isSuccess ? t("admin.passwordOnce") : t("admin.resetBody")}</p>
+        {reset.error ? <FormError>{t(writeErrorMessage(reset.error))}</FormError> : null}
       </div>
-      <p className="body-sm muted">{reset.isSuccess ? t("admin.passwordOnce") : t("admin.resetBody")}</p>
-      {reset.error ? <FormError>{t(writeErrorMessage(reset.error))}</FormError> : null}
     </ConsoleDialog>
   );
 }

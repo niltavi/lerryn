@@ -1,27 +1,35 @@
 import { useI18n, type ApiError, type MessageKey } from "@lerryn/core";
-import { FieldError, Input, Label, Logo, TextField } from "@lerryn/ui-web";
-import { CircleAlert, Eye, EyeOff, Languages } from "lucide-react";
+import { Alert, Button, FieldError, ForestScene, Input, InputGroup, Label, Logo, TextField, ToggleButton } from "@lerryn/ui-web";
+import { Eye, EyeSlash, Globe } from "@gravity-ui/icons";
 import { useState, type ReactNode } from "react";
 
 import { usePageTitle } from "../../shell/layout";
 
-/** The centred single column of the sign-in and sign-up pages. */
+/**
+ * The signed-out frame: the forest panel beside the sign-in or sign-up form.
+ * The panel is decoration and goes away on narrow screens.
+ */
 export function AuthFrame({ title, badge, children }: { title: string; badge?: ReactNode; children: ReactNode }) {
   usePageTitle(title);
   return (
-    <div className="wl-app">
-      <main className="auth">
-        <div className="auth-col">
-          <div className="stack" style={{ alignItems: "center", gap: 14 }}>
-            <span className="auth-logo">
-              <Logo size={20} />
-            </span>
-            <h1 className="h2">{title}</h1>
-            {badge}
+    <div className="lr-auth">
+      <div className="nt-authlayout">
+        <aside className="nt-authlayout__brand">
+          <ForestScene />
+        </aside>
+        <main className="nt-authlayout__main">
+          <div className="nt-authlayout__logo">
+            <Logo size={20} />
           </div>
-          {children}
-        </div>
-      </main>
+          <div className="nt-auth nt-auth--signin nt-fade-up">
+            <div className="flex flex-col gap-1">
+              <h1 className="nt-auth__title">{title}</h1>
+              {badge}
+            </div>
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
@@ -30,15 +38,10 @@ export function AuthFrame({ title, badge, children }: { title: string; badge?: R
 export function LanguageChip() {
   const { t, locale, setLocale } = useI18n();
   return (
-    <button
-      className="chip chip--sm"
-      type="button"
-      aria-label={t("common.switchLanguage")}
-      onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
-    >
-      <Languages className="wl-icon" aria-hidden="true" />
+    <Button variant="ghost" size="sm" aria-label={t("common.switchLanguage")} onPress={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}>
+      <Globe aria-hidden="true" width={14} height={14} />
       {t("common.otherLanguage")}
-    </button>
+    </Button>
   );
 }
 
@@ -116,22 +119,25 @@ export function PasswordInput({
       autoComplete={autoComplete}
       fullWidth
     >
-      <div className="spread">
+      <div className="flex items-center justify-between gap-3">
         <Label>{label}</Label>
         {labelEnd}
       </div>
-      <div className="pw-wrap">
-        <Input placeholder={placeholder} />
-        <button
-          className="pw-eye"
-          type="button"
-          aria-label={shown ? t("auth.hidePassword") : t("auth.showPassword")}
-          aria-pressed={shown}
-          onClick={() => setShown((s) => !s)}
-        >
-          {shown ? <EyeOff className="wl-icon" width={18} aria-hidden="true" /> : <Eye className="wl-icon" width={18} aria-hidden="true" />}
-        </button>
-      </div>
+      <InputGroup>
+        <InputGroup.Input placeholder={placeholder} />
+        <InputGroup.Suffix className="pe-0">
+          <ToggleButton
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={shown ? t("auth.hidePassword") : t("auth.showPassword")}
+            isSelected={shown}
+            onChange={setShown}
+          >
+            {shown ? <EyeSlash aria-hidden="true" width={16} height={16} /> : <Eye aria-hidden="true" width={16} height={16} />}
+          </ToggleButton>
+        </InputGroup.Suffix>
+      </InputGroup>
       <FieldError>{error}</FieldError>
     </TextField>
   );
@@ -140,10 +146,12 @@ export function PasswordInput({
 /** A form-level error, e.g. wrong credentials. */
 export function FormError({ children }: { children: ReactNode }) {
   return (
-    <div className="form-error" role="alert">
-      <CircleAlert className="wl-icon" aria-hidden="true" />
-      <span>{children}</span>
-    </div>
+    <Alert status="danger" role="alert">
+      <Alert.Indicator />
+      <Alert.Content>
+        <Alert.Description>{children}</Alert.Description>
+      </Alert.Content>
+    </Alert>
   );
 }
 

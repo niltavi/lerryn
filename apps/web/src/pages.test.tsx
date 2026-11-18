@@ -471,36 +471,41 @@ function renderApp(path: string, opts: FakeOptions = {}) {
 afterEach(() => vi.restoreAllMocks());
 
 describe("settings navigation", () => {
-  it("opens Key from the key icon and Account from the avatar", async () => {
-    const { router, server } = renderApp("/");
+  it("opens the key pages from the sidebar and the account pages from the avatar menu", async () => {
+    const { router } = renderApp("/");
     const user = userEvent.setup();
     const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
-    await user.click(rail.getByRole("link", { name: "密钥" }));
+    const keyMenu = within(rail.getByRole("group", { name: "密钥" }));
+    await user.click(keyMenu.getByRole("link", { name: /^访问令牌/ }));
     await screen.findByRole("main", { name: "访问令牌" });
     expect(router.state.location.pathname).toBe("/settings/tokens");
-    const keyMenu = screen.getByRole("region", { name: "密钥" });
-    expect(within(keyMenu).getAllByRole("link").map((link) => link.querySelector(".li-name")?.textContent)).toEqual(["访问令牌", "凭证", "工具"]);
-    expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBe("page");
-    expect(server.requests.some((req) => ["/api/v1/notification-channels", "/api/v1/me/devices"].includes(req.path))).toBe(false);
+    expect(keyMenu.getAllByRole("link").map((link) => link.querySelector(".nt-side__label")?.textContent)).toEqual(["访问令牌", "凭证", "工具"]);
+    expect(rail.getAllByRole("link", { current: "page" })).toEqual([keyMenu.getByRole("link", { name: /^访问令牌/ })]);
 
-    await user.click(rail.getByRole("link", { name: "张林 · 账号" }));
+    // The account pages sit behind the avatar, not in the sidebar.
+    const openAccount = async (name: RegExp) => {
+      await user.click(screen.getByRole("button", { name: /张林/ }));
+      const menu = within(await screen.findByRole("menu"));
+      await user.click(menu.getByRole("menuitem", { name }));
+    };
+    await user.click(screen.getByRole("button", { name: /张林/ }));
+    const menu = within(await screen.findByRole("menu"));
+    expect(menu.getAllByRole("menuitem").slice(0, 4).map((item) => item.textContent)).toEqual([
+      expect.stringMatching(/^账号/), expect.stringMatching(/^通知/), expect.stringMatching(/^手机/), expect.stringMatching(/^关于/),
+    ]);
+    await user.click(menu.getByRole("menuitem", { name: /^账号/ }));
     await screen.findByRole("heading", { level: 1, name: "账号" });
     expect(router.state.location.pathname).toBe("/settings/account");
-    expect(screen.queryByRole("region", { name: "密钥" })).toBeNull();
-    const accountMenu = within(screen.getByRole("region", { name: "账号" }));
-    expect(accountMenu.getAllByRole("link").map((link) => link.textContent)).toEqual(["账号", "通知", "手机", "关于"]);
-    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
-    expect(rail.getByRole("link", { name: "密钥" }).getAttribute("aria-current")).toBeNull();
+    expect(rail.queryAllByRole("link", { current: "page" })).toEqual([]);
 
-    await user.click(accountMenu.getByRole("link", { name: "通知" }));
+    await openAccount(/^通知/);
     await screen.findByRole("main", { name: "通知" });
     expect(router.state.location.pathname).toBe("/settings/notifications");
-    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBe("page");
-    await user.click(accountMenu.getByRole("link", { name: "手机" }));
+    await openAccount(/^手机/);
     await screen.findByRole("main", { name: "手机" });
     expect(router.state.location.pathname).toBe("/settings/pairing");
 
-    await user.click(accountMenu.getByRole("link", { name: "关于" }));
+    await openAccount(/^关于/);
     const about = within(await screen.findByRole("main", { name: "关于" }));
     expect(about.getByRole("heading", { name: "Lerryn" })).toBeTruthy();
     expect(await about.findByText("dev")).toBeTruthy();
@@ -514,52 +519,57 @@ describe("settings navigation", () => {
   });
 
   it.each([
-    ["/settings/tokens?new=true", "密钥", "访问令牌", "密钥"],
-    ["/settings/credentials", "密钥", "凭证", "密钥"],
-    ["/settings/tools", "密钥", "工具", "密钥"],
-    ["/settings/notifications", "账号", "通知", "张林 · 账号"],
-    ["/settings/pairing", "账号", "手机", "张林 · 账号"],
-    ["/settings/account", "账号", "账号", "张林 · 账号"],
-    ["/settings/about", "账号", "关于", "张林 · 账号"],
-  ])("keeps the menu and rail selection on a direct visit to %s", async (path, menu, section, entry) => {
-    const { server } = renderApp(path);
+    ["/settings/tokens?new=true", "访问令牌"],
+    ["/settings/credentials", "凭证"],
+    ["/settings/tools", "工具"],
+  ])("keeps the sidebar selection on a direct visit to %s", async (path, section) => {
+    renderApp(path);
     if (path.includes("?new")) {
       const dialog = await screen.findByRole("dialog", { name: "新建令牌" });
       await userEvent.setup().click(within(dialog).getByRole("button", { name: "取消" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     }
-    const list = within(await screen.findByRole("region", { name: menu }));
-    const selected = list.getAllByRole("link").find((link) => link.getAttribute("aria-current") === "page");
-    expect(selected?.textContent).toContain(section);
+    await screen.findByRole("main", { name: section });
     const rail = within(screen.getByRole("navigation", { name: "主导航" }));
-    expect(rail.getByRole("link", { name: entry }).getAttribute("aria-current")).toBe("page");
-    expect(rail.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(1);
-    if (menu === "账号") {
-      expect(server.requests.some((req) => ["/api/v1/me/tokens", "/api/v1/tools"].includes(req.path))).toBe(false);
-    }
+    const keyMenu = within(rail.getByRole("group", { name: "密钥" }));
+    expect(rail.getAllByRole("link", { current: "page" })).toEqual([keyMenu.getByRole("link", { name: new RegExp(`^${section}`) })]);
   });
 
-  it("places the admin entry immediately above the avatar and opens organization settings", async () => {
+  it.each([
+    ["/settings/notifications", "通知"],
+    ["/settings/pairing", "手机"],
+    ["/settings/account", "账号"],
+    ["/settings/about", "关于"],
+  ])("selects no sidebar entry on a direct visit to %s", async (path, section) => {
+    const { server } = renderApp(path);
+    await screen.findByRole("main", { name: section });
+    const rail = within(screen.getByRole("navigation", { name: "主导航" }));
+    expect(rail.queryByRole("group", { name: "个人设置" })).toBeNull();
+    expect(rail.queryAllByRole("link", { current: "page" })).toEqual([]);
+    // The sidebar counts tokens for its badge; the tool registry stays unread outside the key pages.
+    expect(server.requests.some((req) => req.path === "/api/v1/tools")).toBe(false);
+  });
+
+  it("lists the admin pages last in the sidebar and opens organization settings", async () => {
     const { router } = renderApp("/settings/account", { admin: true });
     const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
-    const admin = rail.getByRole("link", { name: "管理" });
-    expect(admin.parentElement?.className).toBe("rail-foot");
-    expect(admin.nextElementSibling).toBe(rail.getByRole("link", { name: "张林 · 账号" }));
-    await userEvent.setup().click(admin);
-    const menu = within(await screen.findByRole("region", { name: "管理" }));
-    expect(router.state.location.pathname).toBe("/admin/users");
+    const group = rail.getByRole("group", { name: "管理" });
+    expect(rail.getAllByRole("group").at(-1)).toBe(group);
+    const menu = within(group);
     expect(menu.getAllByRole("link").map((link) => link.textContent)).toEqual(["用户", "登录", "执行节点", "审计"]);
-    expect(admin.getAttribute("aria-current")).toBe("page");
-    expect(rail.getByRole("link", { name: "张林 · 账号" }).getAttribute("aria-current")).toBeNull();
+    await userEvent.setup().click(menu.getByRole("link", { name: "用户" }));
+    await screen.findByRole("main", { name: "用户" });
+    expect(router.state.location.pathname).toBe("/admin/users");
+    expect(rail.getAllByRole("link", { current: "page" })).toEqual([menu.getByRole("link", { name: "用户" })]);
   });
 
   it.each(["/admin", "/admin/users", "/admin/login", "/admin/runners", "/admin/audit"])("hides the admin entry and rejects a non-admin visit to %s", async (path) => {
     const { router, server } = renderApp("/settings/account");
     const rail = within(await screen.findByRole("navigation", { name: "主导航" }));
-    expect(rail.queryByRole("link", { name: "管理" })).toBeNull();
+    expect(rail.queryByRole("group", { name: "管理" })).toBeNull();
     await act(() => router.navigate({ to: path }));
     await screen.findByText("找不到");
-    expect(screen.queryByRole("region", { name: "管理" })).toBeNull();
+    expect(rail.queryByRole("link", { name: "审计" })).toBeNull();
     expect(server.requests.some((req) => req.path.startsWith("/api/v1/admin/"))).toBe(false);
   });
 });
@@ -658,14 +668,20 @@ describe("overview", () => {
     }));
     renderApp("/", { tasks });
     await screen.findByText("task-099");
-    const filter = screen.getByRole("combobox", { name: "按标签筛选" });
-    fireEvent.change(filter, { target: { value: "财务" } });
+    const user = userEvent.setup();
+    // The filter is a select: open it and pick an option.
+    const pickTag = async (name: string) => {
+      await user.click(screen.getByRole("button", { name: /按标签筛选/ }));
+      await user.click(await screen.findByRole("option", { name }));
+      await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    };
+    await pickTag("财务");
     expect(screen.queryByText("task-099")).toBeNull();
     expect(screen.getByText("task-100")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "搜索任务" }));
     fireEvent.change(screen.getByRole("searchbox", { name: "搜索任务" }), { target: { value: "task-099" } });
     expect(screen.getByText("没有匹配的任务")).toBeTruthy();
-    fireEvent.change(filter, { target: { value: "" } });
+    await pickTag("全部标签");
     expect(screen.getByText("task-099")).toBeTruthy();
     expect(screen.queryByText("task-100")).toBeNull();
   });
@@ -773,7 +789,7 @@ describe("compact list navigation", () => {
     const list = screen.getByRole("region", { name: "任务列表" });
     const toggle = within(list).getByRole("button", { expanded: false });
     const body = document.getElementById(toggle.getAttribute("aria-controls")!)!;
-    expect(body.className).toBe("list-body");
+    expect(body.className).toBe("tpl-list__items");
     toggle.focus();
     await user.keyboard("{Enter}");
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
@@ -782,16 +798,6 @@ describe("compact list navigation", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(list.getAttribute("data-expanded")).toBe("false");
     expect(screen.getByRole("heading", { name: "weekday-digest" })).toBeTruthy();
-  });
-
-  it("closes a compact settings list when the selected section changes", async () => {
-    const { router } = renderApp("/settings/tokens");
-    const list = await screen.findByRole("region", { name: "密钥" });
-    const toggle = within(list).getByRole("button", { expanded: false });
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    await act(async () => { await router.navigate({ to: "/settings/tools" }); });
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 });
 
@@ -881,7 +887,7 @@ describe("task page", () => {
     const { server } = renderApp(`/tasks/${TASK.id}`, { role: "maintainer", task: { tags: ["销售"] } });
     const user = userEvent.setup();
     const title = await screen.findByRole("heading", { name: TASK.name });
-    const copy = within(title.parentElement!).getByRole("button", { name: "复制任务链接" });
+    const copy = within(title.closest<HTMLElement>(".nt-page__head")!).getByRole("button", { name: "复制任务链接" });
     await user.click(copy);
     expect(await navigator.clipboard.readText()).toBe(TASK.links.console);
     const actions = within(copy.parentElement!);
@@ -969,7 +975,7 @@ describe("task page", () => {
     };
     renderApp(`/tasks/${TASK.id}`, { tasks: [summary, { ...summary, id: "paused", name: "paused-task", state: "inactive", next_run_at: null }] });
     const scheduled = await screen.findByRole("group", { name: "按计划" });
-    expect(within(scheduled).getByRole("img", { name: "按计划" }).querySelector("svg.lucide-calendar-clock")).toBeTruthy();
+    expect(within(scheduled).getByRole("img", { name: "按计划" }).getAttribute("data-icon")).toBe("calendar");
     expect(within(scheduled).queryByText("paused-task")).toBeNull();
     const inactive = screen.getByRole("group", { name: "未启用" });
     expect(within(inactive).getByRole("img", { name: "已暂停" })).toBeTruthy();
@@ -1382,7 +1388,11 @@ describe("tools", () => {
   it("shows the task's tools with their kind and marks a name the project never registered", async () => {
     renderApp(`/tasks/${TASK.id}`);
     await screen.findByRole("heading", { name: "weekday-digest" });
-    const runtime = screen.getByRole("group", { name: "运行环境" });
+    // The chip itself carries the warning; its details open on a press.
+    const chip = screen.getByRole("button", { name: /Python 3\.12/ });
+    await waitFor(() => expect(chip.querySelector(".dot--bad")).toBeTruthy());
+    fireEvent.click(chip);
+    const runtime = await screen.findByRole("group", { name: "运行环境" });
     expect(await within(runtime).findByText("MCP")).toBeTruthy();
     expect(within(runtime).getByText("crm-mcp")).toBeTruthy();
     expect(within(runtime).getByText("ledger")).toBeTruthy();
@@ -1391,8 +1401,6 @@ describe("tools", () => {
     expect(within(runtime).getByText("SCRIPT")).toBeTruthy();
     expect(within(runtime).getByText("3f9a0c4be1d2 · 2 个文件")).toBeTruthy();
     expect(within(runtime).getByText("fmt-lib").getAttribute("title")).toBe(`格式化金额\n${TREE}`);
-    // The chip itself carries the warning.
-    expect(screen.getByRole("button", { name: /Python 3\.12/ }).querySelector(".dot--bad")).toBeTruthy();
   });
 
   it("lists registered project tools in their own settings section", async () => {

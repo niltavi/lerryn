@@ -16,21 +16,22 @@ import {
   type Overview,
   type StripBucket,
 } from "@lerryn/core";
-import { CopyButton, DayStrip, Disclosure, StatusGlyph, WaveGlyph } from "@lerryn/ui-web";
+import { Button, Card, Chip, CopyButton, DayStrip, Dropdown, Label, StatusGlyph, WaveGlyph } from "@lerryn/ui-web";
+import { ChevronDown, ChevronRight, Copy, Folder, Key, PlugConnection, Plus } from "@gravity-ui/icons";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Check, ChevronDown, ChevronRight, Copy, Folder, KeyRound, Plug, Plus } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { origin, useNow } from "../lib/hooks";
 import { ApiLink } from "../lib/links";
 import { useOpenCredentialFill } from "../shell/CredentialFill";
 import { GlyphView, shortWhen } from "../lib/present";
-import { Board, LoadError, usePageTitle } from "../shell/layout";
+import { Board, BoardTop, LoadError, usePageTitle } from "../shell/layout";
 import { TaskListColumn } from "./TaskListColumn";
 
 /**
- * Overview (prototype Main.dc.html): what needs attention, what is running,
- * and today's corrugation strip, beside the task list. A deployment with
- * no task yet shows how to connect an agent (Overview-Empty.dc.html).
+ * Overview: what needs attention, what is running, and today's strip,
+ * beside the task list. A deployment with no task yet shows how to
+ * connect an agent instead.
  */
 export function OverviewPage() {
   const { t, locale } = useI18n();
@@ -45,13 +46,16 @@ export function OverviewPage() {
     <>
       <TaskListColumn projectId={projectId} />
       <Board label={t("overview.title")}>
-        <div className="board-top">
-          <span className="eyebrow">
-            <span className="live-dot" aria-hidden="true" />
-            {formatDate(now, locale, now)} {weekday} · {formatClock(now)}
-          </span>
+        <BoardTop
+          title={t("overview.title")}
+          description={
+            <span className="tabular-nums">
+              {formatDate(now, locale, now)} {weekday} · {formatClock(now)}
+            </span>
+          }
+        >
           <ProjectSwitch projectId={projectId} />
-        </div>
+        </BoardTop>
         {overview.isError ? (
           <LoadError error={overview.error} onRetry={() => void overview.refetch()} />
         ) : overview.data ? (
@@ -66,6 +70,9 @@ export function OverviewPage() {
   );
 }
 
+/** Menu key of "all projects"; project IDs are UUIDs, so it cannot collide. */
+const ALL_PROJECTS = "all";
+
 function ProjectSwitch({ projectId }: { projectId: string | null }) {
   const { t } = useI18n();
   const projects = useProjects();
@@ -77,32 +84,45 @@ function ProjectSwitch({ projectId }: { projectId: string | null }) {
   const name = current?.name ?? t("overview.allProjects");
   const pick = (id: string | null) => void navigate({ to: "/", search: id ? { project: id } : {} });
   return (
-    <Disclosure
-      alignRight
-      label={t("overview.switchProject", { name })}
-      detailsLabel={t("overview.projects")}
-      trigger={
-        <>
-          <Folder className="wl-icon" aria-hidden="true" />
-          {name}
-          <ChevronDown className="wl-icon" aria-hidden="true" />
-        </>
-      }
-      details={
-        <div className="menu" style={{ padding: 0 }}>
-          <button type="button" aria-current={!projectId} onClick={() => pick(null)}>
-            {!projectId ? <Check className="wl-icon" aria-hidden="true" /> : <span style={{ width: 16 }} />}
-            {t("overview.allProjects")}
-          </button>
-          {items.map((p) => (
-            <button key={p.id} type="button" aria-current={p.id === projectId} onClick={() => pick(p.id)}>
-              {p.id === projectId ? <Check className="wl-icon" aria-hidden="true" /> : <span style={{ width: 16 }} />}
-              {p.is_personal ? t("overview.personalProject") : p.name}
-            </button>
-          ))}
-        </div>
-      }
-    />
+    <Dropdown>
+      <Button variant="tertiary" size="sm" aria-label={t("overview.switchProject", { name })}>
+        <Folder width={16} height={16} aria-hidden="true" />
+        <span className="max-w-40 truncate">{name}</span>
+        <ChevronDown width={14} height={14} aria-hidden="true" />
+      </Button>
+      <Dropdown.Popover placement="bottom end">
+        <Dropdown.Menu
+          aria-label={t("overview.projects")}
+          selectionMode="single"
+          selectedKeys={[projectId ?? ALL_PROJECTS]}
+          onAction={(key) => pick(key === ALL_PROJECTS ? null : String(key))}
+        >
+          <Dropdown.Item id={ALL_PROJECTS} textValue={t("overview.allProjects")}>
+            <Dropdown.ItemIndicator />
+            <Label>{t("overview.allProjects")}</Label>
+          </Dropdown.Item>
+          {items.map((p) => {
+            const label = p.is_personal ? t("overview.personalProject") : p.name;
+            return (
+              <Dropdown.Item key={p.id} id={p.id} textValue={label}>
+                <Dropdown.ItemIndicator />
+                <Label>{label}</Label>
+              </Dropdown.Item>
+            );
+          })}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
+}
+
+/** One figure of the summary row. The `stat` hooks are what the tests read. */
+function Stat({ value, label, tone }: { value: ReactNode; label: ReactNode; tone?: "bad" | "run" }) {
+  return (
+    <Card className="stat tpl-kpi" data-tone={tone}>
+      <span className="tpl-kpi__label">{label}</span>
+      <strong className="stat-n tpl-kpi__value">{value}</strong>
+    </Card>
   );
 }
 
@@ -116,53 +136,60 @@ function OverviewBoard({ overview, projectId, now }: { overview: Overview; proje
 
   return (
     <>
-      <div className="hero">
-        <div className={counts.attention > 0 ? "stat stat--bad" : "stat"}>
-          <span className="stat-n">{counts.attention}</span>
-          <span className="stat-l">{t("overview.attention")}</span>
-        </div>
-        <div className={running > 0 ? "stat stat--run" : "stat"}>
-          <span className="stat-n stat-n--md">{counts.running}</span>
-          <span className="stat-l">
-            {t("overview.running")}
-            {counts.queued > 0 ? ` · ${t("overview.queuedCount", { count: counts.queued })}` : null}
-          </span>
-        </div>
-        {next ? (
-          <div className="stat">
-            <span className="stat-n stat-n--md">{shortWhen(next.at, locale, now)}</span>
-            <span className="stat-l">{t("overview.nextFire", { count: sameTime })}</span>
-          </div>
-        ) : null}
+      <div className="hero tpl-grid tpl-grid--kpi">
+        <Stat value={counts.attention} label={t("overview.attention")} tone={counts.attention > 0 ? "bad" : undefined} />
+        <Stat
+          value={counts.running}
+          label={
+            <>
+              {t("overview.running")}
+              {counts.queued > 0 ? ` · ${t("overview.queuedCount", { count: counts.queued })}` : null}
+            </>
+          }
+          tone={running > 0 ? "run" : undefined}
+        />
+        {next ? <Stat value={shortWhen(next.at, locale, now)} label={t("overview.nextFire", { count: sameTime })} /> : null}
       </div>
 
       <TodayStrip projectId={projectId} now={now} />
 
       {items.length > 0 || active.length > 0 ? (
-        <div className="pair">
+        <div className="tk-grid">
           {items.length > 0 ? (
-            <section className="stack" aria-labelledby="att-title">
-              <span className="sec-label" id="att-title">
-                {t("overview.attention")}
-                {counts.attention > items.length ? <span className="num">{counts.attention}</span> : null}
-              </span>
-              <div className="att">
-                {items.map((item) => (
-                  <AttentionRow key={item.key} item={item} now={now} />
-                ))}
-              </div>
+            <section className="min-w-0" aria-labelledby="att-title">
+              <Card className="tpl-card">
+                <div className="tpl-card__head">
+                  <h4>
+                    <span id="att-title">{t("overview.attention")}</span>
+                    {counts.attention > items.length ? (
+                      <span className="ml-2 text-xs font-normal text-muted tabular-nums">{counts.attention}</span>
+                    ) : null}
+                  </h4>
+                </div>
+                <ul className="lr-rows">
+                  {items.map((item) => (
+                    <li className="lr-row" key={item.key}>
+                      <AttentionRow item={item} now={now} />
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             </section>
           ) : null}
           {active.length > 0 ? (
-            <section className="stack" aria-labelledby="run-title">
-              <span className="sec-label" id="run-title">
-                {t("overview.running")}
-              </span>
-              <div className="att">
-                {active.map((run) => (
-                  <ActiveRunRow key={run.run_id} run={run} now={now} />
-                ))}
-              </div>
+            <section className="min-w-0" aria-labelledby="run-title">
+              <Card className="tpl-card">
+                <div className="tpl-card__head">
+                  <h4 id="run-title">{t("overview.running")}</h4>
+                </div>
+                <ul className="lr-rows">
+                  {active.map((run) => (
+                    <li className="lr-row" key={run.run_id}>
+                      <ActiveRunRow run={run} now={now} />
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             </section>
           ) : null}
         </div>
@@ -190,39 +217,39 @@ function AttentionRow({ item, now }: { item: AttentionView; now: number }) {
   const body = (
     <>
       <GlyphView glyph={item.glyph} label={t(ATTENTION_LABEL[item.kind])} size="lg" />
-      <span style={{ minWidth: 0 }}>
-        <span className={item.titleMono ? "att-name mono" : "att-name"}>{item.title}</span>
-        {why ? <span className="att-why">{why}</span> : null}
+      <span className="lr-row__text">
+        <span className={item.titleMono ? "lr-row__title font-mono" : "lr-row__title"}>{item.title}</span>
+        {why ? <span className="lr-row__sub">{why}</span> : null}
       </span>
-      <span className="att-t">
+      <span className="lr-row__end tpl-meta tabular-nums">
         {due ? t("overview.dueBy", { time: when }) : when}
-        <ChevronRight className="wl-icon" aria-hidden="true" />
+        <ChevronRight className="ov-item__go" width={16} height={16} aria-hidden="true" />
       </span>
     </>
   );
   if (item.requestId) {
     const requestId = item.requestId;
     return (
-      <button type="button" className="att-item" onClick={() => openFill(requestId)}>
+      <button type="button" className="ov-item" onClick={() => openFill(requestId)}>
         {body}
       </button>
     );
   }
   if (item.target?.kind === "run") {
     return (
-      <Link to="/runs/$runId" params={{ runId: item.target.runId }} className="att-item">
+      <Link to="/runs/$runId" params={{ runId: item.target.runId }} className="ov-item">
         {body}
       </Link>
     );
   }
   if (item.target?.kind === "browser") {
     return (
-      <ApiLink href={item.target.url} className="att-item">
+      <ApiLink href={item.target.url} className="ov-item">
         {body}
       </ApiLink>
     );
   }
-  return <div className="att-item">{body}</div>;
+  return <div className="ov-item">{body}</div>;
 }
 
 function ActiveRunRow({ run, now }: { run: ActiveRun; now: number }) {
@@ -231,19 +258,23 @@ function ActiveRunRow({ run, now }: { run: ActiveRun; now: number }) {
   const queued = !started;
   const ms = elapsedMs(started ?? run.queued_at, null, now);
   return (
-    <Link to="/runs/$runId" params={{ runId: run.run_id }} className="run-item">
-      <span className="spread" style={{ flexWrap: "nowrap" }}>
-        <span className="row" style={{ gap: 10, flexWrap: "nowrap", minWidth: 0 }}>
-          <StatusGlyph status={run.status} />
-          <span className="h4">{run.task.name}</span>
-          {run.test ? <span className="tag">{t("run.test")}</span> : null}
+    <Link to="/runs/$runId" params={{ runId: run.run_id }} className="ov-item">
+      <StatusGlyph status={run.status} />
+      <span className="lr-row__text">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="lr-row__title">{run.task.name}</span>
+          {run.test ? (
+            <Chip size="sm" variant="soft" className="shrink-0">
+              {t("run.test")}
+            </Chip>
+          ) : null}
         </span>
-        <span className="num" style={{ fontSize: 20, color: queued ? "var(--ink-muted)" : undefined }}>
-          {formatDuration(ms, { whole: true })}
-        </span>
+        {run.current_stage ? <span className="lr-row__sub">{run.current_stage}</span> : null}
+        {queued ? <span className="lr-row__sub">{t(runStatusMeta(run.status).label)}</span> : null}
       </span>
-      {run.current_stage ? <span className="caption muted">{run.current_stage}</span> : null}
-      {queued ? <span className="caption muted">{t(runStatusMeta(run.status).label)}</span> : null}
+      <span className={queued ? "lr-row__end text-sm text-muted tabular-nums" : "lr-row__end text-sm font-medium tabular-nums"}>
+        {formatDuration(ms, { whole: true })}
+      </span>
     </Link>
   );
 }
@@ -274,8 +305,10 @@ function TodayStrip({ projectId, now }: { projectId: string | null; now: number 
     return [span, parts.join(locale === "zh-CN" ? "，" : ", "), ...plans].join("\n");
   };
   return (
-    <div className="stack" style={{ gap: 6 }}>
-      <span className="sec-label">{t("overview.today")}</span>
+    <Card className="tpl-card">
+      <div className="tpl-card__head">
+        <h4>{t("overview.today")}</h4>
+      </div>
       <DayStrip
         buckets={buckets}
         dayStart={dayStart}
@@ -293,7 +326,7 @@ function TodayStrip({ projectId, now }: { projectId: string | null; now: number 
           <Link to="/runs/$runId" params={{ runId: b.runId! }} {...props} />
         )}
       />
-    </div>
+    </Card>
   );
 }
 
@@ -301,42 +334,53 @@ function ConnectAgent() {
   const { t } = useI18n();
   const mcp = `${origin()}/mcp`;
   return (
-    <section className="stack" style={{ gap: 28, maxWidth: 560, width: "100%", margin: "auto" }} aria-labelledby="connect">
-      <span className="onboard-mark" aria-hidden="true">
-        <WaveGlyph size={32} />
-      </span>
-      <h1 className="h1" id="connect">
-        {t("overview.connectAgent")}
-      </h1>
-      <ol className="steps">
-        <li className="step">
-          <span className="row" style={{ gap: 12, flexWrap: "nowrap" }}>
-            <span className="step-n">1</span>
-            <KeyRound className="wl-icon" width={18} aria-hidden="true" />
-            <span style={{ fontWeight: 600 }}>{t("overview.stepToken")}</span>
-          </span>
-          <Link to="/settings/tokens" search={{ new: true }} className="chip chip--sm">
-            <Plus className="wl-icon" aria-hidden="true" />
-            {t("overview.newToken")}
-          </Link>
-        </li>
-        <li className="step step--col">
-          <span className="row" style={{ gap: 12 }}>
-            <span className="step-n">2</span>
-            <Plug className="wl-icon" width={18} aria-hidden="true" />
-            <span style={{ fontWeight: 600 }}>{t("overview.stepMcp")}</span>
-          </span>
-          <div className="copyline" style={{ background: "var(--liner)" }}>
-            <code>{mcp}</code>
-            <CopyButton value={mcp} label={t("tokens.copyMcp")} icon={Copy} />
-          </div>
-        </li>
-        <li className="step step--dashed">
-          <span className="step-n">3</span>
+    <section className="ov-connect" aria-labelledby="connect">
+      <div className="flex items-center gap-3">
+        <span className="lr-row__icon" aria-hidden="true">
           <WaveGlyph size={18} />
-          <span className="muted">{t("overview.stepAsk")}</span>
-        </li>
-      </ol>
+        </span>
+        <h2 className="text-lg font-semibold" id="connect">
+          {t("overview.connectAgent")}
+        </h2>
+      </div>
+      <Card className="tpl-card">
+        <ol className="lr-rows">
+          <li className="lr-row">
+            <span className="lr-row__icon" aria-hidden="true">
+              <Key width={16} height={16} />
+            </span>
+            <span className="lr-row__text">
+              <span className="lr-row__title">{t("overview.stepToken")}</span>
+            </span>
+            <span className="lr-row__end">
+              <Link to="/settings/tokens" search={{ new: true }} className="button button--primary button--sm">
+                <Plus width={16} height={16} aria-hidden="true" />
+                {t("overview.newToken")}
+              </Link>
+            </span>
+          </li>
+          <li className="lr-row">
+            <span className="lr-row__icon" aria-hidden="true">
+              <PlugConnection width={16} height={16} />
+            </span>
+            <div className="lr-row__text gap-2">
+              <span className="lr-row__title">{t("overview.stepMcp")}</span>
+              <div className="lr-copy">
+                <code>{mcp}</code>
+                <CopyButton value={mcp} label={t("tokens.copyMcp")} icon={Copy} />
+              </div>
+            </div>
+          </li>
+          <li className="lr-row" data-quiet="">
+            <span className="lr-row__icon" data-tone="idle" aria-hidden="true">
+              <WaveGlyph size={16} />
+            </span>
+            <span className="lr-row__text">
+              <span className="lr-row__title">{t("overview.stepAsk")}</span>
+            </span>
+          </li>
+        </ol>
+      </Card>
     </section>
   );
 }

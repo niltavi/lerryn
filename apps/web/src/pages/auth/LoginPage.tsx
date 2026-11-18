@@ -1,7 +1,7 @@
 import { isApiError, loginLayout, useDiscovery, useI18n, useLogin, type LoginLayout } from "@lerryn/core";
-import { Button, Form } from "@lerryn/ui-web";
+import { Button, Form, Tooltip } from "@lerryn/ui-web";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Building2 } from "lucide-react";
+import { Briefcase } from "@gravity-ui/icons";
 import { useState, type FormEvent } from "react";
 
 import { AuthFrame, FormError, LanguageChip, PasswordInput, TextInput, authErrorMessage } from "./AuthFrame";
@@ -57,17 +57,17 @@ export function LoginPage() {
       fullWidth
       onPress={() => window.location.assign(oidcStartUrl(search.redirect))}
     >
-      <Building2 className="wl-icon" aria-hidden="true" />
+      <Briefcase aria-hidden="true" width={16} height={16} />
       {t("auth.sso")}
     </Button>
   ) : null;
 
   return (
-    <AuthFrame title={t("auth.login")} badge={<span className="mono-sm muted">{window.location.host}</span>}>
+    <AuthFrame title={t("auth.login")} badge={<span className="nt-auth__host">{window.location.host}</span>}>
       {search.error ? <FormError>{t("auth.errors.sso")}</FormError> : null}
       {ready && ssoOnly ? ssoButton : null}
       {ready && showForm ? (
-        <Form className="stack" style={{ gap: 14 }} onSubmit={submit} validationBehavior="aria">
+        <Form className="nt-auth__form" onSubmit={submit} validationBehavior="aria">
           <TextInput
             name="username"
             label={t("auth.username")}
@@ -85,9 +85,13 @@ export function LoginPage() {
             autoComplete="current-password"
             error={missing.password ? t("auth.errors.required") : undefined}
             labelEnd={
-              <span className="caption muted" tabIndex={0} data-tip={t("auth.forgotPasswordTip")} data-tip-pos="top">
-                {t("auth.forgotPassword")}
-              </span>
+              // Nothing to open: the hint is the whole answer, so it shows on hover and focus.
+              <Tooltip delay={0}>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-normal text-muted">
+                  {t("auth.forgotPassword")}
+                </Button>
+                <Tooltip.Content placement="top">{t("auth.forgotPasswordTip")}</Tooltip.Content>
+              </Tooltip>
             }
           />
           {login.error ? <FormError>{t(isApiError(login.error) ? authErrorMessage(login.error) : "auth.errors.generic")}</FormError> : null}
@@ -98,20 +102,22 @@ export function LoginPage() {
       ) : null}
       {ready && !ssoOnly && sso ? (
         <>
-          <div className="or">{t("auth.or")}</div>
+          <div className="nt-auth__divider">
+            <span>{t("auth.or")}</span>
+          </div>
           {ssoButton}
         </>
       ) : null}
-      <div className="spread" style={{ justifyContent: "center", gap: 20 }}>
+      <div className="nt-auth__foot">
         {registrationOpen ? (
-          <Link to="/register" search={search.redirect ? { redirect: search.redirect } : {}} className="link body-sm">
+          <Link to="/register" search={search.redirect ? { redirect: search.redirect } : {}} className="link">
             {t("auth.register")}
           </Link>
         ) : null}
         {ready && adminEntry ? (
-          <button type="button" className="link body-sm" style={{ border: 0, background: "none", cursor: "pointer", padding: 0 }} onClick={() => setAdminLogin(true)}>
+          <Button variant="ghost" size="sm" onPress={() => setAdminLogin(true)}>
             {t("auth.adminLogin")}
-          </button>
+          </Button>
         ) : null}
         <LanguageChip />
       </div>

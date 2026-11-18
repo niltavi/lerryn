@@ -1,12 +1,15 @@
 import { Button, Tooltip, type ButtonProps } from "@heroui/react";
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 
 import { useI18n } from "@lerryn/core";
+
+/** An icon component: a Gravity icon, or any SVG component taking the same props. */
+export type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 export interface IconButtonProps extends Omit<ButtonProps, "children" | "isIconOnly"> {
   /** Accessible name, also shown as the tooltip. */
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: IconType;
   /** Tooltip text when it should differ from the label. */
   tip?: string;
   /** Controls the tooltip; leave both unset for hover and focus behaviour. */
@@ -28,7 +31,7 @@ export function IconButton({
   return (
     <Tooltip delay={300} isOpen={isTipOpen} onOpenChange={onTipOpenChange}>
       <Button variant={variant} size={size} isIconOnly aria-label={label} {...rest}>
-        <Icon className="wl-icon" />
+        <Icon width={16} height={16} aria-hidden="true" />
       </Button>
       <Tooltip.Content>{tip ?? label}</Tooltip.Content>
     </Tooltip>
@@ -40,7 +43,7 @@ export interface CopyButtonProps {
   value: string;
   /** Accessible name, e.g. "复制运行 ID". */
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: IconType;
   variant?: ButtonProps["variant"];
 }
 

@@ -1,6 +1,6 @@
 # Lerryn 设计语言
 
-版本：0.2　日期：2026年11月5日　负责目录：`design/`
+版本：0.3　日期：2026年11月19日　负责目录：`design/`
 
 本文写给后续开发 Lerryn 界面的人和 Agent：设计语言现在做到了哪一步，在 App 里怎么用，改动时必须遵守什么。旧版视觉规范（牛皮纸主题，尚未同步本次迁移）在 Claude Design：[Lerryn 设计系统](https://claude.ai/artifact/FPPdharrE7VXPo5ZaJPmVq)，页面默认私有，需要由所有者分享后才能打开。
 
@@ -8,7 +8,7 @@
 
 界面统一采用 [niltavi-ui](https://github.com/niltavi/niltavi-ui) 的 Niltavi 主题：浅色纸白、森林墨色正文、蓝色强调；暗色采用深蓝表面。按钮、表单、卡片、导航和浮层使用适度圆角与细边框，去除厚度唇边和按压下沉。Logo 沿用现有波形，改用溪水蓝绿顶面与深青侧面。
 
-上游主题固定在 `design/niltavi-ui/`，来源、提交号和可访问性适配见该目录的 README。`design/tokens.json` 通过 `source` 引用主题快照；同一个脚本生成 Web、Native、仓库原型和独立凭证填写页的主题。
+上游固定在 `design/niltavi-ui/`，来源、提交号和可访问性适配见该目录的 README。Web 控制台直接引入上游的主题文件，外壳和页面按上游模板编写，见第 3.4 节。`design/tokens.json` 通过 `source` 引用主题快照，同一个脚本生成 Native、仓库原型和独立凭证填写页的主题。
 
 | 部分 | 状态 | 位置 |
 | --- | --- | --- |
@@ -18,7 +18,7 @@
 | 示例 App | 可用。Expo SDK 57，展示全部组件，可切换深浅主题 | `design/gallery/` |
 | Claude Design 页面 | 可用。品牌手册、token、9 个组件的 Web 预览、Logo 素材 | 见上方链接 |
 | 控制台原型 | 可用。Claude Design 画布 [Lerryn 控制台原型](https://claude.ai/artifact/X2ivYVnSoKvTiVeq8DkqR1)：Web 19 页、移动端 5 屏、弹窗与状态，数据是示例 | `design/prototype/` |
-| Web 组件库 | 可用。`@lerryn/ui-web`，基于 HeroUI v3.2.6 + Tailwind v4.3.3；含 Timeline（纵向时间线）、CollapsiblePanel（可折叠面板）、RunStatusBadge（10 种状态）、RunTimeline、RunStages（有阶段依赖时画依赖简图，窄屏换成带依赖说明的阶段列表）、ResultPanel、LogViewer、CronText、AgentPanels（metric、bars、breakdown、table、text）、QrCode、DayStrip、RunsStrip、Toggle、ActionMenu、Disclosure | `packages/ui-web/` |
+| Web 组件库 | 可用。`@lerryn/ui-web`，基于 HeroUI v3.2.6 + Tailwind v4.3.3 + 上游 Niltavi 主题，图标用 `@gravity-ui/icons`。原样导出 HeroUI 组件，另有 Timeline、CollapsiblePanel、RunStatusBadge（10 种状态）、RunTimeline、RunStages（有阶段依赖时画依赖简图，窄屏换成带依赖说明的阶段列表）、ResultPanel、LogViewer、CronText、AgentPanels（metric、bars、breakdown、table、text）、QrCode、DayStrip、RunsStrip、Toggle、ActionMenu、Disclosure、ForestScene | `packages/ui-web/` |
 
 迁移验证包含 TypeScript 检查、前端测试、Web 构建和深浅色对比度测试。旧版曾在 iOS 模拟器上核对；该记录不能视为新主题的移动端视觉验收。Claude Design 的远端画布仍为旧主题。
 
@@ -66,7 +66,7 @@ design/
   tsconfig.base.json     组件库共用的 TypeScript 配置
 ```
 
-`design/` 之外与设计语言有关的只有这些：`pnpm-workspace.yaml` 里的 `design/ui-native`、`design/gallery` 两行；根目录 `package.json` 里以 `design:` 开头的脚本；本文；项目级 Skill `.claude/skills/lerryn-design-system/`；以及生成脚本写到 Web 组件库的两份产物 `packages/ui-web/styles/tokens.css`、`packages/ui-web/src/brand/logoMark.ts`（不要手改，改源文件后重新生成）。
+`design/` 之外与设计语言有关的只有这些：`pnpm-workspace.yaml` 里的 `design/ui-native`、`design/gallery` 两行；根目录 `package.json` 里以 `design:` 开头的脚本；本文；项目级 Skill `.claude/skills/lerryn-design-system/`；以及 Web 组件库里两处来自别处的文件：生成脚本写出的 `packages/ui-web/src/brand/logoMark.ts`（不要手改，改源文件后重新生成），和原样取自上游的 `packages/ui-web/styles/theme/`（不要手改，升级时整体替换）。
 
 约定：
 
@@ -133,6 +133,31 @@ design/
 | 其余 | HeroUI Native | 按 HeroUI 文档使用，外观由 `theme.css` 统一 |
 
 导出的还有 `tokens`（全部 token 数值）、`useLerrynTheme`、`useLerrynFonts`、`LerrynProvider`。
+
+### 3.4 Web 控制台
+
+Web 控制台（`apps/web`、`packages/ui-web`）遵循 [ui.niltavi.com](https://ui.niltavi.com/) 的规范，下面的约定优先于第 4 节中针对 Native 的写法。
+
+样式分三层，入口是 `packages/ui-web/styles/index.css`：
+
+| 文件 | 内容 | 能否修改 |
+| --- | --- | --- |
+| `styles/theme/` | 上游的 `palette.css`、`niltava.css`、`components.css`、`motion.css`，以及从模板摘取的布局类 `templates.css` | 不改，升级时整体替换 |
+| `styles/lerryn.css` | 产品自己的 token：等宽字体、Logo 配色 | 新 token 写在这里 |
+| `styles/shell.css`、`domain.css`、`views.css` | 控制台外壳与公共类；状态图形等基础组件；日志、阶段、时间线等数据视图 | 手写，只用语义变量 |
+
+页面自己的样式按区域放在 `apps/web/src/styles/`（`tasks.css`、`runs.css`、`keys.css`、`account.css`、`admin.css`）。手写样式都在 `components` 层，页面上的 Tailwind 类可以覆盖它们。
+
+写页面时：
+
+- 组件一律从 `@lerryn/ui-web` 导入，先用 HeroUI 组件组合（Card、Table、Chip、Dropdown、Modal、Popover、Tabs、ToggleButtonGroup、Switch、Select、SearchField、Alert 等），写法参照上游 `src/showcase/examples/`；没有对应组件时才手写。
+- 页面骨架用 `apps/web/src/shell/layout.tsx` 的 `Board`、`BoardTop`、`Section`、`ListColumn`。侧栏、账号菜单、跳转面板（⌘K）在 `apps/web/src/shell/`，按上游 `src/templates/saas/` 的模板编写；新增页面时在 `AppShell.tsx` 的 `useNavGroups` 里登记。
+- 颜色只用语义变量和对应的 Tailwind 类：`background`、`foreground`、`surface`、`muted`、`accent`、`border`、`separator`、`success`、`warning`、`danger`、`info`，以及 `*-soft` 与 `*-soft-foreground`。组件里不写十六进制、rgb 或 hsl，也不用旧名字（`ink`、`liner`、`kraft`、`line`、`--space-*`）。图表按顺序使用 `--chart-1` 到 `--chart-8`。
+- 一个页面只有一个主按钮，其余用 `secondary`、`tertiary` 或 `ghost`。`rufous` 是少见的暖色点缀，一屏最多一处。
+- 圆角、间距、层次来自主题：圆角用 `--radius`、`--field-radius` 派生的值，间距用 Tailwind 间距刻度，层次用 1px 描边（`--surface-shadow`、`--overlay-shadow`），不加投影。
+- 图标用 `@gravity-ui/icons`，14 到 18 像素，装饰性图标加 `aria-hidden`，只有图标的按钮写 `aria-label`。Agent 相关的图标仍用 `WaveGlyph`。
+- 动效只改透明度和位移，150 到 250 毫秒，遵守「减弱动态效果」。入场可以用 `nt-fade-up`、`nt-fade-in`。
+- 交付前核对浅色与深色、320 像素与桌面宽度、键盘操作和对比度。
 
 ## 4 约束
 
@@ -219,6 +244,6 @@ pnpm design:gallery
 2. 技术设计第 13.2 节的领域组件：Web 端 LogViewer、RunTimeline、CronText、ResultPanel 已完成；CredentialForm 不在控制台里做，凭证由服务端渲染的填写页 `/c/{id}` 填写。配对二维码用 `plate` 底、`bark` 码点，两套主题下都是浅底深码，方便扫码；若要给二维码单独的 token，需加到 `tokens.json`。
 3. 组件内的默认文案改为可传入，配合控制台的多语言。
 4. 在 Android 上运行 Gallery 并核对。
-5. ~~Web 组件库 `ui-web`（HeroUI v3），由 `sync-tokens.mjs` 增加 Web 主题输出。~~ 已完成：`packages/ui-web`，`pnpm design:tokens` 同时生成它的 `styles/tokens.css`。HeroUI 组件的外观覆盖写在 `packages/ui-web/styles/theme.css`，控制台骨架和领域组件的样式在 `styles/console.css`（从 `design/prototype/console.css` 移植）。Web 端的 RunStatusBadge 已按第 7 节第 1 条的映射实现，RN 端的 `StatusChip` 仍是 6 种。
+5. ~~Web 组件库 `ui-web`（HeroUI v3）。~~ 已完成：`packages/ui-web`。Web 端直接引入上游 Niltavi 主题，样式分层与写法见第 3.4 节。Web 端的 RunStatusBadge 已按第 7 节第 1 条的映射实现，RN 端的 `StatusChip` 仍是 6 种。
 6. Logo 的反白版本（用于深色底），需要品牌方提供或确认。
 7. 确认控制台原型提出的两项变化：列表中的运行状态只用图形，文字放在悬停提示和读屏标签里（与第 4 节「状态必须同时有图标和文字」不同）；Agent 面板由任务声明、数据来自运行上报，需要改任务清单 Schema 和 OpenAPI 契约。确认后改第 4 节，并在设计系统中补上对应组件。

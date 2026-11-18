@@ -48,9 +48,9 @@ for (const theme of ['light', 'dark']) {
   });
 }
 
-test('regeneration preserves checked-in web, native, prototype and credential page themes', () => {
+test('regeneration preserves checked-in native, prototype and credential page themes', () => {
   const files = [
-    'packages/ui-web/styles/tokens.css', 'design/ui-native/styles/tokens.css',
+    'design/ui-native/styles/tokens.css',
     'design/ui-native/src/theme/tokens.ts', 'design/prototype/console.css',
     'server/internal/web/theme.css',
   ];

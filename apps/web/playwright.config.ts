@@ -19,6 +19,8 @@ export default defineConfig({
   use: {
     locale: "zh-CN",
     timezoneId: "Asia/Shanghai",
+    // Entrance fades would be caught mid-way by the contrast scan.
+    contextOptions: { reducedMotion: "reduce" },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

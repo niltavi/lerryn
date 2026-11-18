@@ -1,16 +1,17 @@
 import { useI18n } from "@lerryn/core";
-import { IconButton } from "@lerryn/ui-web";
+import { ArrowUp, ArrowsExpand, ChevronsCollapseUpRight, Xmark } from "@gravity-ui/icons";
+import { IconButton, buttonVariants } from "@lerryn/ui-web";
 import { Link } from "@tanstack/react-router";
-import { ArrowUp, Maximize, PictureInPicture2, X } from "lucide-react";
 import { FocusScope, usePreventScroll } from "react-aria";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 import { RunPreview } from "./RunPreview";
 
 const NEXT_MODE = {
   compact: { mode: "expanded", icon: ArrowUp },
-  expanded: { mode: "fullscreen", icon: Maximize },
-  fullscreen: { mode: "compact", icon: PictureInPicture2 },
+  expanded: { mode: "fullscreen", icon: ArrowsExpand },
+  fullscreen: { mode: "compact", icon: ChevronsCollapseUpRight },
 } as const;
 type PreviewMode = keyof typeof NEXT_MODE;
 
@@ -21,7 +22,9 @@ export function RunsBoardPreview({ runId, taskId }: { runId: string; taskId?: st
   const next = NEXT_MODE[mode];
   usePreventScroll({ isDisabled: !fullscreen });
 
-  return (
+  // The board is a size container, which would become the containing block of a
+  // fixed child: the preview would sit at the end of the board, out of view.
+  return createPortal(
     <FocusScope autoFocus contain={fullscreen} restoreFocus>
       <aside
         className="kb-preview"
@@ -34,8 +37,8 @@ export function RunsBoardPreview({ runId, taskId }: { runId: string; taskId?: st
         }}
       >
         <div className="kb-preview-head">
-          <h2 className="h4">{t("runs.preview")}</h2>
-          <div className="tools">
+          <h2>{t("runs.preview")}</h2>
+          <div className="flex items-center gap-1">
             <IconButton
               label={t(`runs.board.previewMode.${next.mode}`)}
               icon={next.icon}
@@ -44,12 +47,12 @@ export function RunsBoardPreview({ runId, taskId }: { runId: string; taskId?: st
             <Link
               to="/runs"
               search={{ view: "board", ...(taskId ? { task: taskId } : {}) }}
-              className="chip kb-preview-close"
+              className={buttonVariants({ size: "sm", variant: "ghost", isIconOnly: true })}
               resetScroll={false}
               activeOptions={{ exact: true, includeSearch: true }}
               aria-label={t("common.close")}
             >
-              <X className="wl-icon" aria-hidden="true" />
+              <Xmark width={16} height={16} aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -57,6 +60,7 @@ export function RunsBoardPreview({ runId, taskId }: { runId: string; taskId?: st
           <RunPreview runId={runId} />
         </div>
       </aside>
-    </FocusScope>
+    </FocusScope>,
+    document.body,
   );
 }

@@ -8,11 +8,12 @@ import {
   type LogLine,
   type LogStream,
 } from "@lerryn/core";
-import { Button } from "@heroui/react";
+import { ArrowDown, ArrowDownToLine, ChevronUp, CircleExclamation, Clock, TriangleExclamation } from "@gravity-ui/icons";
+import { Button, SearchField, ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ChevronUp, CircleAlert, Clock, Download, Search, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 
+import { Toggle } from "./Controls";
 import { IconButton } from "./IconButton";
 import { WaveLoader } from "./Wave";
 
@@ -55,6 +56,9 @@ export interface LogViewerProps {
 const ROW_HEIGHT = 20;
 const DEFAULT_HEIGHT = 560;
 const BODY_PADDING = 16;
+/** Hands the row geometry to views.css, so the styles cannot drift from the virtualizer. */
+const GEOMETRY = { "--log-row": `${ROW_HEIGHT}px`, "--log-pad": `${BODY_PADDING / 2}px` } as CSSProperties;
+const ICON = { width: 16, height: 16, "aria-hidden": true } as const;
 
 /** Splits text around case-insensitive matches of query and marks them. */
 export function highlight(text: string, query: string): ReactNode {
@@ -222,13 +226,11 @@ export function LogViewer({
       "center",
     );
   };
-  const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      goToHit(e.shiftKey ? hitIndex - 1 : hitIndex + 1);
-    } else if (e.key === "Escape") {
-      setQuery("");
-    }
+  // Escape is the search field's own: it clears the query.
+  const onSearchKey = (e: KeyboardEvent) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    goToHit(e.shiftKey ? hitIndex - 1 : hitIndex + 1);
   };
 
   const jumpToEnd = () => {
@@ -256,53 +258,61 @@ export function LogViewer({
   return (
     <section className={["log", className].filter(Boolean).join(" ")} aria-label={t("log.title")}>
       <div className="log-bar">
-        <label className="log-find">
-          <Search className="wl-icon" aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setHitIndex(0);
+        <SearchField
+          aria-label={t("log.search")}
+          value={query}
+          onChange={(value) => {
+            setQuery(value);
+            setHitIndex(0);
+          }}
+          onKeyDown={onSearchKey}
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input className="w-36 font-mono text-xs" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+        {query.trim() ? (
+          <span className="font-mono text-xs text-muted" aria-live="polite">
+            {t("log.matches", { count: hits.length })}
+          </span>
+        ) : null}
+        {/* The buttons keep their pressed state, so the set reads as a group of toggles. */}
+        <div role="group" aria-label={t("log.streams")}>
+          <ToggleButtonGroup
+            size="sm"
+            selectionMode="multiple"
+            selectedKeys={[stream]}
+            onSelectionChange={(keys) => {
+              const next = [...keys].find((key) => key !== stream);
+              if (next) setStream(next as StreamFilter);
             }}
-            onKeyDown={onSearchKey}
-            aria-label={t("log.search")}
-          />
-          {query.trim() ? (
-            <span className="mono-sm" aria-live="polite">
-              {t("log.matches", { count: hits.length })}
-            </span>
-          ) : null}
-        </label>
-        <div className="seg" role="group" aria-label={t("log.streams")}>
-          {streams.map((s) => (
-            <button key={s.key} type="button" aria-pressed={stream === s.key} onClick={() => setStream(s.key)}>
-              {s.label}
-            </button>
-          ))}
+          >
+            {streams.map((s, i) => (
+              <ToggleButton key={s.key} id={s.key}>
+                {i > 0 ? <ToggleButtonGroup.Separator /> : null}
+                {s.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
         </div>
-        <span className="grow" />
+        <span className="log-bar__gap" />
         {live ? (
-          <label className="row caption muted" style={{ gap: "var(--space-2)", cursor: "pointer" }}>
-            <button
-              className="switch-sm"
-              type="button"
-              role="switch"
-              aria-checked={follow}
-              aria-label={t("log.followLabel")}
-              onClick={() => setFollow((f) => !f)}
-            />
+          // Toggle brings its own label element, so the caption sits beside it instead of wrapping it.
+          <span className="log-follow">
+            <Toggle size="sm" checked={follow} onChange={setFollow} label={t("log.followLabel")} />
             <span aria-hidden="true">{t("log.follow")}</span>
-          </label>
+          </span>
         ) : null}
         {onDownload && !expired ? (
-          <IconButton label={t("log.download")} icon={Download} onPress={onDownload} isPending={downloading} />
+          <IconButton label={t("log.download")} icon={ArrowDownToLine} onPress={onDownload} isPending={downloading} />
         ) : null}
       </div>
 
       {dropped > 0 ? (
         <div className="log-note log-note--warn" role="status">
-          <TriangleAlert className="wl-icon" aria-hidden="true" />
+          <TriangleExclamation {...ICON} />
           {t("log.dropped", { count: formatCount(dropped, locale) })}
         </div>
       ) : null}
@@ -315,12 +325,12 @@ export function LogViewer({
 
       {expired ? (
         <div className="log-empty" role="status">
-          <Clock className="wl-icon" aria-hidden="true" />
+          <Clock {...ICON} />
           {t("log.expired")}
         </div>
       ) : failed ? (
         <div className="log-empty" role="alert">
-          <CircleAlert className="wl-icon" aria-hidden="true" />
+          <CircleExclamation {...ICON} />
           {t("states.errorTitle")}
           {onRetry ? (
             <Button variant="ghost" size="sm" onPress={onRetry}>
@@ -342,7 +352,7 @@ export function LogViewer({
           <div
             ref={scrollRef}
             className="log-body"
-            style={{ height: viewport }}
+            style={{ ...GEOMETRY, height: viewport }}
             onScroll={onScroll}
             role="log"
             aria-live={follow && live ? "polite" : "off"}
@@ -351,7 +361,7 @@ export function LogViewer({
             <div className="log-rows" style={{ height: virtualizer.getTotalSize() }}>
               {items.map((item) => {
                 const row = rows[item.index]!;
-                const style = { position: "absolute" as const, top: 0, left: 0, right: 0, transform: `translateY(${item.start}px)` };
+                const style = { transform: `translateY(${item.start}px)` };
                 if (row.kind === "stage") {
                   return (
                     <div
@@ -371,10 +381,10 @@ export function LogViewer({
                 if (row.kind === "gap") {
                   return (
                     <div key={item.key} ref={virtualizer.measureElement} data-index={item.index} style={style} className="log-more">
-                      <button type="button" onClick={loadEarlier} disabled={!onLoadEarlier || loadingEarlier}>
-                        {loadingEarlier ? <WaveLoader size="sm" /> : <ChevronUp className="wl-icon" aria-hidden="true" />}
+                      <Button variant="ghost" size="sm" onPress={loadEarlier} isDisabled={!onLoadEarlier || loadingEarlier}>
+                        {loadingEarlier ? <WaveLoader size="sm" /> : <ChevronUp {...ICON} />}
                         {t("log.earlier", { count: formatCount(row.count, locale) })}
-                      </button>
+                      </Button>
                     </div>
                   );
                 }
@@ -404,13 +414,13 @@ export function LogViewer({
           {!atBottom ? (
             <div className="log-jump">
               <Button variant="secondary" size="sm" onPress={jumpToEnd}>
-                <ArrowDown className="wl-icon" aria-hidden="true" />
+                <ArrowDown {...ICON} />
                 {t("log.jumpToEnd")}
               </Button>
             </div>
           ) : null}
           {live && follow ? (
-            <div className="log-empty" style={{ paddingTop: 4, paddingBottom: 8 }}>
+            <div className="log-empty log-empty--tail">
               <WaveLoader size="sm" label={t("log.receiving")} />
             </div>
           ) : null}

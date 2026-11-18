@@ -30,8 +30,8 @@ test("access-token counts remain partial until every page is read, then follow r
 
   await page.goto("/settings/tokens");
   const board = page.getByRole("main", { name: "访问令牌", exact: true });
-  const rows = board.getByRole("listitem");
-  const count = page.getByRole("region", { name: "密钥", exact: true }).getByRole("link", { name: /^访问令牌/ }).locator(".li-meta");
+  const rows = board.getByRole("rowheader");
+  const count = page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: /^访问令牌/ }).locator(".nt-side__badge");
   await expect(rows).toHaveCount(50);
   await expect(count).toHaveText("0+");
   await expect(rows.filter({ hasText: oldestName })).toHaveCount(0);
@@ -58,11 +58,11 @@ test("access-token counts remain partial until every page is read, then follow r
     const translated = await english.newPage();
     await translated.goto(`${state.base}/settings/tokens`);
     const translatedBoard = translated.getByRole("main", { name: "Access tokens", exact: true });
-    const translatedCount = translated.getByRole("region", { name: "Key", exact: true }).getByRole("link", { name: /^Access tokens/ }).locator(".li-meta");
+    const translatedCount = translated.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: /^Access tokens/ }).locator(".nt-side__badge");
     // Unread records do not guarantee that any further token is usable.
     await expect(translatedCount).toHaveText("0+");
     await translatedBoard.getByRole("button", { name: "Load more", exact: true }).click();
-    await expect(translatedBoard.getByRole("listitem")).toHaveCount(51);
+    await expect(translatedBoard.getByRole("rowheader")).toHaveCount(51);
     await expect(translatedCount).toHaveText("0");
     await expectNoHorizontalScroll(translated);
   } finally {

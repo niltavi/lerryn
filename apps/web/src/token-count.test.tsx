@@ -81,9 +81,10 @@ function renderTokens(items: AccessToken[], options: {
 }
 
 function sidebarCount() {
-  const settings = screen.getByRole("region", { name: /^(密钥|Key)$/ });
-  const link = within(settings).getByRole("link", { name: /^(访问令牌|Access tokens)/ });
-  return link.querySelector(".li-meta")?.textContent;
+  // The count is the badge on the sidebar link; no badge means no total is advertised.
+  const rail = screen.getByRole("navigation", { name: /^(主导航|Main navigation)$/ });
+  const link = within(rail).getByRole("link", { name: /^(访问令牌|Access tokens)/ });
+  return link.querySelector(".nt-side__badge")?.textContent ?? "";
 }
 
 async function revokeToken(user: ReturnType<typeof userEvent.setup>, name: string) {

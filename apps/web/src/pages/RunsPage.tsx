@@ -10,9 +10,18 @@ import {
   type RunSummary,
   type RunTaskGroup,
 } from "@lerryn/core";
-import { IconButton, StatusGlyph } from "@lerryn/ui-web";
+import {
+  ChevronRight,
+  ChevronsCollapseVertical,
+  ChevronsExpandVertical,
+  Hierarchy,
+  LayoutColumns3,
+  ListUl,
+  Magnifier,
+  Xmark,
+} from "@gravity-ui/icons";
+import { Button, IconButton, SearchField, StatusGlyph, ToggleButton, ToggleButtonGroup } from "@lerryn/ui-web";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ChevronRight, ChevronsDownUp, ChevronsUpDown, Kanban, List, ListTree, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useNow } from "../lib/hooks";
@@ -100,10 +109,10 @@ export function RunsPage() {
       return next;
     });
 
-  const viewSwitch = <ViewSwitch view={view} listView={grouped ? "tasks" : "list"} task={search.task} />;
+  const listView = grouped ? "tasks" : "list";
 
   if (view === "board") {
-    return <RunsBoard taskId={search.task} runId={search.run} viewSwitch={viewSwitch} />;
+    return <RunsBoard taskId={search.task} runId={search.run} viewSwitch={<ViewSwitch view={view} listView={listView} task={search.task} />} />;
   }
 
   return (
@@ -111,88 +120,98 @@ export function RunsPage() {
       <ListColumn
         title={t("runs.title")}
         label={t("runs.list")}
-        inlineTools
         tools={
           <>
-            {viewSwitch}
-            <div className="tools">
-              {grouped && groups.length > 1 ? (
-                <IconButton
-                  label={allCollapsed ? t("runs.expandAll") : t("runs.collapseAll")}
-                  icon={allCollapsed ? ChevronsUpDown : ChevronsDownUp}
-                  onPress={toggleAllGroups}
-                />
-              ) : null}
+            <ViewSwitch view={view} listView={listView} task={search.task} compact />
+            {grouped && groups.length > 1 ? (
               <IconButton
-                label={grouped ? t("runs.ungroup") : t("runs.groupByTask")}
-                icon={grouped ? List : ListTree}
-                onPress={() => setGrouped(!grouped)}
+                label={allCollapsed ? t("runs.expandAll") : t("runs.collapseAll")}
+                icon={allCollapsed ? ChevronsExpandVertical : ChevronsCollapseVertical}
+                onPress={toggleAllGroups}
               />
-              {items.length > 0 || searching ? (
-                <IconButton
-                  ref={searchButton}
-                  aria-expanded={searching}
-                  label={searching ? t("runs.closeSearch") : t("runs.search")}
-                  icon={searching ? X : Search}
-                  onPress={() => {
-                    if (searching) closeSearch();
-                    else setSearching(true);
-                  }}
-                />
-              ) : null}
-            </div>
+            ) : null}
+            <IconButton
+              label={grouped ? t("runs.ungroup") : t("runs.groupByTask")}
+              icon={grouped ? ListUl : Hierarchy}
+              onPress={() => setGrouped(!grouped)}
+            />
+            {items.length > 0 || searching ? (
+              <IconButton
+                ref={searchButton}
+                aria-expanded={searching}
+                label={searching ? t("runs.closeSearch") : t("runs.search")}
+                icon={searching ? Xmark : Magnifier}
+                onPress={() => {
+                  if (searching) closeSearch();
+                  else setSearching(true);
+                }}
+              />
+            ) : null}
           </>
         }
       >
         {searching ? (
-          <div className="list-search">
-            <label className="log-find">
-              <Search className="wl-icon" aria-hidden="true" />
-              <input
-                type="search"
-                value={query}
-                autoFocus
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    closeSearch();
-                  }
-                }}
-                aria-label={t("runs.search")}
-                placeholder={t("runs.searchPlaceholder")}
-              />
-            </label>
+          <div className="lr-list__search">
+            <SearchField
+              aria-label={t("runs.search")}
+              value={query}
+              onChange={setQuery}
+              autoFocus
+              fullWidth
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  closeSearch();
+                }
+              }}
+            >
+              <SearchField.Group>
+                <SearchField.SearchIcon />
+                <SearchField.Input placeholder={t("runs.searchPlaceholder")} />
+              </SearchField.Group>
+            </SearchField>
           </div>
         ) : null}
-        <div className="list-seg">
-          <div className="seg seg--block" role="group" aria-label={t("runs.filterLabel")}>
-            {FILTERS.map((f) => (
-              <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+        <div className="px-3 py-2">
+          {/* Multiple mode keeps these as pressed buttons; single mode would turn them into radios. */}
+          <ToggleButtonGroup
+            aria-label={t("runs.filterLabel")}
+            size="sm"
+            fullWidth
+            selectionMode="multiple"
+            selectedKeys={[filter]}
+            onSelectionChange={(keys) => {
+              const next = [...keys].find((key) => key !== filter);
+              if (next) setFilter(next as RunFilter);
+            }}
+          >
+            {FILTERS.map((f, index) => (
+              <ToggleButton key={f} id={f}>
+                {index > 0 ? <ToggleButtonGroup.Separator /> : null}
                 {t(`runs.filter.${f}`)}
-              </button>
+              </ToggleButton>
             ))}
-          </div>
+          </ToggleButtonGroup>
         </div>
         {search.task && items[0] ? (
-          <div className="list-group">
-            <span className="mono-sm">{items[0].task.name}</span>
-            <Link to="/runs" search={{ filter: search.filter, view: search.view }} className="link caption">
+          <div className="lr-list__group flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate font-mono">{items[0].task.name}</span>
+            <Link to="/runs" search={{ filter: search.filter, view: search.view }} className="shrink-0 text-accent">
               {t("runs.allTasks")}
             </Link>
           </div>
         ) : null}
         {runs.isError ? (
-          <div className="list-empty">
+          <div className="lr-list__empty">
             <span>{t("states.errorTitle")}</span>
-            <button className="link" type="button" style={{ border: 0, background: "none", cursor: "pointer", font: "inherit" }} onClick={() => void runs.refetch()}>
+            <Button size="sm" variant="secondary" onPress={() => void runs.refetch()}>
               {t("common.retry")}
-            </button>
+            </Button>
           </div>
         ) : runs.data && items.length === 0 ? (
-          <div className="list-empty">{filter === "all" ? t("states.noRuns") : t("runs.noneMatch")}</div>
+          <div className="lr-list__empty">{filter === "all" ? t("states.noRuns") : t("runs.noneMatch")}</div>
         ) : runs.data && shown.length === 0 ? (
-          <div className="list-empty">{t("runs.noMatch")}</div>
+          <div className="lr-list__empty">{t("runs.noMatch")}</div>
         ) : null}
         {grouped
           ? groups.map((g) => (
@@ -206,7 +225,7 @@ export function RunsPage() {
               />
             ))
           : shown.map((run) => <RunItem key={run.id} run={run} current={run.id === selected} now={now} />)}
-        <div style={{ padding: "8px 12px" }}>
+        <div className="px-3 py-2">
           <LoadMore show={!!runs.data?.hasMore} pending={runs.isFetchingNextPage} onPress={() => void runs.fetchNextPage()} />
         </div>
       </ListColumn>
@@ -234,19 +253,29 @@ function storeRunsView(view: RunsView) {
   }
 }
 
-/** List / Board as plain links, so each view has its own address. */
-function ViewSwitch({ view, listView, task }: { view: RunsView; listView: "list" | "tasks"; task?: string }) {
+/**
+ * List / Board as plain links, so each view has its own address. `compact`
+ * keeps the names for assistive tech only, for the narrow list pane.
+ */
+function ViewSwitch({ view, listView, task, compact }: { view: RunsView; listView: "list" | "tasks"; task?: string; compact?: boolean }) {
   const { t } = useI18n();
-  const views: [RunsView, typeof List, string][] = [
-    ["list", List, t("runs.view.list")],
-    ["board", Kanban, t("runs.view.board")],
+  const views: [RunsView, typeof ListUl, string][] = [
+    ["list", ListUl, t("runs.view.list")],
+    ["board", LayoutColumns3, t("runs.view.board")],
   ];
   return (
-    <nav className="seg" aria-label={t("runs.view.label")}>
+    <nav className="run-views" aria-label={t("runs.view.label")}>
       {views.map(([v, Icon, label]) => (
-        <Link key={v} to="/runs" search={{ view: v === "list" ? listView : v, ...(task ? { task } : {}) }} aria-current={view === v ? "page" : undefined}>
-          <Icon className="wl-icon" width={16} height={16} aria-hidden="true" />
-          {label}
+        <Link
+          key={v}
+          to="/runs"
+          search={{ view: v === "list" ? listView : v, ...(task ? { task } : {}) }}
+          className="run-views__link"
+          aria-current={view === v ? "page" : undefined}
+          title={compact ? label : undefined}
+        >
+          <Icon width={16} height={16} aria-hidden="true" />
+          <span className={compact ? "sr-only" : undefined}>{label}</span>
         </Link>
       ))}
     </nav>
@@ -276,24 +305,24 @@ function RunGroup({
   const latest = group.runs[0]!;
   const holdsSelected = group.runs.some((r) => r.id === selected);
   return (
-    <div className="rg" data-open={open}>
+    <div className="run-group" data-open={open}>
       <button
         type="button"
-        className="rg-head"
+        className="run-group__head"
         aria-expanded={open}
         aria-controls={bodyId}
         data-current={!open && holdsSelected ? "true" : undefined}
         onClick={onToggle}
       >
-        <ChevronRight className="wl-icon rg-chevron" aria-hidden="true" />
+        <ChevronRight className="run-group__chevron" width={14} height={14} aria-hidden="true" />
         <StatusGlyph status={latest.status} />
-        <span style={{ minWidth: 0 }}>
+        <span className="min-w-0">
           <span className="li-name">{group.task.name}</span>
           <span className="li-sub">{t("runs.groupRuns", { count: group.runs.length })}</span>
         </span>
         <span className="li-meta">{shortWhen(latest.started_at ?? latest.queued_at, locale, now)}</span>
       </button>
-      <div id={bodyId} className="rg-body" role="group" aria-label={group.task.name} hidden={!open}>
+      <div id={bodyId} className="run-group__body" role="group" aria-label={group.task.name} hidden={!open}>
         {open ? group.runs.map((run) => (
           <RunItem key={run.id} run={run} current={run.id === selected} now={now} nested />
         )) : null}
@@ -326,19 +355,19 @@ function RunItem({ run, current, now, nested = false }: { run: RunSummary; curre
     <Link
       to="/runs"
       search={{ ...search, run: run.id }}
-      className={nested ? "li li--leaf" : "li"}
+      className="li"
       aria-current={current ? "true" : undefined}
       replace
     >
       <StatusGlyph status={run.status} />
-      <span style={{ minWidth: 0 }}>
+      <span className="min-w-0">
         {nested ? (
           // Under its task the name would repeat, so the origin leads.
-          <span className={mono ? "li-name mono-sm" : "li-name"}>{sub}</span>
+          <span className={mono ? "li-name font-mono text-xs" : "li-name"}>{sub}</span>
         ) : (
           <>
             <span className="li-name">{run.task.name}</span>
-            <span className={mono ? "li-sub mono-sm" : "li-sub"}>{sub}</span>
+            <span className={mono ? "li-sub font-mono" : "li-sub"}>{sub}</span>
           </>
         )}
       </span>

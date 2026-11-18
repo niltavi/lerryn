@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Generates Web, Native, prototype and credential-page themes from the pinned
-// Niltavi snapshot and product token mappings.
+// Generates the Native, prototype and credential-page themes from the pinned
+// Niltavi snapshot and product token mappings. The web console does not take part:
+// it imports the upstream theme files directly (packages/ui-web/styles/theme/).
 //   design/ui-native/styles/tokens.css   Uniwind 主题变量（Lerryn token + HeroUI Native 变量映射）
 //   design/ui-native/src/theme/tokens.ts  JS 侧的同一份数值（SVG、动画等拿不到 className 的地方用）
-//   packages/ui-web/styles/tokens.css     Web Tailwind and HeroUI semantics
 //   design/prototype/console.css          marked plain CSS token block
 //   server/internal/web/theme.css         standalone credential page tokens
 // 改设计 token 只改 tokens.json，然后在仓库根目录运行 `pnpm design:tokens`。
@@ -209,86 +209,19 @@ export type LerrynTypeStyle = keyof typeof typeStyles;
 
 writeFileSync(resolve(root, 'ui-native/src/theme/tokens.ts'), ts);
 
-// ── Web：packages/ui-web/styles/tokens.css ──
-// HeroUI v3（Web）读的是同名的 CSS 变量，主题由 <html> 上的 data-theme 或 .dark 类切换。
-// 输出不放进 @layer，这样能盖过 HeroUI 写在 theme 层里的默认值。
-// HeroUI Web 直接读这些柔和色变量，不经过 --color-*，所以和 Native 不同，要在主题块里给定值。
-
 function heroColors(theme) {
   const mapped = Object.fromEntries(Object.entries({ ...HEROUI_COLORS, ...HEROUI_EXTRA })
     .map(([hero, ours]) => [hero, colors[theme][ours]]));
   return { ...mapped, ...HEROUI_OVERRIDES[theme] };
 }
 
-const webThemeBlock = (theme) => {
-  const pad2 = '  ';
-  const lines = [`${pad2}color-scheme: ${theme};`, '', `${pad2}/* Lerryn token */`];
-  for (const [name, value] of Object.entries(colors[theme])) lines.push(`${pad2}--${name}: ${value};`);
-  for (const [name, value] of Object.entries(shadows[theme])) lines.push(`${pad2}--${name}: ${value};`);
-  lines.push('', `${pad2}/* HeroUI v3 语义变量 */`);
-  for (const [hero, value] of Object.entries(heroColors(theme))) {
-    lines.push(`${pad2}--${hero}: ${value};`);
-  }
-  for (const [hero, ours] of Object.entries(HEROUI_SHADOWS)) lines.push(`${pad2}--${hero}: ${shadows[theme][ours]};`);
-  return lines.join('\n');
-};
 const indent = (text) =>
   text
     .split('\n')
     .map((l) => (l ? `  ${l}` : l))
     .join('\n');
 
-const webType = tokens.type.groups.flatMap((g) =>
-  g.styles.map((s) => {
-    const lines = [`  --text-${s.name}: ${s.fontSize};`, `  --text-${s.name}--line-height: ${s.lineHeight};`];
-    lines.push(`  --text-${s.name}--font-weight: ${s.fontWeight};`);
-    if (s.letterSpacing) lines.push(`  --text-${s.name}--letter-spacing: ${s.letterSpacing};`);
-    return lines.join('\n');
-  }),
-);
-
 const [lightTheme, darkTheme] = themes;
-const webCss = `/* 由 design/scripts/sync-tokens.mjs 根据 design/tokens.json 生成，不要手改。 */
-
-/* 让 Lerryn token 直接写成 Tailwind 类：bg-paper、text-ink-muted、shadow-flute-b、text-title-2、font-mono… */
-@theme inline {
-${tokens.color.tokens.map((t) => `  --color-${t.name}: var(--${t.name});`).join('\n')}
-
-${tokens.shadow.tokens.map((t) => `  --shadow-${t.name}: var(--${t.name});`).join('\n')}
-
-${Object.entries(tokens.type.families)
-  .map(([k, v]) => `  --font-${k}: ${v};`)
-  .join('\n')}
-
-${tokens.radius.tokens.map((t) => `  --${t.name}: ${t.value};`).join('\n')}
-
-${webType.join('\n')}
-}
-
-:root {
-${tokens.spacing.tokens.map((t) => `  --${t.name}: ${t.value};`).join('\n')}
-}
-
-:root,
-.${lightTheme},
-[data-theme="${lightTheme}"] {
-${webThemeBlock(lightTheme)}
-}
-
-.${darkTheme},
-[data-theme="${darkTheme}"] {
-${webThemeBlock(darkTheme)}
-}
-
-/* 脚本设置 data-theme 之前，先按系统偏好显示，避免首屏闪白 */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]):not(.${lightTheme}) {
-${indent(indent(webThemeBlock(darkTheme)))}
-  }
-}
-`;
-
-writeFileSync(resolve(root, '../packages/ui-web/styles/tokens.css'), webCss);
 
 // The static prototype consumes plain CSS rather than Tailwind directives.
 const prototypePath = resolve(root, 'prototype/console.css');
@@ -319,5 +252,5 @@ ${indent(indent(declarations(darkTheme)))}
 writeFileSync(resolve(root, '../server/internal/web/theme.css'), fillCss);
 
 console.log(
-  `tokens: ${tokens.color.tokens.length} colors × ${themes.length} themes, ${tokens.shadow.tokens.length} flat aliases → web, native, prototype, credential page`,
+  `tokens: ${tokens.color.tokens.length} colors × ${themes.length} themes, ${tokens.shadow.tokens.length} flat aliases → native, prototype, credential page`,
 );

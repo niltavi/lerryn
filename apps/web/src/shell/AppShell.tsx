@@ -1,121 +1,222 @@
-import { LiveModeProvider, useDiscovery, useEventStream, useI18n, usePendingCredentialRequests, type Me } from "@lerryn/core";
-import { Logo } from "@lerryn/ui-web";
-import { Link, Outlet, useLinkProps, useMatch, useRouteContext, useRouterState } from "@tanstack/react-router";
-import { ArrowUpRight, Eye, History, KeyRound, LayoutDashboard, Shield, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+  LiveModeProvider,
+  daysUntil,
+  useAccessTokens,
+  useDevices,
+  useDiscovery,
+  useEventStream,
+  useI18n,
+  useNotificationChannels,
+  usePendingCredentialRequests,
+  type Me,
+} from "@lerryn/core";
+import { Alert, Breadcrumbs, Link as TextLink } from "@lerryn/ui-web";
+import {
+  ArrowUpRight,
+  Bell,
+  CircleInfo,
+  ClockArrowRotateLeft,
+  House,
+  Key,
+  ListCheck,
+  Person,
+  Persons,
+  PlugConnection,
+  Server,
+  Shield,
+  Smartphone,
+  Ticket,
+} from "@gravity-ui/icons";
+import { Outlet, useNavigate, useRouteContext, useRouterState } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 
 import { deploymentOriginMismatch } from "../lib/origin";
 import { CredentialFillProvider } from "./CredentialFill";
+import { AppSidebar, CommandMenu, CommandTrigger, UserMenu, type Command, type NavGroup } from "./Sidebar";
+
+export { initialOf } from "./Sidebar";
 
 /** The signed-in user, loaded by the app route before any page renders. */
 export function useCurrentUser(): Me {
   return useRouteContext({ from: "/app" }).me;
 }
 
-/** Initial for the avatar: the first character of the display name or username. */
-export function initialOf(user: { display_name?: string | null; username: string }): string {
-  return Array.from(user.display_name?.trim() || user.username)[0] ?? "?";
+const COLLAPSED_KEY = "lerryn.sidebar";
+
+function readCollapsed(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(COLLAPSED_KEY) === "collapsed";
+  } catch {
+    return false;
+  }
 }
 
-function RailLink({
-  to,
-  label,
-  tip,
-  icon: Icon,
-  active = false,
-  pip,
-  children,
-}: {
-  to: string;
-  label: string;
-  tip?: string;
-  icon?: LucideIcon;
-  active?: boolean;
-  pip?: boolean;
-  children?: ReactNode;
-}) {
-  const linkProps = useLinkProps({ to, className: "ri", activeProps: {} });
-  return (
-    <a
-      {...linkProps}
-      aria-label={label}
-      data-tip={tip ?? label}
-      data-status={active ? "active" : undefined}
-      aria-current={active ? "page" : undefined}
-    >
-      {Icon ? <Icon className="wl-icon" width={22} height={22} aria-hidden="true" /> : null}
-      {children}
-      {pip ? <span className="pip" aria-hidden="true" /> : null}
-    </a>
-  );
+/** The sidebar entry a path belongs to; task and run pages sit under their lists. */
+function activeItem(pathname: string): string | undefined {
+  const [, section, page] = pathname.split("/");
+  if (!section || section === "tasks") return "overview";
+  if (section === "runs") return "runs";
+  if (section === "settings" || section === "admin") return page ? `${section}/${page}` : undefined;
+  return undefined;
 }
 
 /**
- * The console frame: an icon rail and the page area. Each page lays out its
- * own list column and board inside it, like the prototype (Main.dc.html).
- * The event stream opened here keeps every page current; while it is down
- * the queries poll instead.
+ * The console's destinations with the counts that tell whether a page needs a
+ * visit: `groups` for the sidebar, `account` for the pages behind the avatar.
+ */
+function useNav(me: Me): { groups: NavGroup[]; account: NavGroup } {
+  const { t } = useI18n();
+  const tokens = useAccessTokens();
+  const requests = usePendingCredentialRequests();
+  const channels = useNotificationChannels();
+  const devices = useDevices();
+  const usable = tokens.data?.items.filter((token) => !token.revoked_at && (!token.expires_at || daysUntil(token.expires_at) > 0)).length;
+  const pending = requests.data?.items.length ?? 0;
+  const pendingCount = requests.hasNextPage ? `${pending}+` : pending;
+  const tokenCount = usable === undefined ? undefined : tokens.data?.hasMore ? `${usable}+` : usable;
+  const channelCount = channels.data?.items.length || undefined;
+  const deviceCount = devices.data?.items.length || undefined;
+  return useMemo(() => {
+    const groups: NavGroup[] = [
+      {
+        id: "main",
+        items: [
+          { id: "overview", to: "/", label: t("nav.overview"), icon: House },
+          { id: "runs", to: "/runs", label: t("nav.runs"), icon: ClockArrowRotateLeft },
+        ],
+      },
+      {
+        id: "keys",
+        label: t("settings.keyTitle"),
+        items: [
+          { id: "settings/tokens", to: "/settings/tokens", label: t("settings.tokens"), icon: Ticket, badge: tokenCount },
+          {
+            id: "settings/credentials",
+            to: "/settings/credentials",
+            label: t("settings.credentials"),
+            name: pending ? t("nav.credentialsPending", { count: pendingCount }) : undefined,
+            icon: Key,
+            badge: pending ? pendingCount : undefined,
+            attention: pending > 0,
+          },
+          { id: "settings/tools", to: "/settings/tools", label: t("settings.tools"), icon: PlugConnection },
+        ],
+      },
+    ];
+    if (me.is_admin) {
+      groups.push({
+        id: "admin",
+        label: t("admin.title"),
+        items: [
+          { id: "admin/users", to: "/admin/users", label: t("admin.users"), icon: Persons },
+          { id: "admin/login", to: "/admin/login", label: t("admin.login"), icon: Shield },
+          { id: "admin/runners", to: "/admin/runners", label: t("admin.runners"), icon: Server },
+          { id: "admin/audit", to: "/admin/audit", label: t("admin.audit"), icon: ListCheck },
+        ],
+      });
+    }
+    const account: NavGroup = {
+      id: "account",
+      label: t("nav.settings"),
+      items: [
+        { id: "settings/account", to: "/settings/account", label: t("settings.account"), icon: Person },
+        { id: "settings/notifications", to: "/settings/notifications", label: t("settings.notifications"), icon: Bell, badge: channelCount },
+        { id: "settings/pairing", to: "/settings/pairing", label: t("settings.pairing"), icon: Smartphone, badge: deviceCount },
+        { id: "settings/about", to: "/settings/about", label: t("settings.about"), icon: CircleInfo },
+      ],
+    };
+    return { groups, account };
+  }, [t, me.is_admin, tokenCount, pending, pendingCount, channelCount, deviceCount]);
+}
+
+/**
+ * The console frame: a sidebar with the account menu at its foot, a top bar with the current location, and the
+ * page area. Pages may put a list pane beside their board. The event stream
+ * opened here keeps every page current; while it is down the queries poll instead.
  */
 export function AppShell() {
   const { t } = useI18n();
-  // Rail selection follows the section, independently of each entry's destination.
-  const section = useRouterState({ select: ({ location }) => location.pathname.split("/")[1] });
   const me = useCurrentUser();
-  const inKeySettings = !!useMatch({ from: "/app/settings/_key", shouldThrow: false });
-  const inAccountSettings = !!useMatch({ from: "/app/settings/_account", shouldThrow: false });
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: ({ location }) => location.pathname });
   const mode = useEventStream({ enabled: true });
-  const requests = usePendingCredentialRequests();
-  const pending = requests.data?.items.length ?? 0;
-  const name = me.display_name || me.username;
   const discovery = useDiscovery();
   const expected = deploymentOriginMismatch(discovery.data?.links.console, window.location.origin);
+  const { groups, account } = useNav(me);
+  const active = activeItem(pathname);
+  const [collapsed, setCollapsedState] = useState(readCollapsed);
+  const [commandOpen, setCommandOpen] = useState(false);
+
+  const setCollapsed = (next: boolean) => {
+    setCollapsedState(next);
+    try {
+      globalThis.localStorage?.setItem(COLLAPSED_KEY, next ? "collapsed" : "open");
+    } catch {
+      // Applies now, not remembered.
+    }
+  };
+
+  const everything = useMemo(() => [...groups, account], [groups, account]);
+  const group = everything.find((g) => g.items.some((item) => item.id === active));
+  const current = group?.items.find((item) => item.id === active);
+  const commands: Command[] = useMemo(
+    () =>
+      everything.flatMap((g) =>
+        g.items.map((item) => ({
+          id: item.id,
+          label: item.label,
+          group: g.label ?? t("app.brand"),
+          icon: item.icon,
+          run: () => void navigate({ to: item.to }),
+        })),
+      ),
+    [everything, navigate, t],
+  );
+
   return (
     <LiveModeProvider mode={mode}>
       <CredentialFillProvider>
-        <div className="wl-app shell">
-          <nav className="rail" aria-label={t("nav.main")}>
-            <Link to="/" className="rail-logo" aria-label={t("app.brand")}>
-              <Logo size={15} label="" />
-            </Link>
-            <RailLink to="/" active={section === "" || section === "tasks"} label={t("nav.overview")} icon={LayoutDashboard} />
-            <RailLink to="/runs" active={section === "runs"} label={t("nav.runs")} icon={History} />
-            <RailLink
-              to="/settings/tokens"
-              label={pending ? t("nav.keysPending", { count: requests.hasNextPage ? `${pending}+` : pending }) : t("settings.keyTitle")}
-              tip={t("settings.keyTitle")}
-              icon={KeyRound}
-              active={inKeySettings}
-              pip={pending > 0}
-            />
-            <div className="rail-foot">
-              {me.is_admin ? <RailLink to="/admin" active={section === "admin"} label={t("nav.admin")} icon={Shield} /> : null}
-              <RailLink to="/settings/account" label={t("nav.accountOf", { name })} active={inAccountSettings}>
-                <span className="avatar" aria-hidden="true">
-                  {initialOf(me)}
-                </span>
-              </RailLink>
-            </div>
-          </nav>
-          <div className="shell-main">
+        <div className="nt-console" data-collapsed={collapsed || undefined}>
+          <AppSidebar
+            groups={groups}
+            active={active}
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+            label={t("nav.main")}
+            footer={<UserMenu me={me} showName={!collapsed} pages={account.items} active={active} />}
+          />
+          <div className="nt-console__main">
+            <header className="nt-console__top">
+              <Breadcrumbs className="nt-crumbs">
+                {group?.label ? <Breadcrumbs.Item>{group.label}</Breadcrumbs.Item> : null}
+                <Breadcrumbs.Item>{current?.label ?? t("app.brand")}</Breadcrumbs.Item>
+              </Breadcrumbs>
+              <div className="nt-console__tools">
+                <CommandTrigger onPress={() => setCommandOpen(true)} />
+              </div>
+            </header>
             {expected ? (
-              <div className="shell-origin" role="status">
-                <Eye className="wl-icon" aria-hidden="true" />
-                <span className="shell-origin-text">{t("nav.wrongOrigin")}</span>
-                <a
-                  className="chip chip--sm"
+              <Alert status="warning" role="status" className="nt-console__notice">
+                <Alert.Indicator />
+                <Alert.Content>
+                  <Alert.Description>{t("nav.wrongOrigin")}</Alert.Description>
+                </Alert.Content>
+                <TextLink
                   href={expected + window.location.pathname + window.location.search}
                   aria-label={t("nav.openDeployment", { expected })}
+                  className="font-mono text-xs"
                 >
-                  <span className="mono-sm">{new URL(expected).host}</span>
-                  <ArrowUpRight className="wl-icon" aria-hidden="true" />
-                </a>
-              </div>
+                  {new URL(expected).host}
+                  <ArrowUpRight aria-hidden="true" width={14} height={14} />
+                </TextLink>
+              </Alert>
             ) : null}
-            <div className="shell-page">
+            <div className="nt-console__body">
               <Outlet />
             </div>
           </div>
         </div>
+        <CommandMenu isOpen={commandOpen} onOpenChange={setCommandOpen} commands={commands} />
       </CredentialFillProvider>
     </LiveModeProvider>
   );

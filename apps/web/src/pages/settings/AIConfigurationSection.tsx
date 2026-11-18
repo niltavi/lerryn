@@ -6,11 +6,11 @@ import {
   useSetAIConfiguration,
   type AIConfiguration,
 } from "@lerryn/core";
-import { Button, ConsoleDialog, Description, FieldError, Input, Label, TextArea, TextField, WaveGlyph } from "@lerryn/ui-web";
+import { Button, Card, ConsoleDialog, Description, FieldError, Input, Label, TextArea, TextField, WaveGlyph } from "@lerryn/ui-web";
 import { useState, type FormEvent } from "react";
 
 import { writeErrorMessage } from "../../lib/origin";
-import { LoadError } from "../../shell/layout";
+import { LoadError, Section } from "../../shell/layout";
 import { FormError } from "../auth/AuthFrame";
 
 export function AIConfigurationSection() {
@@ -21,30 +21,31 @@ export function AIConfigurationSection() {
   const current = config.data;
 
   return (
-    <section className="stack" aria-labelledby="ai-settings-title">
-      <h2 className="sec-label" id="ai-settings-title">{t("ai.title")}</h2>
+    <Section title={t("ai.title")}>
       {config.isError ? <LoadError error={config.error} onRetry={() => void config.refetch()} /> : null}
       {current ? (
-        <div className="rows">
-          <div className="rowi">
-            <span className="ic-box" aria-hidden="true"><WaveGlyph size={18} /></span>
-            <span style={{ minWidth: 0 }}>
-              <span className="rowi-name">{current.base_url ?? t("ai.notConfigured")}</span>
-              <span className="rowi-sub">
+        <Card className="tpl-card nt-fade-up">
+          <div className="lr-row">
+            <span className="lr-row__icon" data-tone={current.base_url ? undefined : "idle"} aria-hidden="true">
+              <WaveGlyph size={16} />
+            </span>
+            <span className="lr-row__text">
+              <span className="lr-row__title">{current.base_url ?? t("ai.notConfigured")}</span>
+              <span className="lr-row__sub">
                 {current.base_url ? t("ai.modelCount", { count: current.models.length }) : t("ai.unconfigured")}
               </span>
             </span>
-            <span className="rowi-end">
+            <span className="lr-row__end">
               <Button size="sm" variant="secondary" onPress={() => setDialog("edit")}>
                 {t(current.base_url ? "ai.edit" : "ai.configure")}
               </Button>
             </span>
           </div>
-        </div>
+        </Card>
       ) : null}
       {dialog === "edit" && current ? <EditAIConfiguration config={current} onClose={close} onRemove={() => setDialog("remove")} /> : null}
       {dialog === "remove" ? <RemoveAIConfiguration onClose={close} /> : null}
-    </section>
+    </Section>
   );
 }
 
@@ -84,7 +85,7 @@ function EditAIConfiguration({ config, onClose, onRemove }: { config: AIConfigur
         </>
       }
     >
-      <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit}>
+      <form className="flex flex-col gap-5" onSubmit={submit}>
         <TextField name="base_url" value={url} onChange={setURL} type="url" autoComplete="off" isRequired isInvalid={urlError} fullWidth>
           <Label>{t("ai.baseUrl")}</Label>
           <Input placeholder="https://api.openai.com/v1" maxLength={2048} />
@@ -125,7 +126,7 @@ function RemoveAIConfiguration({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <p className="body-sm muted">{t("ai.removeBody")}</p>
+      <p className="text-sm text-muted">{t("ai.removeBody")}</p>
       {remove.error ? <FormError>{t(writeErrorMessage(remove.error))}</FormError> : null}
     </ConsoleDialog>
   );

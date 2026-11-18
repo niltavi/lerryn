@@ -1,6 +1,6 @@
 import { isApiError, isRunActive, useCanControlRuns, useI18n, useSetRunArchive, type Run } from "@lerryn/core";
+import { Archive, ArrowUpFromLine } from "@gravity-ui/icons";
 import { Button, Checkbox, ConsoleDialog, IconButton, Label } from "@lerryn/ui-web";
-import { Archive, ArchiveRestore } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useCurrentUser } from "../../shell/AppShell";
@@ -55,7 +55,7 @@ export function ArchiveRunButton({ run }: { run: Run }) {
     : error === "permission_denied" || error === "insufficient_scope" ? t("runAction.denied")
     : t("run.archiveFailed");
   return <>
-    <IconButton label={label} icon={archived ? ArchiveRestore : Archive}
+    <IconButton label={label} icon={archived ? ArrowUpFromLine : Archive}
       isDisabled={update.isPending || (!archived && !!run.logs_expired_at)}
       tip={!archived && run.logs_expired_at ? t("run.archiveExpired") : label}
       onPress={() => {
@@ -70,7 +70,7 @@ export function ArchiveRunButton({ run }: { run: Run }) {
       }} />
     <ConsoleDialog isOpen={confirmation !== null} onOpenChange={(value) => { if (!value) close(); }} title={title} isDismissable={!update.isPending}
       footer={<>
-        <Button variant="ghost" onPress={close} isDisabled={update.isPending}>{t("common.cancel")}</Button>
+        <Button variant="tertiary" onPress={close} isDisabled={update.isPending}>{t("common.cancel")}</Button>
         <Button onPress={() => {
           if (confirmation) void submit(confirmation.archived, confirmation.offerSkip && skipConfirmation);
         }} isPending={update.isPending}>{title}</Button>
@@ -84,7 +84,7 @@ export function ArchiveRunButton({ run }: { run: Run }) {
           </Checkbox.Content>
         </Checkbox>
       ) : null}
-      {update.isError ? <p role="alert" className="danger">{message}</p> : null}
+      {update.isError ? <p role="alert" className="text-sm text-danger-soft-foreground">{message}</p> : null}
     </ConsoleDialog>
   </>;
 }

@@ -6,8 +6,8 @@ import {
   useI18n,
   type CredentialRequest,
 } from "@lerryn/core";
-import { Button, ConsoleDialog, Description, FieldError, Input, Label, TextArea, TextField, WaveGlyph } from "@lerryn/ui-web";
-import { Clock, Eye, EyeOff, KeyRound, Lock, RefreshCw } from "lucide-react";
+import { Alert, Button, Chip, ConsoleDialog, Description, FieldError, InputGroup, Label, TextField, ToggleButton, WaveGlyph } from "@lerryn/ui-web";
+import { ArrowsRotateRight, Clock, Eye, EyeSlash, Key, Lock } from "@gravity-ui/icons";
 import { createContext, useCallback, useContext, useState, type FormEvent, type ReactNode } from "react";
 
 import { useNow } from "../lib/hooks";
@@ -119,7 +119,7 @@ function CredentialFillDialog({ open, onClose }: { open: OpenFill | null; onClos
     t("credentials.fillTitleTask", { task: req.task.name })
   ) : (
     <span>
-      {t("credentials.fillTitleUpdate")} <span className="mono" style={{ fontSize: 18 }}>{req.name}</span>
+      {t("credentials.fillTitleUpdate")} <span className="font-mono">{req.name}</span>
     </span>
   );
 
@@ -129,8 +129,8 @@ function CredentialFillDialog({ open, onClose }: { open: OpenFill | null; onClos
       onOpenChange={(isOpen) => (isOpen ? undefined : dismiss())}
       title={
         <>
-          <span className="g g--key g--lg" aria-hidden="true">
-            <KeyRound className="wl-icon" />
+          <span className="lr-row__icon" data-tone="warn" aria-hidden="true">
+            <Key width={16} height={16} />
           </span>
           {title}
         </>
@@ -153,40 +153,38 @@ function CredentialFillDialog({ open, onClose }: { open: OpenFill | null; onClos
       }
     >
       {request.isError ? (
-        <p className="body-sm muted">{t("common.notFound")}</p>
+        <p className="text-sm text-muted">{t("common.notFound")}</p>
       ) : !req ? (
-        <p className="body-sm muted">{t("common.loading")}</p>
+        <p className="text-sm text-muted">{t("common.loading")}</p>
       ) : !pending ? (
-        <p className="body-sm muted">
-          {req.status === "fulfilled" ? t("credentials.fillDone") : req.status === "expired" ? t("credentials.fillExpired") : t("credentials.fillCancelled")}
-        </p>
+        <Alert status={req.status === "fulfilled" ? "success" : req.status === "expired" ? "warning" : "default"}>
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>
+              {req.status === "fulfilled" ? t("credentials.fillDone") : req.status === "expired" ? t("credentials.fillExpired") : t("credentials.fillCancelled")}
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
       ) : (
         <>
-          {req.purpose ? <p className="body-sm muted">{req.purpose}</p> : null}
-          <div className="meta-chips">
+          {req.purpose ? <p className="text-sm text-muted">{req.purpose}</p> : null}
+          <div className="flex flex-wrap gap-2">
             {req.client ? (
-              <span className="meta-chip">
-                <WaveGlyph size={16} />
-                {req.client}
-              </span>
+              <Chip size="sm" variant="soft">
+                <WaveGlyph size={12} />
+                <Chip.Label>{req.client}</Chip.Label>
+              </Chip>
             ) : null}
-            {req.task ? (
-              <span className="meta-chip">
-                <Lock className="wl-icon" width={16} aria-hidden="true" />
-                {t("credentials.taskOnly")}
-              </span>
-            ) : (
-              <span className="meta-chip">
-                <RefreshCw className="wl-icon" width={16} aria-hidden="true" />
-                {t("credentials.replaces")}
-              </span>
-            )}
-            <span className="meta-chip">
-              <Clock className="wl-icon" width={16} aria-hidden="true" />
-              {t("overview.dueBy", { time: shortWhen(req.expires_at, locale, now) })}
-            </span>
+            <Chip size="sm" variant="soft">
+              {req.task ? <Lock aria-hidden="true" width={12} height={12} /> : <ArrowsRotateRight aria-hidden="true" width={12} height={12} />}
+              <Chip.Label>{req.task ? t("credentials.taskOnly") : t("credentials.replaces")}</Chip.Label>
+            </Chip>
+            <Chip size="sm" variant="soft">
+              <Clock aria-hidden="true" width={12} height={12} />
+              <Chip.Label>{t("overview.dueBy", { time: shortWhen(req.expires_at, locale, now) })}</Chip.Label>
+            </Chip>
           </div>
-          <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit} autoComplete="off" noValidate>
+          <form className="flex flex-col gap-5" onSubmit={submit} autoComplete="off" noValidate>
             {req.fields.map((f) => (
               <FillField
                 key={f.name}
@@ -224,24 +222,31 @@ function FillField({ field: f, value, onChange, error }: { field: Field; value: 
       fullWidth
     >
       <Label>
-        <span className="mono">{f.name}</span>
+        <span className="font-mono">{f.name}</span>
         {f.label ? ` · ${f.label}` : null}
-        {f.optional ? <span className="muted"> · {t("task.optional")}</span> : null}
+        {f.optional ? <span className="font-normal text-muted"> · {t("task.optional")}</span> : null}
       </Label>
-      <div className="pw-wrap">
-        {f.multiline ? <TextArea className={masked ? "textarea--masked" : undefined} rows={4} {...inputProps} /> : <Input {...inputProps} />}
+      <InputGroup>
+        {f.multiline ? (
+          <InputGroup.TextArea className={masked ? "lr-keys__masked" : undefined} rows={4} {...inputProps} />
+        ) : (
+          <InputGroup.Input {...inputProps} />
+        )}
         {secret ? (
-          <button
-            className="pw-eye"
-            type="button"
-            aria-label={shown ? t("credentials.hideValue") : t("credentials.showValue")}
-            aria-pressed={shown}
-            onClick={() => setShown((s) => !s)}
-          >
-            {shown ? <EyeOff className="wl-icon" width={18} aria-hidden="true" /> : <Eye className="wl-icon" width={18} aria-hidden="true" />}
-          </button>
+          <InputGroup.Suffix className={f.multiline ? "self-start pe-0" : "pe-0"}>
+            <ToggleButton
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={shown ? t("credentials.hideValue") : t("credentials.showValue")}
+              isSelected={shown}
+              onChange={setShown}
+            >
+              {shown ? <EyeSlash aria-hidden="true" width={16} height={16} /> : <Eye aria-hidden="true" width={16} height={16} />}
+            </ToggleButton>
+          </InputGroup.Suffix>
         ) : null}
-      </div>
+      </InputGroup>
       {error ? <FieldError>{error}</FieldError> : f.description ? <Description>{f.description}</Description> : null}
     </TextField>
   );
