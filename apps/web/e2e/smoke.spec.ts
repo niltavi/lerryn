@@ -96,7 +96,7 @@ test.describe("as the admin", () => {
 
   test("admin pages list accounts, the embedded runner and audit events", async ({ page, state }) => {
     await page.goto("/");
-    await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "管理" }).click();
+    await page.getByRole("navigation", { name: "主导航" }).getByRole("group", { name: "管理" }).getByRole("link", { name: "用户" }).click();
     await expect(page).toHaveURL(/\/admin\/users$/);
     const users = page.getByRole("main", { name: "用户" });
     await expect(users).toContainText(state.alice.username);
@@ -176,7 +176,8 @@ test("task details stay above the fold across the compact layout breakpoint", as
     await expect(heading).toBeInViewport();
     await expectNoHorizontalScroll(page);
     const boardBox = await page.getByRole("main", { name: "daily-report" }).boundingBox();
-    expect(boardBox!.y).toBeLessThan(100);
+    // Below the top bar and, when compact, the folded list heading.
+    expect(boardBox!.y).toBeLessThan(140);
     const toggle = list.getByRole("button", { name: /^任务/ });
     if (width <= 960) {
       await expect(toggle).toHaveAttribute("aria-expanded", "false");

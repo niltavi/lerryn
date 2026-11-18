@@ -1,25 +1,24 @@
-import { formatCount, useI18n, type AgentPanel, type Locale, type PanelCell } from "@lerryn/core";
+import { Card, Label, Meter } from "@heroui/react";
+import { formatCount, useI18n, type AgentPanel } from "@lerryn/core";
 import type { ReactNode } from "react";
 
+import { DataTable } from "./ResultPanel";
 import { WaveGlyph } from "./Wave";
-
-const show = (v: PanelCell, locale: Locale) =>
-  v === null ? "—" : typeof v === "number" ? formatCount(v, locale) : typeof v === "boolean" ? String(v) : v;
 
 const withUnit = (n: string, unit: string | null) => (unit ? `${n} ${unit}` : n);
 
 function PanelCard({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className="wl-card panel" aria-label={title}>
-      <div className="panel-head">
-        <span className="panel-title">
-          <WaveGlyph size={18} className="wl-wave" />
+    <Card role="region" aria-label={title} className="tpl-card">
+      <div className="tpl-card__head view-head">
+        <span className="view-title">
+          <WaveGlyph size={16} />
           {title}
         </span>
         {aside}
       </div>
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -42,18 +41,18 @@ export function AgentPanels({ panels, aside, barHref }: AgentPanelsProps) {
   if (panels.length === 0) return null;
   const sep = locale === "zh-CN" ? "，" : ", ";
   return (
-    <div className="panels">
+    <div className="view-panels">
       {panels.map((p) => {
         switch (p.type) {
           case "metric":
             return (
               <PanelCard key={p.id} title={p.title} aside={aside}>
-                <div className="stat">
-                  <span className="stat-n stat-n--md">
+                <div className="view-metric">
+                  <span className="view-metric__value">
                     {formatCount(p.value, locale)}
                     {p.unit ? <small>{p.unit}</small> : null}
                   </span>
-                  {p.label ? <span className="stat-l">{p.label}</span> : null}
+                  {p.label ? <span className="view-metric__label">{p.label}</span> : null}
                 </div>
               </PanelCard>
             );
@@ -70,11 +69,11 @@ export function AgentPanels({ panels, aside, barHref }: AgentPanelsProps) {
                     const tip = `${item.label} · ${withUnit(formatCount(item.value, locale), p.unit)}`;
                     const inner = last || i === peak ? <b>{formatCount(item.value, locale)}</b> : null;
                     return item.runId && barHref ? (
-                      <a key={i} className={last ? "bar bar--last" : "bar"} style={style} title={tip} href={barHref(item.runId)} aria-hidden="true" tabIndex={-1}>
+                      <a key={i} className="bar" style={style} title={tip} href={barHref(item.runId)} aria-hidden="true" tabIndex={-1}>
                         {inner}
                       </a>
                     ) : (
-                      <span key={i} className={last ? "bar bar--last" : "bar"} style={style} title={tip}>
+                      <span key={i} className="bar" style={style} title={tip}>
                         {inner}
                       </span>
                     );
@@ -93,15 +92,23 @@ export function AgentPanels({ panels, aside, barHref }: AgentPanelsProps) {
             const label = `${p.title}${t("panels.colon")}${p.items.map((i) => `${i.label} ${formatCount(i.value, locale)}`).join(sep)}`;
             return (
               <PanelCard key={p.id} title={p.title} aside={aside}>
-                <div className="hbars" role="img" aria-label={label}>
+                {/* One image for assistive technology: its name already lists every share. */}
+                <div className="view-shares" role="img" aria-label={label}>
                   {p.items.map((item, i) => (
-                    <div className="hbar" key={i}>
-                      <span title={item.label}>{item.label}</span>
-                      <span className="hbar-track">
-                        <span style={{ width: `${Math.max(0, (item.value / max) * 100)}%` }} />
-                      </span>
-                      <span className="v">{withUnit(formatCount(item.value, locale), p.unit)}</span>
-                    </div>
+                    <Meter
+                      key={i}
+                      color="accent"
+                      size="sm"
+                      value={Math.max(0, item.value)}
+                      maxValue={max}
+                      valueLabel={withUnit(formatCount(item.value, locale), p.unit)}
+                    >
+                      <Label>{item.label}</Label>
+                      <Meter.Output />
+                      <Meter.Track>
+                        <Meter.Fill />
+                      </Meter.Track>
+                    </Meter>
                   ))}
                 </div>
               </PanelCard>
@@ -110,38 +117,19 @@ export function AgentPanels({ panels, aside, barHref }: AgentPanelsProps) {
           case "table":
             return (
               <PanelCard key={p.id} title={p.title} aside={aside}>
-                <div style={{ overflowX: "auto" }}>
-                  <table className="ptable">
-                    {p.columns.length > 1 ? (
-                      <thead>
-                        <tr>
-                          {p.columns.map((c, j) => (
-                            <th key={c.key} scope="col" className={typeof p.rows[0]?.[j] === "number" ? "caption r" : "caption"}>
-                              {c.title}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                    ) : null}
-                    <tbody>
-                      {p.rows.map((row, i) => (
-                        <tr key={i}>
-                          {row.map((v, j) => (
-                            <td key={j} className={typeof v === "number" ? "r num" : undefined}>
-                              {show(v, locale)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  label={p.title}
+                  columns={p.columns.map((c) => c.title)}
+                  rows={p.rows}
+                  locale={locale}
+                  hideHeader={p.columns.length <= 1}
+                />
               </PanelCard>
             );
           case "text":
             return (
               <PanelCard key={p.id} title={p.title} aside={aside}>
-                <p className="panel-text">{p.text}</p>
+                <p className="view-text">{p.text}</p>
               </PanelCard>
             );
         }

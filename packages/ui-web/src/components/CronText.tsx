@@ -41,31 +41,27 @@ export function CronDetails({ cron, name, firing, count = 3 }: CronDetailsProps)
   const fires = cron.next_fires.slice(0, count);
   const sameZone = cron.timezone === localTimeZone();
   return (
-    <div className="stack" style={{ gap: 0 }}>
-      <div className="pop-title">
+    <div className="flex flex-col">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-muted">
         <span>{name ?? t("trigger.cron")}</span>
-        <span className="mono-sm">{cron.schedule}</span>
+        <span className="font-mono">{cron.schedule}</span>
       </div>
-      <span className="body-sm" style={{ marginBottom: 6 }}>
-        {cron.schedule_text}
-      </span>
+      <span className="mb-1.5 text-sm">{cron.schedule_text}</span>
       {fires.map((at) => {
         const { date, time } = formatInZone(at, cron.timezone, locale);
         return (
-          <div className="pop-row" key={at} style={firing ? undefined : { color: "var(--ink-muted)" }}>
+          <div className={firing ? "pop-row" : "pop-row text-muted"} key={at}>
             <span>{date}</span>
-            <span className="mono">{time}</span>
+            <span className="font-mono">{time}</span>
           </div>
         );
       })}
-      <span className="caption muted" style={{ marginTop: 8 }}>
+      <span className="mt-2 text-xs text-muted">
         {cron.timezone}
         {sameZone ? null : ` · ${t("trigger.inZone")}`}
       </span>
       {!firing ? (
-        <span className="caption muted" style={{ marginTop: 2 }}>
-          {t("trigger.notFiring")}
-        </span>
+        <span className="mt-0.5 text-xs text-muted">{t("trigger.notFiring")}</span>
       ) : null}
     </div>
   );

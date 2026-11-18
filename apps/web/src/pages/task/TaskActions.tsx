@@ -1,8 +1,10 @@
 import { formatDateTime, isApiError, useCanControlRuns, useI18n, useTaskControl, type Task, type TaskControl } from "@lerryn/core";
 import { ActionMenu, Button, ConsoleDialog, type MenuItem } from "@lerryn/ui-web";
-import { Ellipsis, Pause, Play, SkipForward, Trash2 } from "lucide-react";
+import { Ellipsis, ForwardStep, Pause, Play, TrashBin } from "@gravity-ui/icons";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+
+import { FormError } from "../auth/AuthFrame";
 
 /** Lifecycle controls use the same project roles as run controls. */
 export function TaskActions({ task, nextFire }: { task: Task; nextFire: string | undefined }) {
@@ -19,9 +21,9 @@ export function TaskActions({ task, nextFire }: { task: Task; nextFire: string |
   const open = (input: TaskControl) => { control.reset(); setChoice(input); };
   const menuItems: MenuItem[] = [];
   if (active && nextFire) {
-    menuItems.push({ label: t("task.skipNext"), icon: SkipForward, onSelect: () => open({ action: "skip", scheduledAt: nextFire }) });
+    menuItems.push({ label: t("task.skipNext"), icon: ForwardStep, onSelect: () => open({ action: "skip", scheduledAt: nextFire }) });
   }
-  menuItems.push({ label: t("task.delete"), icon: Trash2, danger: true, onSelect: () => open({ action: "delete" }) });
+  menuItems.push({ label: t("task.delete"), icon: TrashBin, danger: true, onSelect: () => open({ action: "delete" }) });
   const close = () => { if (!submitting.current) setChoice(null); };
   const submit = async () => {
     if (!choice || submitting.current) return;
@@ -46,7 +48,7 @@ export function TaskActions({ task, nextFire }: { task: Task; nextFire: string |
     <>
       <Button variant="secondary" size="sm" isDisabled={control.isPending}
         onPress={() => open(active ? { action: "pause" } : { action: "resume", version: task.active_version ?? task.latest_version.seq })}>
-        {active ? <Pause className="wl-icon" aria-hidden="true" /> : <Play className="wl-icon" aria-hidden="true" />}
+        {active ? <Pause width={16} height={16} aria-hidden="true" /> : <Play width={16} height={16} aria-hidden="true" />}
         {active ? t("task.stop") : t("task.enable")}
       </Button>
       <ActionMenu label={t("task.moreActions")} icon={Ellipsis} items={menuItems} />
@@ -62,7 +64,7 @@ export function TaskActions({ task, nextFire }: { task: Task; nextFire: string |
           : choice?.action === "skip" ? t("task.skipNextBody", { time: formatDateTime(choice.scheduledAt, locale) })
           : choice?.action === "pause" ? t("task.stopBody")
           : t("task.enableBody", { version: choice?.action === "resume" ? choice.version : "" })}</p>
-        {control.isError ? <p className="danger" role="alert">{message}</p> : null}
+        {control.isError ? <FormError>{message}</FormError> : null}
       </ConsoleDialog>
     </>
   );

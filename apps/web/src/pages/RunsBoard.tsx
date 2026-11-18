@@ -10,13 +10,13 @@ import {
   type RunBoardColumn,
   type RunSummary,
 } from "@lerryn/core";
-import { StatusGlyph } from "@lerryn/ui-web";
+import { Button, Card, StatusGlyph } from "@lerryn/ui-web";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { useNow } from "../lib/hooks";
 import { errorCodeLabel, GlyphView, shortWhen, skipReasonLabel } from "../lib/present";
-import { LoadError, LoadMore } from "../shell/layout";
+import { Board, BoardTop, LoadError, LoadMore } from "../shell/layout";
 import { RunsBoardPreview } from "./RunsBoardPreview";
 
 /** Pages fetched without asking; past this the board offers "show more". */
@@ -93,34 +93,34 @@ export function RunsBoard({ taskId, runId, viewSwitch }: { taskId?: string; runI
 
   return (
     <>
-      <main className="board board--runs" aria-label={t("runs.board.label")}>
-        <div className="list-head list-head--inline">
-          <h1 className="list-title">{t("runs.title")}</h1>
+      <Board label={t("runs.board.label")}>
+        <BoardTop title={t("runs.title")} description={t("runs.board.window")}>
           {viewSwitch}
-          <span className="caption muted">{t("runs.board.window")}</span>
-        </div>
+        </BoardTop>
         {runs.isError ? (
           <LoadError error={runs.error} onRetry={() => void runs.refetch()} />
         ) : (
-          <div className="kb" ref={boardRef} aria-busy={runs.isPending}>
-            {RUN_BOARD_COLUMNS.map((column) => (
-              <BoardColumn
-                key={column}
-                column={column}
-                runs={shown[column]}
-                total={columns[column].length + (column === "scheduled" ? planned.length : 0)}
-                onShowMore={() => setLimits((prev) => ({ ...prev, [column]: (prev[column] ?? COLUMN_BATCH) + COLUMN_BATCH }))}
-                taskId={taskId}
-                now={now}
-                planned={column === "scheduled" ? shownPlans : undefined}
-                pending={column === "scheduled" && calendarPending}
-                notice={column === "scheduled" ? calendarNotice : null}
-              />
-            ))}
+          <div className="kb-wrap">
+            <div className="kb" ref={boardRef} aria-busy={runs.isPending}>
+              {RUN_BOARD_COLUMNS.map((column) => (
+                <BoardColumn
+                  key={column}
+                  column={column}
+                  runs={shown[column]}
+                  total={columns[column].length + (column === "scheduled" ? planned.length : 0)}
+                  onShowMore={() => setLimits((prev) => ({ ...prev, [column]: (prev[column] ?? COLUMN_BATCH) + COLUMN_BATCH }))}
+                  taskId={taskId}
+                  now={now}
+                  planned={column === "scheduled" ? shownPlans : undefined}
+                  pending={column === "scheduled" && calendarPending}
+                  notice={column === "scheduled" ? calendarNotice : null}
+                />
+              ))}
+            </div>
           </div>
         )}
         <LoadMore show={pages >= AUTO_PAGES && !!runs.data?.hasMore} pending={isFetchingNextPage} onPress={() => void fetchNextPage()} />
-      </main>
+      </Board>
       {runId ? <RunsBoardPreview runId={runId} taskId={taskId} /> : null}
     </>
   );
@@ -160,11 +160,11 @@ function BoardColumn({
   }, [runs, planned]);
 
   return (
-    <section className={`kb-col kb-col--${column}`} aria-label={title} data-column={column} aria-busy={pending || undefined}>
-      <h2 className="kb-head">
-        <span>{title}</span>
-        <span className="n">{total}</span>
-      </h2>
+    <Card className="tpl-card kb-col static" variant="secondary" role="region" aria-label={title} data-column={column} aria-busy={pending || undefined}>
+      <div className="tpl-card__head">
+        <h2>{title}</h2>
+        <span className="kb-count">{total}</span>
+      </div>
       <div className="kb-scroll">
         <ul className="kb-list" ref={listRef}>
           {runs.map((run) => (
@@ -181,15 +181,15 @@ function BoardColumn({
         {notice}
         {total === 0 && !pending && !notice ? <div className="kb-empty">{t("runs.board.empty")}</div> : null}
         {more > 0 ? (
-          <button type="button" className="kb-more" onClick={() => {
+          <Button size="sm" variant="ghost" className="kb-more" onPress={() => {
             firstAdded.current = shownCount;
             onShowMore();
           }}>
             {t("runs.board.showMore", { count: more })}
-          </button>
+          </Button>
         ) : null}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -226,9 +226,9 @@ function RunCard({ run, taskId, now }: { run: RunSummary; taskId?: string; now: 
       activeOptions={{ exact: true, includeSearch: true }}
     >
       <StatusGlyph status={run.status} />
-      <span style={{ minWidth: 0 }}>
+      <span className="min-w-0">
         <span className="li-name">{run.task.name}</span>
-        <span className={mono ? "li-sub mono-sm" : "li-sub"}>{sub}</span>
+        <span className={mono ? "li-sub font-mono" : "li-sub"}>{sub}</span>
       </span>
       <span className={bad ? "li-meta bad" : "li-meta"}>
         {shortWhen(run.finished_at ?? run.started_at ?? run.queued_at, locale, now)}

@@ -1,3 +1,5 @@
+import { Ban, Check, Clock, ForwardStep, PlugConnection, Stopwatch, TriangleExclamation, Xmark } from "@gravity-ui/icons";
+import { Chip, type ChipProps } from "@heroui/react";
 import {
   resultStatusMeta,
   runStatusMeta,
@@ -7,30 +9,42 @@ import {
   type StatusIcon as StatusIconName,
   type StatusTone,
 } from "@lerryn/core";
-import { Ban, Check, Clock, SkipForward, Timer, TriangleAlert, Unplug, X, type LucideIcon } from "lucide-react";
-
 import type { ReactNode } from "react";
 
+import type { IconType } from "./IconButton";
 import { WaveLoader } from "./Wave";
 
-const ICONS: Record<Exclude<StatusIconName, "wave">, LucideIcon> = {
+const ICONS: Record<Exclude<StatusIconName, "wave">, IconType> = {
   clock: Clock,
   check: Check,
-  x: X,
-  timer: Timer,
+  x: Xmark,
+  timer: Stopwatch,
   ban: Ban,
-  unplug: Unplug,
-  skip: SkipForward,
+  unplug: PlugConnection,
+  skip: ForwardStep,
 };
 
 /** The icon of a status; `wave` is the animated loader. Decorative: the caller labels it. */
 export function StatusIcon({ icon, size = "sm" }: { icon: StatusIconName; size?: "sm" | "md" }) {
   if (icon === "wave") return <WaveLoader size={size} />;
   const Icon = ICONS[icon];
-  return <Icon className="wl-icon" aria-hidden="true" />;
+  const px = size === "md" ? 18 : 14;
+  return <Icon width={px} height={px} aria-hidden="true" />;
 }
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(" ");
+
+// `run` has no HeroUI colour of its own; the theme's chip--info extension tints it.
+const TONE_COLOR: Record<StatusTone | "key", ChipProps["color"]> = {
+  ok: "success",
+  bad: "danger",
+  warn: "warning",
+  run: "default",
+  idle: "default",
+  key: "accent",
+};
+
+const toneClass = (tone: StatusTone | "key") => cx("rs", `rs--${tone}`, tone === "run" && "chip--info");
 
 export interface RunStatusBadgeProps {
   status: RunStatus;
@@ -47,10 +61,10 @@ export function RunStatusBadge({ status, size = "md", className }: RunStatusBadg
   const { t } = useI18n();
   const meta = runStatusMeta(status);
   return (
-    <span className={cx("rs", `rs--${meta.tone}`, size !== "md" && `rs--${size}`, className)} data-status={status}>
+    <Chip variant="soft" color={TONE_COLOR[meta.tone]} size={size} className={cx(toneClass(meta.tone), className)} data-status={status}>
       <StatusIcon icon={meta.icon} size={size === "lg" ? "md" : "sm"} />
-      {t(meta.label)}
-    </span>
+      <Chip.Label>{t(meta.label)}</Chip.Label>
+    </Chip>
   );
 }
 
@@ -83,18 +97,22 @@ export function StatusGlyph({ status, size = "md", className }: StatusGlyphProps
 
 /** A tone-coloured pill for things that are not run states, such as a reported result. */
 export function TonePill({ tone, children, size = "sm" }: { tone: StatusTone; children: ReactNode; size?: "sm" | "md" }) {
-  return <span className={cx("rs", `rs--${tone}`, size === "sm" && "rs--sm")}>{children}</span>;
+  return (
+    <Chip variant="soft" color={TONE_COLOR[tone]} size={size} className={toneClass(tone)}>
+      {children}
+    </Chip>
+  );
 }
 
 /** The status a task reported with `sbx result`, shown apart from the run status. */
 export function ResultStatusPill({ status }: { status: ResultStatus }) {
   const { t } = useI18n();
   const meta = resultStatusMeta(status);
-  const Icon = meta.tone === "ok" ? Check : meta.tone === "bad" ? X : TriangleAlert;
+  const Icon = meta.tone === "ok" ? Check : meta.tone === "bad" ? Xmark : TriangleExclamation;
   return (
     <TonePill tone={meta.tone}>
-      <Icon className="wl-icon" aria-hidden="true" />
-      {t(meta.label)}
+      <Icon width={12} height={12} aria-hidden="true" />
+      <Chip.Label>{t(meta.label)}</Chip.Label>
     </TonePill>
   );
 }

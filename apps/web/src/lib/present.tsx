@@ -1,3 +1,4 @@
+import { Archive, Calendar, CircleDashed, Key, Pause, Server } from "@gravity-ui/icons";
 import {
   formatClock,
   formatDate,
@@ -10,38 +11,34 @@ import {
   type Translate,
 } from "@lerryn/core";
 import { StatusIcon } from "@lerryn/ui-web";
-import { Archive, CalendarClock, CircleDashed, KeyRound, Pause, Server } from "lucide-react";
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(" ");
+
+// Glyphs that are not run-status icons; everything else is drawn by StatusIcon.
+const GLYPH_ICONS = {
+  archive: Archive,
+  key: Key,
+  server: Server,
+  calendar: Calendar,
+  pause: Pause,
+  pending: CircleDashed,
+};
+
+const isOwnGlyph = (icon: Glyph["icon"]): icon is keyof typeof GLYPH_ICONS => icon in GLYPH_ICONS;
 
 /** Draws a view-model glyph (tone + icon) with its accessible name. */
 export function GlyphView({ glyph, label, size = "md" }: { glyph: Glyph; label: string; size?: "md" | "lg" }) {
   const { icon } = glyph;
+  const px = size === "lg" ? 18 : 14;
   let inner;
-  switch (icon) {
-    case "archive":
-      inner = <Archive className="wl-icon" aria-hidden="true" />;
-      break;
-    case "key":
-      inner = <KeyRound className="wl-icon" aria-hidden="true" />;
-      break;
-    case "server":
-      inner = <Server className="wl-icon" aria-hidden="true" />;
-      break;
-    case "calendar":
-      inner = <CalendarClock className="wl-icon" aria-hidden="true" />;
-      break;
-    case "pause":
-      inner = <Pause className="wl-icon" aria-hidden="true" />;
-      break;
-    case "pending":
-      inner = <CircleDashed className="wl-icon" aria-hidden="true" />;
-      break;
-    default:
-      inner = <StatusIcon icon={icon} size={size === "lg" ? "md" : "sm"} />;
+  if (isOwnGlyph(icon)) {
+    const Icon = GLYPH_ICONS[icon];
+    inner = <Icon width={px} height={px} aria-hidden="true" />;
+  } else {
+    inner = <StatusIcon icon={icon} size={size === "lg" ? "md" : "sm"} />;
   }
   return (
-    <span className={cx("g", `g--${glyph.tone}`, size === "lg" && "g--lg")} role="img" aria-label={label} title={label}>
+    <span className={cx("g", `g--${glyph.tone}`, size === "lg" && "g--lg")} role="img" aria-label={label} title={label} data-icon={icon}>
       {inner}
     </span>
   );

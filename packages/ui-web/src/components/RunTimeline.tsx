@@ -1,5 +1,5 @@
+import { Xmark } from "@gravity-ui/icons";
 import { elapsedMs, formatDuration, stageStatusMeta, useI18n, type RunStage } from "@lerryn/core";
-import { X } from "lucide-react";
 
 import { WaveLoader } from "./Wave";
 
@@ -55,7 +55,7 @@ export function RunTimeline({ stages, now = Date.now(), onSelectStage, className
             <span className="flute-bar" aria-hidden="true" />
             <span className="flute-name" aria-hidden="true">
               {stage.status === "running" ? <WaveLoader size="sm" /> : null}
-              {stage.status === "failed" ? <X className="wl-icon" /> : null}
+              {stage.status === "failed" ? <Xmark width={14} height={14} /> : null}
               <span>{stage.name}</span>
             </span>
             <span className="flute-t" aria-hidden="true">

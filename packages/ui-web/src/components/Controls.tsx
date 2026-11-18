@@ -1,8 +1,8 @@
+import { Button, Dropdown, Label, Popover, Switch } from "@heroui/react";
 import type { StatusTone } from "@lerryn/core";
-import type { LucideIcon } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { IconButton } from "./IconButton";
+import { IconButton, type IconType } from "./IconButton";
 
 const cx = (...parts: (string | false | undefined | null)[]) => parts.filter(Boolean).join(" ");
 
@@ -10,7 +10,7 @@ export type GlyphTone = StatusTone | "key";
 
 export interface ToneGlyphProps {
   tone: GlyphTone;
-  icon: ComponentType<{ className?: string }>;
+  icon: IconType;
   /** Accessible name and tooltip; the shape is never the only signal. */
   label: string;
   size?: "md" | "lg";
@@ -23,9 +23,10 @@ export interface ToneGlyphProps {
  * name and the tooltip.
  */
 export function ToneGlyph({ tone, icon: Icon, label, size = "md", className }: ToneGlyphProps) {
+  const px = size === "lg" ? 18 : 14;
   return (
     <span className={cx("g", `g--${tone}`, size === "lg" && "g--lg", className)} role="img" aria-label={label} title={label}>
-      <Icon className="wl-icon" />
+      <Icon width={px} height={px} aria-hidden="true" />
     </span>
   );
 }
@@ -38,24 +39,22 @@ export interface ToggleProps {
   disabled?: boolean;
 }
 
-/** An on-off switch with a kraft track, for settings that apply at once. */
+/** An on-off switch for settings that apply at once. The label is its accessible name only. */
 export function Toggle({ checked, onChange, label, size = "md", disabled }: ToggleProps) {
   return (
-    <button
-      type="button"
-      role="switch"
-      className={size === "sm" ? "switch-sm" : "toggle"}
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-    />
+    <Switch isSelected={checked} onChange={onChange} aria-label={label} size={size} isDisabled={disabled}>
+      <Switch.Content>
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+      </Switch.Content>
+    </Switch>
   );
 }
 
 export interface MenuItem {
   label: string;
-  icon?: LucideIcon;
+  icon?: IconType;
   danger?: boolean;
   onSelect: () => void;
 }
@@ -63,60 +62,26 @@ export interface MenuItem {
 export interface ActionMenuProps {
   /** Accessible name of the trigger, e.g. "陈默的操作". */
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: IconType;
   items: readonly MenuItem[];
 }
 
-/**
- * A small menu behind an icon button, for the actions of a row. Escape or a
- * click elsewhere closes it.
- */
+/** A small menu behind an icon button, for the actions of a row. */
 export function ActionMenu({ label, icon, items }: ActionMenuProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const id = useId();
-  const close = () => {
-    trigger.current?.focus();
-    setOpen(false);
-  };
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [open]);
   return (
-    <div
-      ref={ref}
-      className={cx("disc disc--right", open && "is-open")}
-      onKeyDown={(e) => {
-        if (open && e.key === "Escape") close();
-      }}
-    >
-      <IconButton ref={trigger} label={label} icon={icon} aria-expanded={open} aria-controls={id} onPress={() => setOpen((o) => !o)} />
-      {open ? (
-        <div className="pop menu" id={id} role="menu" aria-label={label}>
+    <Dropdown>
+      <IconButton label={label} icon={icon} />
+      <Dropdown.Popover placement="bottom end">
+        <Dropdown.Menu aria-label={label} onAction={(key) => items.find((item) => item.label === key)?.onSelect()}>
           {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              className={item.danger ? "danger" : undefined}
-              onClick={() => {
-                close();
-                item.onSelect();
-              }}
-            >
-              {item.icon ? <item.icon className="wl-icon" aria-hidden="true" /> : null}
-              {item.label}
-            </button>
+            <Dropdown.Item key={item.label} id={item.label} textValue={item.label} variant={item.danger ? "danger" : undefined}>
+              {item.icon ? <item.icon width={16} height={16} aria-hidden="true" /> : null}
+              <Label>{item.label}</Label>
+            </Dropdown.Item>
           ))}
-        </div>
-      ) : null}
-    </div>
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
   );
 }
 
@@ -128,50 +93,35 @@ export interface DisclosureProps {
   details: ReactNode;
   detailsLabel: string;
   alignRight?: boolean;
-  /** Class of the trigger button; defaults to a chip. */
+  /** Class of the trigger when it is not the default chip, e.g. a status shape (`g g--bad g-btn`). */
   triggerClassName?: string;
 }
 
 /**
- * Like InfoChip, but the trigger can be anything: a status shape, a count.
- * Shows the details on hover or focus, pins them on click.
+ * Secondary information behind a trigger, which can be anything: a chip, a
+ * status shape, a count. A press opens the details in a popover; Escape or a
+ * press elsewhere closes it.
  */
-export function Disclosure({ trigger, label, details, detailsLabel, alignRight, triggerClassName = "chip" }: DisclosureProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const id = useId();
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [open]);
+export function Disclosure({ trigger, label, details, detailsLabel, alignRight, triggerClassName }: DisclosureProps) {
   return (
-    <div
-      ref={ref}
-      className={cx("disc", alignRight && "disc--right", open && "is-open")}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          setOpen(false);
-          (document.activeElement as HTMLElement | null)?.blur();
-        }
-      }}
-    >
-      <button
-        className={triggerClassName}
-        type="button"
-        aria-label={label}
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
-      >
-        {trigger}
-      </button>
-      <div className="pop" id={id} role="group" aria-label={detailsLabel}>
-        {details}
-      </div>
-    </div>
+    <Popover>
+      {triggerClassName ? (
+        <Popover.Trigger className={triggerClassName} aria-label={label}>
+          {trigger}
+        </Popover.Trigger>
+      ) : (
+        <Button variant="secondary" size="sm" className="rounded-full" aria-label={label}>
+          {trigger}
+        </Button>
+      )}
+      <Popover.Content placement={alignRight ? "bottom end" : "bottom start"} className="max-w-90 min-w-60">
+        {/* The dialog takes its name from the trigger; the group names what the details are. */}
+        <Popover.Dialog>
+          <div className="flex flex-col" role="group" aria-label={detailsLabel}>
+            {details}
+          </div>
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
   );
 }

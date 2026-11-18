@@ -336,39 +336,51 @@ describe("access token form", () => {
 
 describe("console app", () => {
   it.each([
-    { label: "概览", paths: ["/?project=personal", `/tasks/${TASK.id}`, "/"] },
-    { label: "运行", paths: [`/runs/${RUN.id}`, "/runs?status=failed", "/runs"] },
-    { label: "密钥", paths: ["/settings/credentials", "/settings/tokens", "/settings/tools"] },
-    { label: "张林 · 账号", paths: ["/settings/notifications", "/settings/pairing", "/settings/account"] },
-    { label: "管理", paths: ["/admin/users", "/admin/login", "/admin/runners", "/admin/audit"] },
-  ])("keeps $label selected across its pages", async ({ label, paths }) => {
+    { name: /^概览/, paths: ["/?project=personal", `/tasks/${TASK.id}`, "/"] },
+    { name: /^运行/, paths: [`/runs/${RUN.id}`, "/runs?status=failed", "/runs"] },
+    { name: /^凭证/, paths: ["/settings/credentials"] },
+    { name: /^访问令牌/, paths: ["/settings/tokens"] },
+    { name: /^工具/, paths: ["/settings/tools"] },
+    { name: /^用户/, paths: ["/admin/users"] },
+    { name: /^登录/, paths: ["/admin/login"] },
+    { name: /^执行节点/, paths: ["/admin/runners"] },
+    { name: /^审计/, paths: ["/admin/audit"] },
+  ])("marks $name as the current sidebar entry on its pages", async ({ name, paths }) => {
     const { router } = renderApp(paths[0]!, { signedIn: true });
-    const rail = await screen.findByRole("navigation", { name: "主导航" });
+    const nav = await screen.findByRole("navigation", { name: "主导航" });
     for (const path of paths) {
       await act(() => router.navigate({ href: path }));
       await waitFor(() => {
-        const selected = within(rail).getAllByRole("link", { current: "page" }).filter((link) => link.classList.contains("ri"));
+        const selected = within(nav).getAllByRole("link", { current: "page" });
         expect(selected).toHaveLength(1);
-        expect(selected[0]!.getAttribute("aria-label")).toBe(label);
+        expect(selected[0]).toBe(within(nav).getByRole("link", { name }));
       });
     }
-    await act(() => router.navigate({ to: label === "概览" ? "/settings/tokens" : "/" }));
-    await waitFor(() => expect(within(rail).getByRole("link", { name: label }).hasAttribute("aria-current")).toBe(false));
+    await act(() => router.navigate({ to: String(name) === String(/^概览/) ? "/settings/tokens" : "/" }));
+    await waitFor(() => expect(within(nav).getByRole("link", { name }).hasAttribute("aria-current")).toBe(false));
   });
 
-  it("keeps the settings rail selected when switching secondary links", async () => {
+  it("moves the current sidebar entry when switching between settings pages", async () => {
     const user = userEvent.setup();
     renderApp("/settings/credentials", { signedIn: true });
-    const rail = await screen.findByRole("navigation", { name: "主导航" });
-    const settings = screen.getByRole("region", { name: "密钥" });
+    const nav = await screen.findByRole("navigation", { name: "主导航" });
+    const keys = within(nav).getByRole("group", { name: "密钥" });
     for (const label of ["工具", "访问令牌", "凭证"]) {
       const name = new RegExp(`^${label}`);
-      await user.click(within(settings).getByRole("link", { name }));
-      await waitFor(() => expect(within(settings).getByRole("link", { name }).getAttribute("aria-current")).toBe("page"));
-      expect(within(rail).getAllByRole("link", { current: "page" })).toEqual([
-        within(rail).getByRole("link", { name: "密钥" }),
-      ]);
+      await user.click(within(keys).getByRole("link", { name }));
+      await waitFor(() => expect(within(nav).getAllByRole("link", { current: "page" })).toEqual([within(keys).getByRole("link", { name })]));
     }
+  });
+
+  it("collapses the sidebar to icons and keeps every entry named", async () => {
+    const user = userEvent.setup();
+    renderApp("/", { signedIn: true });
+    const nav = await screen.findByRole("navigation", { name: "主导航" });
+    await user.click(screen.getByRole("button", { name: "收起侧边栏" }));
+    expect(within(nav).getByRole("link", { name: "概览" }).getAttribute("aria-current")).toBe("page");
+    expect(within(nav).getByRole("link", { name: "访问令牌" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "展开侧边栏" }));
+    expect(screen.getByRole("button", { name: "收起侧边栏" })).toBeTruthy();
   });
 
   it("sends a signed-out visitor to the login page and back after signing in", async () => {
@@ -442,7 +454,9 @@ describe("console app", () => {
     renderApp(`/runs/${RUN.id}`, { signedIn: true });
     const chip = await screen.findByRole("button", { name: /工具 2/ });
     expect(chip.querySelector(".dot--bad")).toBeTruthy();
-    const calls = screen.getByRole("group", { name: "工具调用" });
+    // The chip's details open on press.
+    await userEvent.click(chip);
+    const calls = await screen.findByRole("group", { name: "工具调用" });
     const rows = within(calls).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]!).getByText("crm-mcp · search_leads")).toBeTruthy();

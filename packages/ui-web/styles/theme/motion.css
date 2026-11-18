@@ -1,0 +1,64 @@
+/*
+ * Niltavi motion: short, quiet transitions that follow HeroUI's approach.
+ * Only transform and opacity animate; durations stay between 150 and 320ms.
+ * Every rule is switched off by prefers-reduced-motion or data-reduce-motion="true".
+ */
+:root {
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-ease: var(--ease-out-quart, cubic-bezier(.165, .84, .44, 1));
+  --motion-ease-fluid: var(--ease-out-fluid, cubic-bezier(.32, .72, 0, 1));
+  --motion-stagger: 40ms;
+}
+
+@keyframes nt-fade-up { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+@keyframes nt-fade-down { from { opacity: 0; transform: translate3d(0, -6px, 0); } }
+@keyframes nt-fade-in { from { opacity: 0; } }
+@keyframes nt-pop { from { opacity: 0; transform: scale(.96); } }
+@keyframes nt-slide-in-end { from { opacity: 0; transform: translate3d(16px, 0, 0); } }
+@keyframes nt-slide-in-start { from { opacity: 0; transform: translate3d(-16px, 0, 0); } }
+@keyframes nt-blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+@keyframes nt-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes nt-caret { 50% { opacity: 0; } }
+
+/* Entrance helpers. Set --i on siblings for a gentle stagger. */
+.nt-fade-up, .nt-fade-down, .nt-fade-in, .nt-pop, .nt-slide-end, .nt-slide-start {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--motion-ease);
+  animation-fill-mode: both;
+  animation-delay: calc(min(var(--i, 0), 8) * var(--motion-stagger));
+}
+.nt-fade-up { animation-name: nt-fade-up; }
+.nt-fade-down { animation-name: nt-fade-down; }
+.nt-fade-in { animation-name: nt-fade-in; }
+.nt-pop { animation-name: nt-pop; animation-duration: var(--motion-fast); }
+.nt-slide-end { animation-name: nt-slide-in-end; }
+.nt-slide-start { animation-name: nt-slide-in-start; }
+
+/* Interactive surfaces press in slightly, like HeroUI buttons. */
+.nt-press { transition: transform var(--motion-fast) var(--motion-ease), background-color var(--motion-fast) var(--ease-smooth, ease), color var(--motion-fast) var(--ease-smooth, ease); }
+.nt-press:active { transform: scale(.98); }
+
+/* Typing dots and loading text */
+.nt-dots { display: inline-flex; gap: 3px; }
+.nt-dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: nt-blink 1.2s infinite ease-in-out; }
+.nt-dots i:nth-child(2) { animation-delay: .15s; }
+.nt-dots i:nth-child(3) { animation-delay: .3s; }
+.nt-shimmer-text {
+  background: linear-gradient(90deg, var(--muted) 0%, var(--muted) 40%, var(--foreground) 50%, var(--muted) 60%, var(--muted) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: nt-shimmer 2.2s linear infinite;
+}
+.nt-caret::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -.15em; background: var(--accent); animation: nt-caret 1s steps(1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-fade-up, .nt-fade-down, .nt-fade-in, .nt-pop, .nt-slide-end, .nt-slide-start, .nt-dots i, .nt-shimmer-text, .nt-caret::after { animation: none; }
+  .nt-press, .nt-press:active { transition: none; transform: none; }
+}
+[data-reduce-motion="true"] :is(.nt-fade-up, .nt-fade-down, .nt-fade-in, .nt-pop, .nt-slide-end, .nt-slide-start, .nt-dots i, .nt-shimmer-text) { animation: none; }
+[data-reduce-motion="true"] .nt-caret::after { animation: none; }
+[data-reduce-motion="true"] .nt-press { transition: none; transform: none; }

@@ -8,16 +8,16 @@ export type TimelineItemProps = ComponentProps<"li"> & {
 };
 
 export function Timeline({ className, ...props }: TimelineProps) {
-  return <ol role="list" className={["wl-timeline", className].filter(Boolean).join(" ")} {...props} />;
+  return <ol role="list" className={["timeline", className].filter(Boolean).join(" ")} {...props} />;
 }
 
 Timeline.Item = function TimelineItem({ marker, children, className, ...props }: TimelineItemProps) {
   return (
-    <li className={["wl-timeline-item", className].filter(Boolean).join(" ")} {...props}>
-      <span className="wl-timeline-rail" aria-hidden="true">
-        <span className="wl-timeline-marker">{marker}</span>
+    <li className={["timeline__item", className].filter(Boolean).join(" ")} {...props}>
+      <span className="timeline__rail" aria-hidden="true">
+        <span className="timeline__marker">{marker}</span>
       </span>
-      <div className="wl-timeline-content">{children}</div>
+      <div className="timeline__content">{children}</div>
     </li>
   );
 };

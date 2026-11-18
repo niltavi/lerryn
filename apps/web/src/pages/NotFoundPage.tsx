@@ -9,9 +9,10 @@ export function NotFoundPage() {
   const { t } = useI18n();
   usePageTitle(t("states.notFoundTitle"));
   return (
-    <div className="wl-app" style={{ display: "flex" }}>
+    // Also the router's fallback outside the console frame, so it brings its own full-size row.
+    <div className="flex size-full min-h-0">
       <Board center>
-        <div style={{ maxWidth: 420, width: "100%", margin: "0 auto" }}>
+        <div className="w-full max-w-md">
           <NotFoundBody />
         </div>
       </Board>
@@ -25,7 +26,7 @@ export function NotFoundBody() {
   return (
     <NotFoundState
       action={
-        <Link to="/" className="link">
+        <Link to="/" className="font-medium text-accent hover:underline">
           {t("common.backToOverview")}
         </Link>
       }

@@ -1,7 +1,7 @@
+import { ArrowRotateLeft, ChevronDown, Play } from "@gravity-ui/icons";
 import { Button, CronText, Dropdown, IconButton, Tooltip } from "@lerryn/ui-web";
 import { isApiError, useCanControlRuns, useI18n, useRerunRun, useStartRun, type Run, type Task, type Translate, type Trigger } from "@lerryn/core";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown, Play, RotateCcw } from "lucide-react";
 
 /** Why a run could not start, in a few words for the button's tooltip. */
 function runActionError(err: unknown, t: Translate): string {
@@ -46,9 +46,9 @@ export function RunNowButton({ task, triggers }: { task: Task; triggers: readonl
   const button = (
     <Button variant="primary" size="sm" isPending={start.isPending} isDisabled={hasChoices && start.isPending}
       onPress={hasChoices ? undefined : () => runNow(schedules[0])}>
-      <Play className="wl-icon" aria-hidden="true" />
+      <Play width={16} height={16} aria-hidden="true" />
       {label}
-      {hasChoices ? <ChevronDown className="wl-icon" aria-hidden="true" /> : null}
+      {hasChoices ? <ChevronDown width={16} height={16} aria-hidden="true" /> : null}
     </Button>
   );
 
@@ -63,7 +63,7 @@ export function RunNowButton({ task, triggers }: { task: Task; triggers: readonl
                 <Dropdown.Item key={schedule.id} id={schedule.id} textValue={schedule.name} onAction={() => runNow(schedule)}>
                   <span className="flex min-w-0 flex-col [overflow-wrap:anywhere]">
                     <span>{schedule.name}</span>
-                    {schedule.cron ? <CronText cron={schedule.cron} className="caption muted" /> : null}
+                    {schedule.cron ? <CronText cron={schedule.cron} className="text-xs text-muted" /> : null}
                   </span>
                 </Dropdown.Item>
               ))}
@@ -88,7 +88,7 @@ export function RetryButton({ run, taskArchived }: { run: Run; taskArchived: boo
     <IconButton
       label={label}
       tip={rerun.isError ? runActionError(rerun.error, t) : label}
-      icon={RotateCcw}
+      icon={ArrowRotateLeft}
       isDisabled={rerun.isPending}
       onPress={() => rerun.mutate(run.id, { onSuccess: (next) => void navigate({ to: "/runs/$runId", params: { runId: next.id } }) })}
     />

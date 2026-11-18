@@ -10,10 +10,25 @@ import {
   useUpdateMe,
   type Locale,
 } from "@lerryn/core";
-import { Button, ConsoleDialog, ToneGlyph, useLerrynTheme, type ThemePreference } from "@lerryn/ui-web";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  ComboBox,
+  ConsoleDialog,
+  Input,
+  Label,
+  ListBox,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  useLerrynTheme,
+  type ThemePreference,
+} from "@lerryn/ui-web";
+import { ArrowRightFromSquare, Briefcase, Check, Globe, Key, Palette } from "@gravity-ui/icons";
 import { useNavigate } from "@tanstack/react-router";
-import { Building2, Check, Clock, KeyRound, Languages, Mail, Palette, UserRound } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 
 import { initialOf, useCurrentUser } from "../../shell/AppShell";
 import { Board, BoardTop, usePageTitle } from "../../shell/layout";
@@ -21,6 +36,8 @@ import { FormError, PasswordInput } from "../auth/AuthFrame";
 import { writeErrorMessage } from "../../lib/origin";
 
 const LOCALE_NAMES: Record<Locale, string> = { "zh-CN": "简体中文", en: "English" };
+/** The timezone list's entry for "no preference": times follow the device. */
+const DEVICE_ZONE = "device";
 
 function zones(): string[] {
   try {
@@ -30,25 +47,50 @@ function zones(): string[] {
   }
 }
 
-function Row({ icon: Icon, label, htmlFor, children }: { icon: typeof Clock; label: string; htmlFor?: string; children: ReactNode }) {
+/**
+ * One choice out of a few, as pressed buttons. The group runs in multiple
+ * mode and keeps a single key itself, because single mode would turn the
+ * buttons into radios and drop the `aria-pressed` state the console relies on.
+ */
+export function Segmented<T extends string>({
+  label,
+  labelledBy,
+  options,
+  value,
+  onChange,
+  fullWidth,
+}: {
+  label?: string;
+  labelledBy?: string;
+  options: readonly { id: T; label: string; lang?: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  fullWidth?: boolean;
+}) {
   return (
-    <div className="rowi">
-      <span className="ic-box" aria-hidden="true">
-        <Icon className="wl-icon" width={18} />
-      </span>
-      {htmlFor ? (
-        <label htmlFor={htmlFor} style={{ fontWeight: 600 }}>
-          {label}
-        </label>
-      ) : (
-        <span style={{ fontWeight: 600 }}>{label}</span>
-      )}
-      <span className="rowi-end">{children}</span>
-    </div>
+    <ToggleButtonGroup
+      aria-label={label}
+      aria-labelledby={labelledBy}
+      size="sm"
+      fullWidth={fullWidth}
+      selectionMode="multiple"
+      selectedKeys={[value]}
+      onSelectionChange={(keys) => {
+        const next = [...keys].find((key) => key !== value);
+        if (next !== undefined) onChange(next as T);
+      }}
+    >
+      {options.map((option, index) => (
+        <ToggleButton key={option.id} id={option.id} lang={option.lang}>
+          {index > 0 ? <ToggleButtonGroup.Separator /> : null}
+          {option.label}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
   );
 }
 
-/** Profile, password, linked SSO identity and preferences (prototype Settings-Account.dc.html). */
+/** Profile, sign-in methods and preferences of the signed-in user. */
 export function AccountPage() {
   const { t, locale, setLocale } = useI18n();
   usePageTitle(t("account.title"));
@@ -62,11 +104,12 @@ export function AccountPage() {
   const [changing, setChanging] = useState(false);
   const zoneList = zones();
   const zone = me.timezone ?? "";
+  const identity = me.identities[0];
 
-  const themes: { key: ThemePreference; label: string }[] = [
-    { key: "system", label: t("common.themeSystem") },
-    { key: "light", label: t("common.themeLight") },
-    { key: "dark", label: t("common.themeDark") },
+  const themes: { id: ThemePreference; label: string }[] = [
+    { id: "system", label: t("common.themeSystem") },
+    { id: "light", label: t("common.themeLight") },
+    { id: "dark", label: t("common.themeDark") },
   ];
 
   const saveName = () => {
@@ -77,116 +120,166 @@ export function AccountPage() {
   return (
     <Board label={t("account.title")}>
       <BoardTop title={t("account.title")} />
-      <div className="row" style={{ gap: 16 }}>
-        <span className="avatar avatar--lg" aria-hidden="true">
-          {initialOf(me)}
-        </span>
-        <div className="stack" style={{ gap: 2 }}>
-          <span className="h3">{me.display_name || me.username}</span>
-          <span className="row mono-sm muted" style={{ gap: 8 }}>
-            {me.username}
-            {me.is_admin ? (
-              <span className="tag tag--kraft" style={{ fontFamily: "var(--font-sans)" }}>
-                {t("account.admin")}
-              </span>
-            ) : null}
-            <span style={{ fontFamily: "var(--font-sans)" }}>{t("account.since", { date: formatFullDate(me.created_at, locale) })}</span>
-          </span>
-        </div>
-      </div>
 
-      <div style={{ maxWidth: 720 }}>
-        <div className="rows" aria-label={t("account.profile")}>
-          <Row icon={UserRound} label={t("account.displayName")} htmlFor="acc-name">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveName();
-              }}
-            >
-              <input
-                id="acc-name"
-                className="input"
-                value={name}
-                maxLength={64}
-                placeholder={me.username}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={saveName}
-                style={{ width: 220, height: 40 }}
-              />
-            </form>
-          </Row>
-          {me.email ? (
-            <Row icon={Mail} label={t("account.email")}>
-              <span className="body-sm">{me.email}</span>
-            </Row>
-          ) : null}
-          {me.has_password ? (
-            <Row icon={KeyRound} label={t("auth.password")}>
-              <Button variant="secondary" size="sm" onPress={() => setChanging(true)}>
-                {t("account.changePassword")}
-              </Button>
-            </Row>
-          ) : null}
-          {me.identities.length > 0 ? (
-            <Row icon={Building2} label={t("account.sso")}>
-              <span className="row" style={{ gap: 8 }}>
-                <span className="mono-sm muted">{hostOf(me.identities[0]!.issuer)}</span>
-                <ToneGlyph tone="ok" icon={Check} label={t("account.ssoLinked")} />
-              </span>
-            </Row>
-          ) : null}
-          <Row icon={Languages} label={t("common.language")}>
-            <div className="seg" role="group" aria-label={t("common.language")}>
-              {LOCALES.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  lang={l}
-                  aria-pressed={locale === l}
-                  onClick={() => {
-                    setLocale(l);
-                    update.mutate({ locale: l });
-                  }}
-                >
-                  {LOCALE_NAMES[l]}
-                </button>
-              ))}
+      <Card className="tpl-card nt-fade-up">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar size="lg" color="accent" aria-hidden="true">
+            <Avatar.Fallback>{initialOf(me)}</Avatar.Fallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-base font-semibold">{me.display_name || me.username}</span>
+              {me.is_admin ? (
+                <Chip size="sm" color="accent" variant="soft">
+                  {t("account.admin")}
+                </Chip>
+              ) : null}
             </div>
-          </Row>
-          <Row icon={Palette} label={t("common.theme")}>
-            <div className="seg" role="group" aria-label={t("common.theme")}>
-              {themes.map((th) => (
-                <button key={th.key} type="button" aria-pressed={preference === th.key} onClick={() => setPreference(th.key)}>
-                  {th.label}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+              <span className="font-mono">{me.username}</span>
+              <span>{t("account.since", { date: formatFullDate(me.created_at, locale) })}</span>
             </div>
-          </Row>
-          <Row icon={Clock} label={t("account.timezone")} htmlFor="acc-tz">
-            <span className="field-select">
-              <select id="acc-tz" value={zone} onChange={(e) => update.mutate({ timezone: e.target.value })} style={{ height: 40 }}>
-                <option value="">{t("account.timezoneDevice", { zone: localTimeZone() })}</option>
-                {zoneList.map((z) => (
-                  <option key={z} value={z}>
-                    {z}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </Row>
+          </div>
         </div>
-      </div>
+        <form
+          className="nt-form"
+          aria-label={t("account.profile")}
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveName();
+          }}
+        >
+          <TextField value={name} onChange={setName} onBlur={saveName} maxLength={64} name="display_name" fullWidth>
+            <Label>{t("account.displayName")}</Label>
+            <Input placeholder={me.username} />
+          </TextField>
+          {me.email ? (
+            <TextField value={me.email} isReadOnly name="email" type="email" fullWidth>
+              <Label>{t("account.email")}</Label>
+              <Input />
+            </TextField>
+          ) : null}
+          <ComboBox
+            fullWidth
+            selectedKey={zone || DEVICE_ZONE}
+            // Clearing the text selects nothing; the stored zone stays until another one is picked.
+            onSelectionChange={(key) => {
+              if (key === null) return;
+              const next = key === DEVICE_ZONE ? "" : String(key);
+              if (next !== zone) update.mutate({ timezone: next });
+            }}
+          >
+            <Label>{t("account.timezone")}</Label>
+            <ComboBox.InputGroup>
+              <Input />
+              <ComboBox.Trigger />
+            </ComboBox.InputGroup>
+            <ComboBox.Popover>
+              <ListBox>
+                <ListBox.Item id={DEVICE_ZONE} textValue={t("account.timezoneDevice", { zone: localTimeZone() })}>
+                  {t("account.timezoneDevice", { zone: localTimeZone() })}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+                {zoneList.map((z) => (
+                  <ListBox.Item key={z} id={z} textValue={z}>
+                    {z}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </ComboBox.Popover>
+          </ComboBox>
+        </form>
+      </Card>
+
+      {me.has_password || identity ? (
+        <Card className="tpl-card nt-fade-up">
+          <div className="tpl-card__head">
+            <h2 className="text-sm font-semibold">{t("auth.login")}</h2>
+          </div>
+          <ul className="lr-rows">
+            {me.has_password ? (
+              <li className="lr-row">
+                <span className="lr-row__icon" data-tone="idle" aria-hidden="true">
+                  <Key width={16} height={16} />
+                </span>
+                <span className="lr-row__text">
+                  <span className="lr-row__title">{t("auth.password")}</span>
+                </span>
+                <span className="lr-row__end">
+                  <Button variant="secondary" size="sm" onPress={() => setChanging(true)}>
+                    {t("account.changePassword")}
+                  </Button>
+                </span>
+              </li>
+            ) : null}
+            {identity ? (
+              <li className="lr-row">
+                <span className="lr-row__icon" data-tone="idle" aria-hidden="true">
+                  <Briefcase width={16} height={16} />
+                </span>
+                <span className="lr-row__text">
+                  <span className="lr-row__title">{t("account.sso")}</span>
+                  <span className="lr-row__sub font-mono">{hostOf(identity.issuer)}</span>
+                </span>
+                <span className="lr-row__end">
+                  <Chip size="sm" color="success" variant="soft">
+                    <Check aria-hidden="true" width={12} height={12} />
+                    <Chip.Label>{t("account.ssoLinked")}</Chip.Label>
+                  </Chip>
+                </span>
+              </li>
+            ) : null}
+          </ul>
+        </Card>
+      ) : null}
+
+      <Card className="tpl-card nt-fade-up">
+        <div className="tpl-card__head">
+          <h2 className="text-sm font-semibold">{t("account.preferences")}</h2>
+        </div>
+        <div className="nt-settings">
+          <div className="nt-settings__row">
+            <span className="tpl-activity__icon" aria-hidden="true">
+              <Globe width={14} height={14} />
+            </span>
+            <div>
+              <strong>{t("common.language")}</strong>
+            </div>
+            <Segmented
+              label={t("common.language")}
+              options={LOCALES.map((l) => ({ id: l, label: LOCALE_NAMES[l], lang: l }))}
+              value={locale}
+              onChange={(l) => {
+                setLocale(l);
+                update.mutate({ locale: l });
+              }}
+            />
+          </div>
+          <div className="nt-settings__row">
+            <span className="tpl-activity__icon" aria-hidden="true">
+              <Palette width={14} height={14} />
+            </span>
+            <div>
+              <strong>{t("common.theme")}</strong>
+            </div>
+            <Segmented label={t("common.theme")} options={themes} value={preference} onChange={setPreference} />
+          </div>
+        </div>
+      </Card>
+
       {update.isError ? <FormError>{t(writeErrorMessage(update.error))}</FormError> : null}
 
-      <button
-        type="button"
-        className="body-sm"
-        style={{ color: "var(--danger)", fontWeight: 600, alignSelf: "flex-start", border: 0, background: "none", padding: 0, cursor: "pointer" }}
-        onClick={() => logout.mutate(undefined, { onSettled: () => void navigate({ to: "/login", replace: true }) })}
-      >
-        {t("auth.logout")}
-      </button>
+      <div>
+        <Button
+          variant="danger-soft"
+          size="sm"
+          onPress={() => logout.mutate(undefined, { onSettled: () => void navigate({ to: "/login", replace: true }) })}
+        >
+          <ArrowRightFromSquare aria-hidden="true" width={16} height={16} />
+          {t("auth.logout")}
+        </Button>
+      </div>
       <PasswordDialog isOpen={changing} onClose={() => setChanging(false)} />
     </Board>
   );
@@ -240,7 +333,7 @@ function PasswordDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         </>
       }
     >
-      <form className="stack" style={{ gap: "var(--space-5)" }} onSubmit={submit}>
+      <form className="flex flex-col gap-4" onSubmit={submit}>
         <PasswordInput name="current_password" label={t("account.currentPassword")} value={current} onChange={setCurrent} autoComplete="current-password" error={errors.current} />
         <PasswordInput name="new_password" label={t("account.newPassword")} value={next} onChange={setNext} autoComplete="new-password" placeholder={t("auth.passwordPlaceholder")} error={errors.next} />
         {change.error ? <FormError>{wrong ? t("account.wrongPassword") : t(writeErrorMessage(change.error))}</FormError> : null}

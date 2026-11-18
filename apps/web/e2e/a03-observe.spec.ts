@@ -42,7 +42,7 @@ test("overview → task → run shows status, duration, trigger, version, result
 
   const task = page.getByRole("main", { name: "daily-report" });
   await expect(task.getByRole("heading", { name: "daily-report", level: 1 })).toBeVisible();
-  await expect(task).toContainText(/已激活\s*v2/);
+  await expect(task).toContainText(/按计划\s*v2/);
   await expect(task.getByRole("button", { name: "每个工作日 08:00（Asia/Shanghai）" })).toBeVisible();
   await task.getByRole("list", { name: "最近的运行" }).getByRole("link", { name: /执行完成 · .* · v2/ }).first().click();
 
@@ -76,8 +76,8 @@ test("overview → task → run shows status, duration, trigger, version, result
   await expect(result).toContainText("成功");
   await expect(result.getByText("生成 3 份报告")).toBeVisible();
   await expect(board.getByRole("region", { name: "报告数" })).toContainText("3份");
-  const leads = board.getByRole("region", { name: "高意向线索" }).getByRole("table");
-  await expect(leads.getByRole("row", { name: "华东客户 91" })).toBeVisible();
+  const leads = board.getByRole("region", { name: "高意向线索" }).getByRole("grid");
+  await expect(leads.getByRole("row").filter({ hasText: "华东客户" }).filter({ hasText: "91" })).toBeVisible();
   await expect(board.getByRole("region", { name: "来源" }).getByRole("img", { name: "来源：官网 5，活动 2" })).toBeVisible();
   await expect(board.getByRole("region", { name: "备注" })).toContainText("本周线索比上周多 2 条");
 
@@ -104,7 +104,7 @@ test("a failed run says where and why it failed", async ({ page, state }) => {
 
 test("the runs list filters failed runs and opens one", async ({ page, state }) => {
   await page.goto("/runs");
-  await page.getByRole("group", { name: "按状态筛选" }).getByRole("button", { name: "失败" }).click();
+  await page.getByLabel("按状态筛选").getByRole("button", { name: "失败" }).click();
   const list = page.getByRole("region", { name: "运行列表" });
   await expect(list.getByRole("link", { name: /broken-import/ }).first()).toBeVisible();
   await expect(list.getByRole("link", { name: /daily-report/ })).toHaveCount(0);

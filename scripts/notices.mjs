@@ -378,8 +378,8 @@ function render() {
   section(`Part 2. npm packages in the web console (${npmRows.length})`, npmRows);
   const themeRows = rows([{
     name: "niltavi-ui",
-    version: "070e63c3be6ae6807ab907c9d1ca2614993614f7",
-    source: "https://github.com/niltavi/niltavi-ui/tree/070e63c3be6ae6807ab907c9d1ca2614993614f7",
+    version: "2d9d20d244e4ae5dcd7c4b85717fd6c9f8bf35e9",
+    source: "https://github.com/niltavi/niltavi-ui/tree/2d9d20d244e4ae5dcd7c4b85717fd6c9f8bf35e9",
     declared: "MIT",
     ...readNoticeFiles(join(ROOT, "design/niltavi-ui"), "niltavi-ui"),
   }]);

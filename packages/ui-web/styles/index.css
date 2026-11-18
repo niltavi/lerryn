@@ -1,12 +1,22 @@
 /*
- * @lerryn/ui-web 的样式入口。App 的全局 CSS 按这个顺序引入：
+ * @lerryn/ui-web style entry. The app's global CSS imports, in this order:
  *   @import "tailwindcss";
  *   @import "@heroui/styles";
  *   @import "@lerryn/ui-web/styles.css";
+ *
+ * theme/ is the Niltavi UI theme, copied unchanged from upstream (see
+ * design/niltavi-ui/README.md). Product tokens and layout sit on top of it.
+ * Layout files join the components layer so Tailwind utilities can still override them.
  */
-@import "./tokens.css";
-@import "./theme.css";
-@import "./console.css";
+@import "./theme/palette.css";
+@import "./theme/niltava.css";
+@import "./theme/components.css";
+@import "./theme/motion.css";
+@import "./theme/templates.css" layer(components);
+@import "./lerryn.css";
+@import "./shell.css" layer(components);
+@import "./domain.css" layer(components);
+@import "./views.css" layer(components);
 
-/* 组件源码里用到的 Tailwind 类也要生成 */
+/* Tailwind classes used inside the component sources. */
 @source "../src";

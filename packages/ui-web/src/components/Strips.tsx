@@ -1,5 +1,9 @@
+import { Tooltip } from "@heroui/react";
+import { Focusable } from "@heroui/react/rac";
 import { formatClock, formatCount, type RidgeBar, type StripBucket } from "@lerryn/core";
-import type { ReactNode } from "react";
+import { isValidElement, type ComponentProps, type ReactNode } from "react";
+
+type RidgeLinkProps = { className: string; style: { height: string }; children: ReactNode; "aria-label": string };
 
 export interface DayStripProps {
   buckets: readonly StripBucket[];
@@ -9,12 +13,28 @@ export interface DayStripProps {
   /** Text of one bucket's tooltip and accessible name. */
   describe: (bucket: StripBucket) => string;
   /** Renders a bucket that has a run as a link; others are plain shapes. */
-  renderLink: (bucket: StripBucket, props: { className: string; style: { height: string }; children: ReactNode; "aria-label": string }) => ReactNode;
+  renderLink: (bucket: StripBucket, props: RidgeLinkProps) => ReactNode;
   label: string;
   legend: { run: string; bad: string; warn: string; active: string; plan: string };
 }
 
 const MAX_RUNS_DRAWN = 8;
+
+/**
+ * A ridge that links to a run, with what it stands for in a tooltip on hover
+ * and focus. The page supplies the link, so the tooltip attaches to whatever
+ * element it rendered; that element has to pass props and its ref through to
+ * the anchor, as router links do.
+ */
+function RidgeLink({ link, text }: { link: ReactNode; text: string }) {
+  if (!isValidElement(link)) return link;
+  return (
+    <Tooltip delay={0} closeDelay={0}>
+      <Focusable>{link as ComponentProps<typeof Focusable>["children"]}</Focusable>
+      <Tooltip.Content className="whitespace-pre-line">{text}</Tooltip.Content>
+    </Tooltip>
+  );
+}
 
 /**
  * Today's corrugation strip: 48 half-hour ridges whose height is the number
@@ -23,6 +43,13 @@ const MAX_RUNS_DRAWN = 8;
  */
 export function DayStrip({ buckets, dayStart, now, describe, renderLink, label, legend }: DayStripProps) {
   const pct = Math.min(100, Math.max(0, ((now - dayStart) / 86_400_000) * 100));
+  const keys: [tone: string, text: string][] = [
+    ["ok", legend.run],
+    ["bad", legend.bad],
+    ["warn", legend.warn],
+    ["run", legend.active],
+    ["plan", legend.plan],
+  ];
   return (
     <section className="strip" aria-label={label}>
       <div className="strip-plot">
@@ -32,15 +59,12 @@ export function DayStrip({ buckets, dayStart, now, describe, renderLink, label, 
           const cls = b.tone === "empty" ? "ridge ridge--empty" : b.tone === "ok" || b.tone === "idle" ? "ridge" : `ridge ridge--${b.tone}`;
           const text = describe(b);
           const style = { height: `${h}px` };
-          const tip = <span className="pop" aria-hidden="true">{text}</span>;
           return b.runId ? (
-            <span key={b.start} style={{ display: "contents" }}>
-              {renderLink(b, { className: cls, style, children: tip, "aria-label": text.replace(/\n/g, " · ") })}
+            <span key={b.start} className="contents">
+              <RidgeLink text={text} link={renderLink(b, { className: cls, style, children: null, "aria-label": text.replace(/\n/g, " · ") })} />
             </span>
           ) : (
-            <span key={b.start} className={cls} style={style} aria-hidden={b.tone === "empty" ? true : undefined} title={b.tone === "empty" ? undefined : text}>
-              {b.tone === "empty" ? null : tip}
-            </span>
+            <span key={b.start} className={cls} style={style} aria-hidden={b.tone === "empty" ? true : undefined} title={b.tone === "empty" ? undefined : text} />
           );
         })}
         <span className="strip-now" style={{ left: `${pct}%` }} aria-hidden="true">
@@ -54,27 +78,13 @@ export function DayStrip({ buckets, dayStart, now, describe, renderLink, label, 
         <span>18:00</span>
         <span>24:00</span>
       </div>
-      <div className="legend" aria-hidden="true">
-        <span>
-          <i />
-          {legend.run}
-        </span>
-        <span>
-          <i className="bad" />
-          {legend.bad}
-        </span>
-        <span>
-          <i className="warn" />
-          {legend.warn}
-        </span>
-        <span>
-          <i className="run" />
-          {legend.active}
-        </span>
-        <span>
-          <i className="plan" />
-          {legend.plan}
-        </span>
+      <div className="tpl-legend strip-legend" aria-hidden="true">
+        {keys.map(([tone, text]) => (
+          <span key={tone}>
+            <i className="strip-key" data-tone={tone} />
+            {text}
+          </span>
+        ))}
       </div>
     </section>
   );
@@ -83,7 +93,7 @@ export function DayStrip({ buckets, dayStart, now, describe, renderLink, label, 
 export interface RunsStripProps {
   bars: readonly RidgeBar[];
   describe: (bar: RidgeBar) => string;
-  renderLink: (bar: RidgeBar, props: { className: string; style: { height: string }; children: ReactNode; "aria-label": string }) => ReactNode;
+  renderLink: (bar: RidgeBar, props: RidgeLinkProps) => ReactNode;
   label: string;
 }
 
@@ -95,17 +105,16 @@ export function RunsStrip({ bars, describe, renderLink, label }: RunsStripProps)
         const cls = bar.tone === "ok" || bar.tone === "idle" || bar.tone === "empty" ? "ridge" : `ridge ridge--${bar.tone}`;
         const text = describe(bar);
         return (
-          <span key={bar.key} role="listitem" style={{ display: "contents" }}>
-            {renderLink(bar, {
-              className: cls,
-              style: { height: `${Math.round(bar.height * 100)}%` },
-              children: (
-                <span className="pop" aria-hidden="true">
-                  {text}
-                </span>
-              ),
-              "aria-label": text.replace(/\n/g, " · "),
-            })}
+          <span key={bar.key} role="listitem" className="contents">
+            <RidgeLink
+              text={text}
+              link={renderLink(bar, {
+                className: cls,
+                style: { height: `${Math.round(bar.height * 100)}%` },
+                children: null,
+                "aria-label": text.replace(/\n/g, " · "),
+              })}
+            />
           </span>
         );
       })}

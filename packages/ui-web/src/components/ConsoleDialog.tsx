@@ -14,7 +14,7 @@ export interface ConsoleDialogProps {
   size?: "sm" | "lg";
 }
 
-/** A modal dialog in the A-flute style: heading, body, and right-aligned actions. */
+/** A modal dialog: heading, body, and right-aligned actions. */
 export function ConsoleDialog({ isOpen, onOpenChange, title, children, footer, isDismissable = true, size = "sm" }: ConsoleDialogProps) {
   return (
     <Modal.Backdrop
@@ -26,14 +26,12 @@ export function ConsoleDialog({ isOpen, onOpenChange, title, children, footer, i
       <Modal.Container placement="center" size={size}>
         <Modal.Dialog>
           <Modal.Header>
-            <Modal.Heading className="row" style={{ gap: "var(--space-3)" }}>
+            <Modal.Heading className="flex items-center gap-3">
               {title}
             </Modal.Heading>
           </Modal.Header>
-          {children ? <Modal.Body className="stack" style={{ gap: "var(--space-5)" }}>{children}</Modal.Body> : null}
-          <Modal.Footer className="row" style={{ justifyContent: "flex-end" }}>
-            {footer}
-          </Modal.Footer>
+          {children ? <Modal.Body className="flex flex-col gap-5">{children}</Modal.Body> : null}
+          <Modal.Footer>{footer}</Modal.Footer>
         </Modal.Dialog>
       </Modal.Container>
     </Modal.Backdrop>

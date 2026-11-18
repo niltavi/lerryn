@@ -163,7 +163,7 @@ test.describe("a live log", () => {
     await page.goto(`/runs/${runId}`);
     const log = logOf(page);
     const follow = page.getByRole("switch", { name: "跟随最新输出" });
-    await expect(follow).toHaveAttribute("aria-checked", "true");
+    await expect(follow).toBeChecked();
 
     // Following: the newest line keeps coming into view.
     await expect.poll(async () => (await renderedSeqs(log)).at(-1) ?? 0, { timeout: 30_000 }).toBeGreaterThan(40);
@@ -174,7 +174,7 @@ test.describe("a live log", () => {
 
     // Scrolling up pauses following; the view stays where the reader is.
     await scrollLog(log, 300);
-    await expect(follow).toHaveAttribute("aria-checked", "false");
+    await expect(follow).not.toBeChecked();
     const jump = page.getByRole("button", { name: "跳到末尾" });
     await expect(jump).toBeVisible();
     const top = (await visibleSeqs(log))[0];
@@ -189,14 +189,15 @@ test.describe("a live log", () => {
 
     // Jump to the end and follow again.
     await jump.click();
-    await expect(follow).toHaveAttribute("aria-checked", "true");
+    await expect(follow).toBeChecked();
     const resumed = await newest();
     await expect.poll(newest).toBeGreaterThan(resumed + 3);
     await expectInLogView(log.locator(".ll[data-seq]").last());
 
     // The switch pauses as well.
-    await follow.click();
-    await expect(follow).toHaveAttribute("aria-checked", "false");
+    // The switch input sits under its own track, so toggle it from the keyboard.
+    await follow.press("Space");
+    await expect(follow).not.toBeChecked();
     expectContiguous(await renderedSeqs(log));
   });
 

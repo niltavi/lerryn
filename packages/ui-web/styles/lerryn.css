@@ -1,0 +1,44 @@
+/*
+ * Lerryn on top of the Niltavi theme: the few tokens the product adds.
+ * Everything else comes from theme/niltava.css; do not redefine its variables here.
+ */
+@theme inline {
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  /* Brand mark. The logo keeps Lerryn's stream teal in both themes; the plate
+   * and bark pair stays light-on-dark-ink so a QR code scans in either theme. */
+  :root,
+  .light,
+  [data-theme="light"] {
+    --mark-side: #245761;
+    --mark-top: #428c9a;
+    --plate: #fef8ef;
+    --bark: #245761;
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    --mark-side: #3f8794;
+    --mark-top: #7cc2cd;
+    --plate: #fef8ef;
+    --bark: #245761;
+  }
+
+  html,
+  body,
+  #root { height: 100%; }
+
+  body {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  code, kbd, samp, pre { font-family: var(--font-mono); }
+}

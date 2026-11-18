@@ -1,0 +1,127 @@
+/*
+ * Console chrome on top of the Niltavi templates: the frame, the list pane beside a
+ * page, page sections and the row lists every settings page shares. Semantic theme
+ * variables only; spacing follows the Tailwind scale.
+ */
+
+/* ---------- Frame ---------- */
+.nt-console { height: 100dvh; }
+/* The body hosts an optional list pane and the page, each scrolling on its own. */
+.nt-console__body { display: flex; padding: 0; overflow: hidden; }
+.lr-main { flex: 1; min-width: 0; overflow-y: auto; padding: calc(var(--spacing) * 5); scrollbar-width: var(--scrollbar-width); scrollbar-color: var(--scrollbar-color); }
+.lr-main:focus { outline: none; }
+/* Pages use the width they are given; long text limits its own measure. */
+.nt-page { min-height: min-content; max-width: none; }
+.nt-page--center { min-height: 100%; max-width: none; align-items: center; justify-content: center; }
+.nt-page__head { flex-wrap: wrap; align-items: center; min-height: calc(var(--spacing) * 8); }
+.nt-page__head h1 { font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
+/* The title keeps a readable measure; actions drop to their own line before it is squeezed. */
+.nt-page__head > div:first-child { flex: 1 1 calc(var(--spacing) * 60); min-width: min(100%, calc(var(--spacing) * 48)); }
+.nt-page__head h1 { overflow-wrap: anywhere; }
+.nt-page__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: calc(var(--spacing) * 2); }
+.nt-console__notice { margin: calc(var(--spacing) * 3) calc(var(--spacing) * 5) 0; }
+
+/* ---------- Sidebar ---------- */
+.nt-side__item { text-decoration: none; }
+.nt-side__badge[data-tone="warning"] { background: var(--warning-soft); color: var(--warning-soft-foreground); }
+.nt-side[data-collapsed] .nt-side__item[data-pip]::after { content: ""; position: absolute; top: calc(var(--spacing) * 1.5); right: calc(var(--spacing) * 1.5); width: calc(var(--spacing) * 1.5); height: calc(var(--spacing) * 1.5); border-radius: 50%; background: var(--warning); }
+.lr-brand { display: flex; align-items: center; gap: calc(var(--spacing) * 2.5); min-height: calc(var(--spacing) * 10); padding: calc(var(--spacing) * 1.5); border-radius: var(--radius-lg); color: inherit; text-decoration: none; }
+.lr-brand:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lr-brand__mark { display: grid; place-items: center; flex-shrink: 0; min-width: calc(var(--spacing) * 7); height: calc(var(--spacing) * 7); }
+.lr-brand__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.lr-brand__text strong { font-size: .875rem; font-weight: 600; letter-spacing: -.01em; }
+.lr-brand__text span { overflow: hidden; color: var(--muted); font-family: var(--font-mono); font-size: .6875rem; text-overflow: ellipsis; white-space: nowrap; }
+.nt-side[data-collapsed] .lr-brand__text { display: none; }
+/* Collapsed, the avatar and the collapse control stack on the rail's centre line. */
+.nt-side[data-collapsed] .nt-side__footer { align-items: center; width: 100%; }
+.nt-side[data-collapsed] .nt-side__footer > .nt-user { flex: none; justify-content: center; width: calc(var(--spacing) * 10); min-height: calc(var(--spacing) * 10); padding: 0; }
+
+/* ---------- List pane beside a page ---------- */
+.lr-list { width: calc(var(--spacing) * 75); flex-shrink: 0; min-width: 0; }
+.lr-list .tpl-list__head { min-height: calc(var(--spacing) * 13); }
+.lr-list__title { display: flex; align-items: baseline; gap: calc(var(--spacing) * 2); min-width: 0; font-size: .9375rem; font-weight: 600; }
+.lr-list__heading, .lr-list__toggle { align-items: baseline; gap: calc(var(--spacing) * 2); }
+.lr-list__heading { display: inline-flex; }
+.lr-list__title .n { color: var(--muted); font-size: .75rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.lr-list__toggle { display: none; align-items: center; gap: calc(var(--spacing) * 2); padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: var(--cursor-interactive); }
+.lr-list__toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.lr-list__toggle svg { transition: transform var(--motion-base) var(--motion-ease); }
+.lr-list[data-expanded="true"] .lr-list__toggle svg { transform: rotate(180deg); }
+.lr-list__tools { display: flex; align-items: center; gap: calc(var(--spacing) * 1); }
+.lr-list__search { padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3) 0; }
+.lr-list__group { padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4) calc(var(--spacing) * 1.5); color: var(--muted); font-size: .6875rem; font-weight: 500; }
+.lr-list__empty { display: flex; flex-direction: column; align-items: center; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4); color: var(--muted); text-align: center; }
+.li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(var(--spacing) * 3); margin-inline: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 2); border-radius: var(--radius-lg); color: inherit; text-decoration: none; }
+.li:hover { background: var(--default); }
+.li[aria-current] { background: var(--accent-soft); color: var(--accent-soft-foreground); }
+.li[aria-current] :is(.li-sub, .li-meta) { color: inherit; }
+.li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.li-name { display: block; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.li-name[data-quiet] { color: var(--muted); font-weight: 400; }
+.li-sub { display: block; overflow: hidden; color: var(--muted); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.li-meta { color: var(--muted); font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.li-meta.bad { color: var(--danger-soft-foreground); }
+
+/* ---------- Page pieces ---------- */
+.lr-section { display: flex; flex-direction: column; gap: calc(var(--spacing) * 2.5); min-width: 0; }
+.lr-section__label { color: var(--muted); font-size: .75rem; font-weight: 500; }
+.lr-section__head { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 3); }
+
+/* A list of things with one line of detail each: tokens, credentials, devices. */
+.lr-rows { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.lr-row { display: flex; align-items: center; gap: calc(var(--spacing) * 3); min-width: 0; padding: calc(var(--spacing) * 3) 0; border-top: 1px solid var(--separator); }
+.lr-row:first-child { border-top: 0; padding-top: 0; }
+.lr-row:last-child { padding-bottom: 0; }
+.lr-row[data-quiet] .lr-row__title { color: var(--muted); font-weight: 400; }
+.lr-row__icon { display: grid; place-items: center; flex-shrink: 0; width: calc(var(--spacing) * 8); height: calc(var(--spacing) * 8); border-radius: 50%; background: var(--accent-soft); color: var(--accent-soft-foreground); }
+.lr-row__icon[data-tone="idle"] { background: var(--default); color: var(--muted); }
+.lr-row__icon[data-tone="ok"] { background: var(--success-soft); color: var(--success-soft-foreground); }
+.lr-row__icon[data-tone="warn"] { background: var(--warning-soft); color: var(--warning-soft-foreground); }
+.lr-row__icon[data-tone="bad"] { background: var(--danger-soft); color: var(--danger-soft-foreground); }
+.lr-row__text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.lr-row__title { overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.lr-row__sub { overflow: hidden; color: var(--muted); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.lr-row__end { display: flex; align-items: center; gap: calc(var(--spacing) * 3); flex-shrink: 0; margin-left: auto; }
+
+/* The template's settings row styles every div and span inside it; controls placed in a row keep their own layout and colour. */
+.nt-settings__row > :is(.toggle-button-group, .button, .chip, .switch) { flex: none; flex-direction: row; }
+.nt-settings__row :is(.toggle-button, .button, .chip) span { color: inherit; font-size: inherit; }
+
+/* Label and value pairs. */
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+
+/* A value to copy: monospace text with its copy button, wrapping when asked. */
+.lr-copy { display: flex; align-items: center; gap: calc(var(--spacing) * 2); min-width: 0; padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 1.5) calc(var(--spacing) * 1.5) calc(var(--spacing) * 3); border-radius: var(--field-radius); background: var(--surface-tertiary); }
+.lr-copy code { flex: 1; min-width: 0; overflow: hidden; font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
+.lr-copy--wrap code { overflow-wrap: anywhere; white-space: normal; }
+.lr-copy__tag { flex-shrink: 0; min-width: calc(var(--spacing) * 10); color: var(--muted); font-family: var(--font-mono); font-size: .6875rem; }
+
+/* ---------- Auth ---------- */
+.lr-auth { container: ntauth / inline-size; height: 100dvh; }
+.nt-auth__title { margin: 0; }
+.nt-auth__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); color: var(--muted); font-size: .8125rem; }
+.nt-auth__host { color: var(--muted); font-family: var(--font-mono); font-size: .75rem; text-align: center; }
+
+/* ---------- Narrow consoles ---------- */
+/* Where the template hides the trigger's words, keep them for its accessible name. */
+@container ntconsole (max-width: 760px) {
+  .nt-console .nt-cmd-trigger > span { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@container ntconsole (max-width: 960px) {
+  .nt-console__body { flex-direction: column; }
+  .lr-list { width: auto; max-height: 70%; border-right: 0; border-bottom: 1px solid var(--separator); }
+  .lr-list__heading { display: none; }
+  .lr-list__toggle { display: inline-flex; }
+  .lr-list:not([data-expanded="true"]) > :not(.tpl-list__head) { display: none; }
+}
+@container ntconsole (max-width: 640px) {
+  /* Folded by width alone, links and menus still need their words as accessible names. */
+  .nt-console .nt-side :is(.nt-side__label, .lr-brand__text, .nt-ws__text) { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .lr-main { padding: calc(var(--spacing) * 4) calc(var(--spacing) * 3); }
+  .lr-row { flex-wrap: wrap; }
+  .kv { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .kv dd { margin-bottom: calc(var(--spacing) * 2); }
+}
+@media (prefers-reduced-motion: reduce) { .lr-list__toggle svg { transition: none; } }

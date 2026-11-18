@@ -1,0 +1,20 @@
+/* Account, notifications, pairing, about and sign-in. Semantic theme variables only. */
+/* The events a channel subscribes to, as a quiet row of icons beside its actions. */
+.lr-events { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1.5); color: var(--muted); }
+.lr-events > span { display: grid; place-items: center; }
+
+/* ---------- About ---------- */
+.lr-about { container-type: inline-size; display: flex; flex-direction: column; gap: calc(var(--spacing) * 10); width: min(100%, calc(var(--spacing) * 220)); }
+.lr-about__grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 5fr); align-items: center; gap: calc(var(--spacing) * 10); }
+.lr-about__mark { display: grid; place-items: center; flex-shrink: 0; width: calc(var(--spacing) * 12); height: calc(var(--spacing) * 12); border-radius: var(--radius-lg); background: var(--surface-secondary); }
+.lr-about__version { display: flex; flex-wrap: wrap; gap: 0 calc(var(--spacing) * 2); margin: 0; color: var(--muted); font-size: .8125rem; }
+.lr-about__version dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.lr-about__philosophy { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); padding-inline-start: calc(var(--spacing) * 6); border-inline-start: 1px solid var(--separator); }
+/* The one editorial voice in the console: the quote is set in a serif stack. */
+.lr-about__quote { margin: 0; font-family: "Source Serif 4", "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 1.125rem; line-height: 1.85; text-wrap: pretty; }
+.lr-about__quote p { margin: 0; }
+.lr-about__signature { display: inline-flex; align-items: center; min-height: calc(var(--spacing) * 11); border-radius: var(--radius-sm); }
+.lr-about__signature:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@container (max-width: 640px) {
+  .lr-about__grid { grid-template-columns: minmax(0, 1fr); gap: calc(var(--spacing) * 8); }
+}

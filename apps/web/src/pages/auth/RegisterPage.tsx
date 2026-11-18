@@ -1,7 +1,7 @@
 import { isApiError, useDiscovery, useFirstAccountMode, useI18n, useRegister, type RegisterRequest } from "@lerryn/core";
-import { Button, Form } from "@lerryn/ui-web";
+import { Button, Chip, Form } from "@lerryn/ui-web";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "@gravity-ui/icons";
 import { useState, type FormEvent } from "react";
 
 import {
@@ -54,17 +54,17 @@ export function RegisterPage() {
       badge={
         // Shown only when the server says the deployment has no account yet.
         firstAccount.data === true ? (
-          <span className="tag tag--kraft">
-            <ShieldCheck className="wl-icon" width={14} aria-hidden="true" />
-            {t("auth.firstAccount")}
-          </span>
+          <Chip color="accent" variant="soft" className="self-center">
+            <ShieldCheck aria-hidden="true" width={12} height={12} />
+            <Chip.Label>{t("auth.firstAccount")}</Chip.Label>
+          </Chip>
         ) : null
       }
     >
       {closed ? (
         <FormError>{t("auth.registrationClosed")}</FormError>
       ) : (
-        <Form className="stack" style={{ gap: 14 }} onSubmit={submit} validationBehavior="aria">
+        <Form className="nt-auth__form" onSubmit={submit} validationBehavior="aria">
           <TextInput
             name="username"
             label={t("auth.username")}
@@ -103,8 +103,8 @@ export function RegisterPage() {
           </Button>
         </Form>
       )}
-      <div className="spread" style={{ justifyContent: "center", gap: 20 }}>
-        <Link to="/login" search={search.redirect ? { redirect: search.redirect } : {}} className="link body-sm">
+      <div className="nt-auth__foot">
+        <Link to="/login" search={search.redirect ? { redirect: search.redirect } : {}} className="link">
           {t("auth.haveAccount")}
         </Link>
         <LanguageChip />

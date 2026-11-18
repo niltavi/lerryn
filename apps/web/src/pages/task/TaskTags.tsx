@@ -1,15 +1,21 @@
 import { isApiError, useCanControlRuns, useI18n, useSetTaskTags, type Task } from "@lerryn/core";
-import { Button, ConsoleDialog, IconButton } from "@lerryn/ui-web";
-import { Tags } from "lucide-react";
-import { useId, useState } from "react";
+import { Button, Chip, ConsoleDialog, Description, IconButton, Label, TextArea, TextField } from "@lerryn/ui-web";
+import { Tags } from "@gravity-ui/icons";
+import { useState } from "react";
+
+import { FormError } from "../auth/AuthFrame";
 
 export function TaskTags({ tags }: { tags: Task["tags"] }) {
   const { t } = useI18n();
   if (!tags?.length) return null;
 
   return (
-    <div className="chips" role="group" aria-label={t("task.tags")}>
-      {tags.map((tag) => <span className="tag max-w-full" key={tag} title={tag}><span className="truncate">{tag}</span></span>)}
+    <div className="flex min-w-0 flex-wrap gap-1.5" role="group" aria-label={t("task.tags")}>
+      {tags.map((tag) => (
+        <Chip key={tag} size="sm" variant="soft" className="max-w-full" title={tag}>
+          <Chip.Label className="truncate">{tag}</Chip.Label>
+        </Chip>
+      ))}
     </div>
   );
 }
@@ -19,7 +25,6 @@ export function EditTaskTagsButton({ task }: { task: Task }) {
   const canEdit = useCanControlRuns(task.project_id) && !task.archived_at;
   const update = useSetTaskTags(task.id);
   const [draft, setDraft] = useState<string | null>(null);
-  const fieldId = useId();
   const tags = task.tags ?? [];
   if (!canEdit) return null;
 
@@ -51,20 +56,13 @@ export function EditTaskTagsButton({ task }: { task: Task }) {
           <Button isPending={update.isPending} onPress={() => void save()}>{t("common.save")}</Button>
         </>}
       >
-        <label className="stack" htmlFor={fieldId}>
-          <span>{t("task.tags")}</span>
-          <textarea
-            id={fieldId}
-            className="textarea w-full resize-y"
-            rows={5}
-            value={draft ?? ""}
-            disabled={update.isPending}
-            aria-describedby={`${fieldId}-help`}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-        </label>
-        <p className="caption muted" id={`${fieldId}-help`}>{t("task.tagsInputHelp")}</p>
-        {update.isError ? <p className="danger" role="alert">{message}</p> : null}
+        {/* One tag per line: the API takes the list whole, so the draft is plain text. */}
+        <TextField fullWidth value={draft ?? ""} onChange={setDraft} isDisabled={update.isPending}>
+          <Label>{t("task.tags")}</Label>
+          <TextArea rows={5} className="resize-y" />
+          <Description>{t("task.tagsInputHelp")}</Description>
+        </TextField>
+        {update.isError ? <FormError>{message}</FormError> : null}
       </ConsoleDialog>
     </>
   );

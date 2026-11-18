@@ -1,0 +1,43 @@
+/* Overview and task pages. Semantic theme variables only. */
+
+/* ---------- Summary figures (overview and task) ---------- */
+/* `.hero` / `.stat` / `.stat-n` are the hooks tests read; the look comes from tpl-kpi. */
+.hero { grid-template-columns: repeat(auto-fit, minmax(min(calc(var(--spacing) * 40), 100%), 1fr)); }
+.stat { min-width: 0; }
+.stat-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat[data-tone="bad"] .stat-n { color: var(--danger-soft-foreground); }
+.stat[data-tone="run"] .stat-n { color: var(--info-soft-foreground); }
+
+/* Cards side by side while there is room for two, stacked otherwise. */
+.tk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(calc(var(--spacing) * 80), 100%), 1fr)); align-items: start; gap: calc(var(--spacing) * 4); }
+
+/* ---------- Overview ---------- */
+/* A whole row that opens something: a run, a credential request, a browser session. */
+.ov-item { display: flex; flex: 1; align-items: center; gap: calc(var(--spacing) * 3); min-width: 0; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: start; text-decoration: none; }
+a.ov-item, button.ov-item { cursor: var(--cursor-interactive); }
+a.ov-item:hover .lr-row__title, button.ov-item:hover .lr-row__title { color: var(--accent-soft-foreground); }
+.ov-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ov-item__go { flex-shrink: 0; }
+
+.ov-connect { display: flex; flex-direction: column; gap: calc(var(--spacing) * 4); width: 100%; max-width: calc(var(--spacing) * 140); margin: auto; }
+
+/* ---------- Task ---------- */
+.tk-history { min-width: 0; }
+.tk-link { color: var(--accent-soft-foreground); font-size: .8125rem; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.tk-link:hover { text-decoration: underline; }
+.tk-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* A chip's warning mark; `.dot--bad` is the hook tests read. */
+.tk-pip { flex-shrink: 0; width: calc(var(--spacing) * 2); height: calc(var(--spacing) * 2); border-radius: 50%; background: var(--warning); }
+.tk-pip.dot--bad { background: var(--danger); }
+
+/* A task can collect many versions; the list scrolls inside its popover. */
+.tk-versions { max-height: calc(var(--spacing) * 72); overflow-y: auto; scrollbar-width: var(--scrollbar-width); scrollbar-color: var(--scrollbar-color); }
+
+
+/* ---------- Version diff ---------- */
+.tk-diff { max-height: 60vh; margin: 0; padding: calc(var(--spacing) * 2) 0; overflow: auto; border-radius: var(--field-radius); background: var(--surface-secondary); color: var(--foreground); font-family: var(--font-mono); font-size: .75rem; line-height: 1.65; }
+.tk-diff__line { display: block; padding: 0 calc(var(--spacing) * 3); overflow-wrap: anywhere; white-space: pre-wrap; }
+.tk-diff__line[data-kind="add"] { background: var(--success-soft); color: var(--success-soft-foreground); }
+.tk-diff__line[data-kind="del"] { background: var(--danger-soft); color: var(--danger-soft-foreground); }
+.tk-diff__line[data-kind="hunk"] { color: var(--muted); }

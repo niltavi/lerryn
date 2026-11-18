@@ -1,3 +1,4 @@
+import { Card, Chip, Table } from "@heroui/react";
 import { formatCount, useI18n, type Locale, type RunResult } from "@lerryn/core";
 
 import { CollapsiblePanel } from "./CollapsiblePanel";
@@ -50,6 +51,56 @@ export function viewOfData(data: unknown): DataView {
 const show = (v: Primitive, locale: Locale) =>
   v === null ? "—" : typeof v === "number" ? formatCount(v, locale) : String(v);
 
+/**
+ * Reported rows as a table that scrolls sideways inside its own box. A column
+ * whose first value is a number is right-aligned, like its cells. Shared with
+ * the Agent table panel.
+ */
+export function DataTable({
+  label,
+  columns,
+  rows,
+  locale,
+  hideHeader = false,
+}: {
+  label: string;
+  columns: readonly string[];
+  rows: readonly (readonly (Primitive | undefined)[])[];
+  locale: Locale;
+  /** A single unnamed column needs no visible header; screen readers still get it. */
+  hideHeader?: boolean;
+}) {
+  return (
+    <Table>
+      <Table.ScrollContainer>
+        <Table.Content aria-label={label}>
+          <Table.Header className={hideHeader ? "sr-only" : undefined}>
+            {columns.map((title, j) => (
+              <Table.Column key={j} id={`c${j}`} isRowHeader={j === 0} className={typeof rows[0]?.[j] === "number" ? "text-end" : undefined}>
+                {title}
+              </Table.Column>
+            ))}
+          </Table.Header>
+          <Table.Body>
+            {rows.map((row, i) => (
+              <Table.Row key={i} id={`r${i}`}>
+                {columns.map((_, j) => {
+                  const v = row[j] ?? null;
+                  return (
+                    <Table.Cell key={j} className={typeof v === "number" ? "num text-end tabular-nums" : undefined}>
+                      {show(v, locale)}
+                    </Table.Cell>
+                  );
+                })}
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+    </Table>
+  );
+}
+
 export interface ResultPanelProps {
   /** What the task reported with `sbx result`; null renders nothing. */
   result: RunResult | null;
@@ -69,67 +120,42 @@ export function ResultPanel({ result, collapsible, className }: ResultPanelProps
   const view = viewOfData(result.data);
 
   const title = t("result.title");
-  const icon = <WaveGlyph size={18} />;
+  const icon = <WaveGlyph size={16} />;
   const badges = (
-    <span className="row" style={{ gap: "var(--space-2)" }}>
+    <span className="view-badges">
       <ResultStatusPill status={result.status} />
-      <span className="tag">{t("result.reported")}</span>
+      <Chip size="sm" variant="soft">
+        {t("result.reported")}
+      </Chip>
     </span>
   );
   const body = (
     <>
-      {result.summary ? <p className="panel-summary">{result.summary}</p> : null}
+      {result.summary ? <p className="view-summary">{result.summary}</p> : null}
       {view.kind === "metrics" ? (
-        <div className="hero" style={{ gap: "12px 36px" }}>
+        <div className="view-metrics">
           {view.items.map(([k, v]) => (
-            <div className="stat" key={k}>
-              <span className="stat-n stat-n--md">{formatCount(v, locale)}</span>
-              <span className="stat-l">{k}</span>
+            <div className="view-metric" key={k}>
+              <span className="view-metric__value">{formatCount(v, locale)}</span>
+              <span className="view-metric__label">{k}</span>
             </div>
           ))}
         </div>
       ) : null}
       {view.kind === "pairs" ? (
-        <table className="ptable">
-          <tbody>
-            {view.items.map(([k, v]) => (
-              <tr key={k}>
-                <th scope="row">{k}</th>
-                <td className={typeof v === "number" ? "r num" : undefined}>{show(v, locale)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <dl className="kv">
+          {view.items.map(([k, v]) => (
+            <div className="contents" key={k}>
+              <dt>{k}</dt>
+              <dd className={typeof v === "number" ? "tabular-nums" : undefined}>{show(v, locale)}</dd>
+            </div>
+          ))}
+        </dl>
       ) : null}
-      {view.kind === "table" ? (
-        <div style={{ overflowX: "auto" }}>
-          <table className="ptable">
-            <thead>
-              <tr>
-                {view.columns.map((c) => (
-                  <th key={c} scope="col" className="caption">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {view.rows.map((row, i) => (
-                <tr key={i}>
-                  {row.map((v, j) => (
-                    <td key={j} className={typeof v === "number" ? "r num" : undefined}>
-                      {show(v, locale)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      {view.kind === "table" ? <DataTable label={t("result.data")} columns={view.columns} rows={view.rows} locale={locale} /> : null}
       {view.kind === "json" ? (
         // Long data scrolls inside the box; tabIndex lets keyboard users scroll it too.
-        <pre className="data-pre" aria-label={t("result.data")} tabIndex={0}>
+        <pre className="view-pre" aria-label={t("result.data")} tabIndex={0}>
           {view.text}
         </pre>
       ) : null}
@@ -140,12 +166,15 @@ export function ResultPanel({ result, collapsible, className }: ResultPanelProps
     return <CollapsiblePanel title={title} icon={icon} aside={badges} className={className}>{body}</CollapsiblePanel>;
   }
   return (
-    <section className={["wl-card panel", className].filter(Boolean).join(" ")} aria-label={title}>
-      <div className="panel-head">
-        <span className="panel-title">{icon}{title}</span>
+    <Card role="region" aria-label={title} className={["tpl-card", className].filter(Boolean).join(" ")}>
+      <div className="tpl-card__head view-head">
+        <span className="view-title">
+          {icon}
+          {title}
+        </span>
         {badges}
       </div>
       {body}
-    </section>
+    </Card>
   );
 }

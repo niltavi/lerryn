@@ -1,6 +1,6 @@
 import { useI18n, useTaskDiff, type FileDiff } from "@lerryn/core";
 import { Button, ConsoleDialog } from "@lerryn/ui-web";
-import { GitCompare } from "lucide-react";
+import { CodeCompare } from "@gravity-ui/icons";
 
 /** Splits a unified diff into lines tagged for colour. Exported for tests. */
 export function diffLines(patch: string): { kind: "add" | "del" | "hunk" | "ctx"; text: string }[] {
@@ -16,9 +16,9 @@ export function diffLines(patch: string): { kind: "add" | "del" | "hunk" | "ctx"
 
 function Patch({ patch, label }: { patch: string; label: string }) {
   return (
-    <pre className="diff" aria-label={label}>
+    <pre className="tk-diff" aria-label={label}>
       {diffLines(patch).map((l, i) => (
-        <span key={i} className={l.kind === "ctx" ? undefined : l.kind}>
+        <span key={i} className="tk-diff__line" data-kind={l.kind === "ctx" ? undefined : l.kind}>
           {l.text || " "}
         </span>
       ))}
@@ -42,37 +42,35 @@ export function VersionDiffDialog({ taskId, seq, onClose }: { taskId: string; se
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={
         <>
-          <GitCompare className="wl-icon" aria-hidden="true" />
+          <CodeCompare width={18} height={18} aria-hidden="true" />
           {d ? (d.base ? t("diff.title", { target: d.target, base: d.base }) : t("diff.titleFirst", { target: d.target })) : t("diff.loading")}
         </>
       }
-      footer={<Button onPress={onClose}>{t("common.close")}</Button>}
+      footer={<Button variant="secondary" onPress={onClose}>{t("common.close")}</Button>}
     >
-      {diff.isError ? <p className="body-sm muted">{t("states.errorTitle")}</p> : null}
+      {diff.isError ? <p className="text-sm text-muted">{t("states.errorTitle")}</p> : null}
       {d ? (
-        <div className="stack" style={{ gap: 18 }}>
+        <div className="flex flex-col gap-5">
           {d.manifest_patch ? (
-            <div className="diff-file">
-              <span className="label-text">{t("diff.manifest")}</span>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">{t("diff.manifest")}</span>
               <Patch patch={d.manifest_patch} label={t("diff.manifest")} />
             </div>
           ) : null}
           {d.files.map((f) => (
-            <div className="diff-file" key={f.path}>
-              <span className="spread">
-                <span className="mono-sm" style={{ fontWeight: 600 }}>
-                  {f.path}
-                </span>
-                <span className="caption muted">
+            <div className="flex flex-col gap-2" key={f.path}>
+              <span className="flex flex-wrap items-baseline justify-between gap-3">
+                <span className="min-w-0 break-all font-mono text-xs font-medium">{f.path}</span>
+                <span className="text-xs text-muted tabular-nums">
                   {change(f)}
                   {f.additions || f.deletions ? ` · +${f.additions} −${f.deletions}` : ""}
                 </span>
               </span>
-              {f.patch ? <Patch patch={f.patch} label={f.path} /> : <span className="caption muted">{t("diff.noPatch")}</span>}
+              {f.patch ? <Patch patch={f.patch} label={f.path} /> : <span className="text-xs text-muted">{t("diff.noPatch")}</span>}
             </div>
           ))}
-          {!d.manifest_patch && d.files.length === 0 ? <p className="body-sm muted">{t("diff.none")}</p> : null}
-          {d.truncated ? <p className="caption muted">{t("diff.truncated")}</p> : null}
+          {!d.manifest_patch && d.files.length === 0 ? <p className="text-sm text-muted">{t("diff.none")}</p> : null}
+          {d.truncated ? <p className="text-xs text-muted">{t("diff.truncated")}</p> : null}
         </div>
       ) : null}
     </ConsoleDialog>
