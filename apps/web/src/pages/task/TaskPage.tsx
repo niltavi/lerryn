@@ -8,6 +8,7 @@ import {
   historyNeeds,
   isRunActive,
   isNotFound,
+  resultStatusMeta,
   runRidges,
   runStatusMeta,
   taskStatus,
@@ -118,12 +119,16 @@ function TaskBoard({ task }: { task: Task }) {
   return (
     <Board label={title}>
       <BoardTop title={title} description={task.description || undefined}>
-        <div className="flex items-center gap-1">
-          <EditTaskTagsButton task={task} />
-          <CopyButton value={task.links.console} label={t("task.copyLink")} icon={LinkIcon} />
+        <div className="tk-actions">
+          <div className="tk-actions__row">
+            <EditTaskTagsButton task={task} />
+            <CopyButton value={task.links.console} label={t("task.copyLink")} icon={LinkIcon} />
+          </div>
+          <div className="tk-actions__row">
+            <RunNowButton task={task} triggers={triggers.data?.triggers} />
+            <TaskActions task={task} nextFire={nextFire} />
+          </div>
         </div>
-        <RunNowButton task={task} triggers={triggers.data?.triggers} />
-        <TaskActions task={task} nextFire={nextFire} />
       </BoardTop>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -376,7 +381,7 @@ function CredentialsCard({ taskId, now }: { taskId: string; now: number }) {
   if (items.length === 0) return null;
   const sum = credentialSummary(items, now);
   return (
-    <section className="min-w-0" aria-label={t("task.credentials")}>
+    <section className="tk-creds" aria-label={t("task.credentials")}>
       <Card className="tpl-card">
         <div className="tpl-card__head">
           <h4 className="flex items-center gap-2">
@@ -547,6 +552,7 @@ function ResultBody({ task, result, at }: { task: Task; result: RunResult; at: s
   if (panels.length === 0) return <ResultPanel result={result} collapsible />;
   return (
     <CollapsiblePanel
+      defaultExpanded={resultStatusMeta(result.status).tone !== "ok"}
       title={t("task.lastResult")}
       icon={<WaveGlyph size={18} />}
       aside={<span className="text-xs text-muted">{formatDateTime(at, locale)}</span>}
