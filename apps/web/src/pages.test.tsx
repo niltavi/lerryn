@@ -843,22 +843,38 @@ describe("task page", () => {
     const resultPanel = within(result);
     const resultButton = resultPanel.getByRole("button", { name: resultTitle });
     expect(flowButton.getAttribute("aria-expanded")).toBe("true");
-    expect(resultButton.getAttribute("aria-expanded")).toBe("true");
+    // A successful result starts folded; the reader opens it on demand.
+    expect(resultButton.getAttribute("aria-expanded")).toBe("false");
 
     const user = userEvent.setup();
     await user.click(flowButton);
     expect(flowButton.getAttribute("aria-expanded")).toBe("false");
     expect(region.queryByRole("list")).toBeNull();
-    expect(resultPanel.getByRole("group", { name: resultTitle })).toBeTruthy();
+    expect(resultPanel.queryByRole("group", { name: resultTitle })).toBeNull();
     expect(region.getByText("v2")).toBeTruthy();
 
     await user.click(resultButton);
-    expect(resultButton.getAttribute("aria-expanded")).toBe("false");
-    expect(resultPanel.queryByRole("group", { name: resultTitle })).toBeNull();
-    await user.keyboard("{Enter}");
     expect(resultButton.getAttribute("aria-expanded")).toBe("true");
     expect(resultPanel.getByRole("group", { name: resultTitle })).toBeTruthy();
+    await user.keyboard("{Enter}");
+    expect(resultButton.getAttribute("aria-expanded")).toBe("false");
+    expect(resultPanel.queryByRole("group", { name: resultTitle })).toBeNull();
     expect(flowButton.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("opens the result panel when the task reported a failure", async () => {
+    renderApp(`/tasks/${TASK.id}`, {
+      runs: [{
+        ...FAILED_RUN, task: TASK_REF, status: "completed",
+        trigger: { ...FAILED_RUN.trigger, kind: "cron" },
+        error: null,
+        current_stage: null, result_status: "failed", result_summary: "发送失败",
+      }],
+      run: { result: { status: "failed", summary: "发送失败", data: { processed: 0 } } },
+    });
+    const result = within(await screen.findByRole("region", { name: "结果" }));
+    expect(result.getByRole("button", { name: "结果" }).getAttribute("aria-expanded")).toBe("true");
+    expect(result.getByText("发送失败")).toBeTruthy();
   });
 
   it("shows and searches a task title, falling back to the name for older tasks", async () => {

@@ -7,15 +7,17 @@ export interface CollapsiblePanelProps {
   aside?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Whether the body starts open; the reader can always toggle it. */
+  defaultExpanded?: boolean;
 }
 
 /** A console panel with an independently collapsible body and a persistent header. */
-export function CollapsiblePanel({ title, icon, aside, children, className }: CollapsiblePanelProps) {
+export function CollapsiblePanel({ title, icon, aside, children, className, defaultExpanded = true }: CollapsiblePanelProps) {
   const asideId = useId();
   return (
     <section className={className} aria-label={title}>
       <Card className="gap-0 p-0">
-        <Disclosure defaultExpanded>
+        <Disclosure defaultExpanded={defaultExpanded}>
           {/* The aside stays outside the button so the button's name is exactly its visible title. */}
           <div className="lr-panel__head">
             <Disclosure.Heading level={2} className="min-w-0 flex-1">

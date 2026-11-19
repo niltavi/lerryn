@@ -1,5 +1,5 @@
 import { Card, Chip, Table } from "@heroui/react";
-import { formatCount, useI18n, type Locale, type RunResult } from "@lerryn/core";
+import { formatCount, resultStatusMeta, useI18n, type Locale, type RunResult } from "@lerryn/core";
 
 import { CollapsiblePanel } from "./CollapsiblePanel";
 import { ResultStatusPill } from "./RunStatusBadge";
@@ -104,6 +104,7 @@ export function DataTable({
 export interface ResultPanelProps {
   /** What the task reported with `sbx result`; null renders nothing. */
   result: RunResult | null;
+  /** Folds the body behind its header; a successful result starts folded, anything else starts open. */
   collapsible?: boolean;
   className?: string;
 }
@@ -163,7 +164,11 @@ export function ResultPanel({ result, collapsible, className }: ResultPanelProps
   );
 
   if (collapsible) {
-    return <CollapsiblePanel title={title} icon={icon} aside={badges} className={className}>{body}</CollapsiblePanel>;
+    return (
+      <CollapsiblePanel title={title} icon={icon} aside={badges} className={className} defaultExpanded={resultStatusMeta(result.status).tone !== "ok"}>
+        {body}
+      </CollapsiblePanel>
+    );
   }
   return (
     <Card role="region" aria-label={title} className={["tpl-card", className].filter(Boolean).join(" ")}>
