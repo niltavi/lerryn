@@ -1,5 +1,7 @@
 # AGENTS.md
 
+开始提出方案或修改前，先读 [Niltavi 项目 Skill](.agents/skills/niltavi-project/SKILL.md)，核对 [Niltavi Rules](https://github.com/niltavi/niltavi-rules#readme)，并按 Skill 指引查阅 Niltavi Skills 和 Niltavi UI。
+
 这份文件写给在本仓库里工作的 AI Agent 和人。动手之前先读完。这里的规则和 `docs/` 中的文档冲突时，以文档为准，并在交付说明里指出冲突。
 
 ## 项目
