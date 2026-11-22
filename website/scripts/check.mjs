@@ -18,6 +18,12 @@ for (const c of Object.values(languages)) {
   assert(html.includes(`<html lang="${c.lang}">`), `${c.lang}: wrong language`);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1, `${c.lang}: expected one h1`);
   assert(html.includes(`<link rel="canonical" href="${origin}/${c.path}">`), `${c.lang}: wrong canonical`);
+  assert(html.includes('<details class="language-menu">'),`${c.lang}: missing language disclosure`);
+  const localeLinks = [...html.matchAll(/<a href="([^"]+)" lang="([^"]+)" hreflang="\2"(?: aria-current="page")?>/g)];
+  assert.deepEqual(localeLinks.map((link) => link[2]), ['en', 'zh-CN'], `${c.lang}: both locale links are required`);
+  assert.equal(localeLinks.filter((link) => link[0].includes('aria-current="page"'))[0]?.[2], c.lang, 'Select the current locale');
+  assert(html.indexOf('assets/theme.js') < html.indexOf('rel="stylesheet"'), 'Restore the saved theme before the first style sheet');
+  assert(html.includes('class="button primary" href="#connect"'), 'Link the primary action to the agent prompt');
   const base = c.path ? '../' : './';
   for (const link of [
     `<link rel="icon" href="${base}assets/lerryn-icon-circle-32.png" type="image/png" sizes="32x32">`,

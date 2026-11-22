@@ -22,6 +22,24 @@ for (const size of [32, 180]) {
 }
 await cp(resolve(root, 'design/brand/logo/png/lerryn-logo-square.png'), resolve(dist, 'assets/lerryn-logo-square.png'));
 
+// Use the same checked-in Niltavi UI palette as the console build.
+const palette = await readFile(resolve(root, 'packages/ui-web/styles/theme/palette.css'), 'utf8');
+const canvasTokens = ['paper', 'throat-975'].map((name) => {
+  const declaration = palette.match(new RegExp('^\\s*--color-' + name + ': [^;]+;', 'm'))?.[0].trim();
+  if (!declaration) throw new Error('Missing Niltavi UI palette token: ' + name);
+  return declaration;
+});
+await writeFile(resolve(dist, 'assets/canvas.css'), ':root { ' + canvasTokens.join(' ') + ' }\n');
+
+// The published Gravity UI glyphs used by Niltavi UI's header.
+const headerIcon = async (name, className = '') =>
+  (await readFile(resolve(root, 'website/art/controls', name + '.svg'), 'utf8'))
+    .trim()
+    .replace('<svg ', '<svg aria-hidden="true" focusable="false" ' + (className ? 'class="' + className + '" ' : ''));
+const [moon, sun, globe, github] = await Promise.all([
+  headerIcon('moon', 'moon'), headerIcon('sun', 'sun-icon'), headerIcon('globe'), headerIcon('logo-github'),
+]);
+
 const mark = (await readFile(resolve(root, 'design/brand/logo/svg/lerryn-mark.svg'), 'utf8'))
   .replace(/<title>.*?<\/title>/, '')
   .replace(/ width="\d+" height="\d+"/, ' class="mark" aria-hidden="true" focusable="false"')
@@ -69,6 +87,8 @@ for (const c of Object.values(languages)) {
   <link rel="icon" href="${base}assets/lerryn-icon-circle.svg" type="image/svg+xml" sizes="any">
   <link rel="apple-touch-icon" href="${base}assets/lerryn-icon-circle-180.png" sizes="180x180">
   <link rel="preload" href="${base}assets/fonts/cormorant-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="${base}assets/theme.js"></script>
+  <link rel="stylesheet" href="${base}assets/canvas.css">
   <link rel="stylesheet" href="${base}assets/site.css">
   <script src="${base}assets/site.js" defer></script>
   <script src="${base}assets/paging.js" defer></script>
@@ -77,26 +97,30 @@ for (const c of Object.values(languages)) {
   <a class="skip" href="#main">${escape(c.skip)}</a>
   <div class="shell">
     <header class="masthead">
-      <a class="brand" href="${base}index.html" aria-label="Lerryn">${mark}<span class="wordmark">Lerryn</span></a>
+      <a class="brand" href="${base}${c.path}" aria-label="Lerryn"><span class="brand-mark">${mark}</span><span class="wordmark">Lerryn</span></a>
       <div class="tools">
         <button class="icon-button theme-switch" type="button" aria-label="${escape(c.themeDark)}" title="${escape(c.themeDark)}" hidden>
-          <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.3A8.7 8.7 0 0 1 8.7 4 8.8 8.8 0 1 0 20 15.3Z"/></svg>
-          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          ${moon}${sun}
         </button>
-        <a class="icon-button" href="${base}${c.alternate}index.html" lang="${c.lang === 'en' ? 'zh-CN' : 'en'}" hreflang="${c.lang === 'en' ? 'zh-CN' : 'en'}" aria-label="${c.alternateLabel}" title="${c.alternateLabel}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 2.5c-5 5.2-5 13.8 0 19M12 2.5c5 5.2 5 13.8 0 19M2.5 12h19"/></svg>
-        </a>
+        <details class="language-menu">
+          <summary class="icon-button" aria-label="${escape(c.language)}" title="${escape(c.language)}">
+            ${globe}
+          </summary>
+          <ul class="language-menu__list">
+            ${Object.values(languages).map((locale) => `<li><a href="${base}${locale.path}" lang="${locale.lang}" hreflang="${locale.lang}"${locale.lang === c.lang ? ' aria-current="page"' : ''}>${locale.lang === 'en' ? 'English' : '简体中文'}</a></li>`).join('')}
+          </ul>
+        </details>
         <a class="icon-button" href="${repository}" aria-label="${escape(c.github)}" title="${escape(c.github)}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+          ${github}
         </a>
       </div>
     </header>
     <main id="main" tabindex="-1">
-      <section class="slide cover" aria-labelledby="hero-title">
+      <section class="slide cover" id="cover" aria-labelledby="hero-title">
         <div class="slide-copy">
           <h1 id="hero-title">${heading(c.cover.heading)}</h1>
           <p>${body(c.cover.text)}</p>
-          <div class="actions"><a class="button primary" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
+          <div class="actions"><a class="button primary" href="#connect">${escape(c.primary)}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
         </div>
         <div class="slide-art">${art.cover(escape(c.cover.art))}</div>
       </section>
@@ -112,9 +136,9 @@ for (const c of Object.values(languages)) {
           <div class="prompt-actions"><span class="copy-message" role="status" aria-live="polite"></span><button class="button primary copy" type="button" hidden>${escape(c.copy)}</button></div>
         </figure>
       </section>
-      <section class="slide end" aria-labelledby="end-title">
+      <section class="slide end" id="end" aria-labelledby="end-title">
         <div class="slide-copy"><span class="dash" aria-hidden="true"></span><h2 id="end-title">${heading(c.end.heading)}</h2><p>${body(c.end.text)}</p>
-          <div class="actions"><a class="button primary" href="${docs}deploy.md">${escape(c.primary)} ${arrow}</a><a class="button soft" href="${repository}">${escape(c.secondary)} ${arrow}</a></div>
+          <div class="actions"><a class="button primary" href="#connect">${escape(c.primary)}</a><a class="button soft" href="${docs}deploy.md">${escape(c.deploy)} ${arrow}</a></div>
         </div>
       </section>
     </main>

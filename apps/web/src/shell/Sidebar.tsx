@@ -1,5 +1,5 @@
 import { useI18n, useLogout, type Me } from "@lerryn/core";
-import { Avatar, Button, Dropdown, Header, Kbd, Label, ListBox, Logo, Modal, SearchField, Separator, useLerrynTheme, type ThemePreference } from "@lerryn/ui-web";
+import { Avatar, Button, Dropdown, Header, Kbd, Label, ListBox, Modal, SearchField, Separator, useLerrynTheme, type ThemePreference } from "@lerryn/ui-web";
 import { ArrowRightFromSquare, ChevronsLeft, ChevronsRight, Globe, Magnifier, Moon } from "@gravity-ui/icons";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
@@ -51,17 +51,6 @@ export function AppSidebar({
   const { t } = useI18n();
   return (
     <aside className="nt-side" data-collapsed={collapsed || undefined}>
-      <div className="nt-side__header">
-        <Link to="/" className="lr-brand" aria-label={collapsed ? t("app.brand") : undefined} activeProps={{}}>
-          <span className="lr-brand__mark">
-            <Logo size={12} label="" />
-          </span>
-          <span className="lr-brand__text">
-            <strong>{t("app.brand")}</strong>
-            <span>{window.location.host}</span>
-          </span>
-        </Link>
-      </div>
       <nav className="nt-side__nav" aria-label={label}>
         {groups.map((group) => (
           <div key={group.id} className="nt-side__group" role="group" aria-label={group.label}>

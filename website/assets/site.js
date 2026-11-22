@@ -16,8 +16,7 @@
 
   const toggle = document.querySelector('.theme-switch');
   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
-  let chosen;
-  try { chosen = localStorage.getItem('lerryn-site-theme'); } catch { /* Storage can be disabled. */ }
+  let chosen = root.dataset.theme;
   const setTheme = (theme) => {
     root.dataset.theme = theme;
     const dark = theme === 'dark';
@@ -34,6 +33,26 @@
     try { localStorage.setItem('lerryn-site-theme', chosen); } catch { /* Theme still works without persistence. */ }
   });
   systemTheme.addEventListener('change', (event) => { if (!chosen) setTheme(event.matches ? 'dark' : 'light'); });
+
+  const languages = document.querySelector('.language-menu');
+  const languageButton = languages.querySelector('summary');
+  languages.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !languages.open) return;
+    event.preventDefault();
+    languages.open = false;
+    languageButton.focus();
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (languages.open && !languages.contains(event.target)) languages.open = false;
+  });
+  languages.addEventListener('click', (event) => {
+    const link = event.target.closest('a[hreflang]');
+    if (!link) return;
+    const section = scenes.findLast((scene) => scene.getBoundingClientRect().top <= window.innerHeight / 2);
+    const destination = new URL(link.href);
+    destination.hash = section?.id !== 'cover' ? (section?.id ?? '') : '';
+    link.href = destination.href;
+  });
 
   // The agent prompt is plain text on the page; copying is a convenience.
   const prompt = document.querySelector('.prompt');
