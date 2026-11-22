@@ -5,7 +5,7 @@ export const origin = 'https://lerryn.niltavi.com';
 // Body copy uses *word* for strong emphasis.
 export const languages = {
   en: {
-    lang: 'en', path: '', docs: 'en/', alternate: 'zh/', alternateLabel: '简体中文',
+    lang: 'en', path: '', docs: 'en/', language: 'Language',
     title: 'Lerryn — A self-hosted sandbox for agent work',
     description: 'Hand routine work to your agent. Lerryn runs it on your own machines, on schedule, with credentials kept close and every run on record.',
     skip: 'Skip to content', github: 'GitHub repository',
@@ -14,7 +14,7 @@ export const languages = {
       text: 'Lerryn gives your agent a place to run the repetitive work, on your own machines.',
       art: 'A stream at sunrise between reeds and stones',
     },
-    primary: 'Start self-hosting', secondary: 'View on GitHub',
+    primary: 'Install with an agent', deploy: 'Deployment guide', secondary: 'View on GitHub',
     slides: [
       { id: 'night', heading: 'While you sleep,\nthe report *gets made*.', text: 'Schedules and webhooks start the work on time. No one has to stay up for it.', art: 'A small leaf boat with a lantern drifts down a stream at night' },
       { id: 'ground', heading: 'The work stays on\n*your own* ground.', text: 'Python, Node, and Shell run in containers on your machines. Runs, logs, and files stay there too.', art: 'The leaf boat passes three stones inside a ring of trees' },
@@ -33,7 +33,7 @@ export const languages = {
     themeDark: 'Switch to dark theme', themeLight: 'Switch to light theme',
   },
   zh: {
-    lang: 'zh-CN', path: 'zh/', docs: 'zh-CN/', alternate: '', alternateLabel: 'English',
+    lang: 'zh-CN', path: 'zh/', docs: 'zh-CN/', language: '语言',
     title: 'Lerryn — 让 Agent 在你自己的机器上跑自动化任务',
     description: '把重复的工作交给 Agent，由 Lerryn 在你自己的机器上按时运行。凭证由你保管，每次运行都有记录。',
     skip: '跳到正文', github: 'GitHub 仓库',
@@ -42,7 +42,7 @@ export const languages = {
       text: 'Lerryn 帮你从繁忙的重复工作中解脱出来，让 Agent 任务像溪流一般稳定流淌',
       art: '插画：日出时分，溪流穿过芦苇与石头',
     },
-    primary: '开始本地部署', secondary: '在 GitHub 查看',
+    primary: '用 Agent 安装', deploy: '部署指南', secondary: '在 GitHub 查看',
     slides: [
       { id: 'night', heading: '当你睡着的时候，*所有工作*由 Lerryn 协调', text: '定时任务会为你准时启动，让 Webhook 推送到你习惯的聊天工具中，没人需要熬夜。', art: '插画：夜里，一只挂着灯笼的叶子小船顺溪而下' },
       { id: 'ground', heading: '一切都留在\n*你自己的机器上*。', text: '无论是 Python、Node.js、Shell 任务，都能在自己的设备上以容器模式运行。你只需要像*批阅奏折*一样审阅最终结果。', art: '插画：叶子小船在一圈树林里依次经过三块石头' },
