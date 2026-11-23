@@ -4,21 +4,13 @@
 
 # Lerryn
 
-*Agents do the work. People keep an eye on it.*
+Run recurring tasks on your own machines through your AI agent. Lerryn schedules Python, Node, and Shell tasks and keeps each run's results, files, and logs together.
 
-[Getting started](docs/en/getting-started.md) · [简体中文](docs/zh-CN/README.md)
+[Website](https://lerryn.niltavi.com/) · [Getting started](docs/en/getting-started.md) · [简体中文](docs/zh-CN/README.md)
 
 </div>
 
 ---
-
-You ask Codex or Claude to take care of a recurring task, then move on with your day. Later, it isn't always clear whether it ran, how it went, or where to find what it produced.
-
-Lerryn is built around a simple rhythm: describe what you need, let your AI arrange the work, and come back to the results. Refine the task as you go. The agent handles the code, schedules, and configuration, without asking you to draw workflows or sift through settings and logs.
-
-Your agent connects through MCP or the HTTP API. Python, Node, and Shell tasks run in their own containers, on a schedule or from a webhook. Each run leaves a record, with its results and files kept together. The work continues after the conversation ends; you can check on it from the web console or your phone.
-
-It all runs on your own machines, from a single Mac mini to a small cluster. Your keys and your data stay with you.
 
 <br />
 
@@ -34,7 +26,7 @@ It all runs on your own machines, from a single Mac mini to a small cluster. You
 <br />
 
 <div>
-<a href="docs/en/for-agents.md">For agents</a>
+<a href="docs/en/for-agents.md">For Agents</a>
 <a href="https://niltavi.com/">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/niltavi-logo-dark.svg" />

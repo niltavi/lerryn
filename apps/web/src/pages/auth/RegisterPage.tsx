@@ -25,7 +25,6 @@ export function RegisterPage() {
   const register = useRegister();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
 
   const closed =
@@ -44,7 +43,6 @@ export function RegisterPage() {
     setErrors(next);
     if (Object.keys(next).length) return;
     const body: RegisterRequest = { username: name, password };
-    if (displayName.trim()) body.display_name = displayName.trim();
     register.mutate(body, { onSuccess: () => void navigate({ href: search.redirect ?? "/", replace: true }) });
   };
 
@@ -86,14 +84,6 @@ export function RegisterPage() {
             placeholder={t("auth.passwordPlaceholder")}
             autoComplete="new-password"
             error={errors.password}
-          />
-          <TextInput
-            name="display_name"
-            label={t("auth.displayName")}
-            value={displayName}
-            onChange={setDisplayName}
-            placeholder={t("auth.optional")}
-            autoComplete="nickname"
           />
           {register.error && !takenError ? (
             <FormError>{t(isApiError(register.error) ? authErrorMessage(register.error) : "auth.errors.generic")}</FormError>

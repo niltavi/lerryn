@@ -10,7 +10,7 @@ import {
   usePendingCredentialRequests,
   type Me,
 } from "@lerryn/core";
-import { Alert, Breadcrumbs, Link as TextLink } from "@lerryn/ui-web";
+import { Alert, Breadcrumbs, Link as TextLink, Logo } from "@lerryn/ui-web";
 import {
   ArrowUpRight,
   Bell,
@@ -27,7 +27,7 @@ import {
   Smartphone,
   Ticket,
 } from "@gravity-ui/icons";
-import { Outlet, useNavigate, useRouteContext, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { deploymentOriginMismatch } from "../lib/origin";
@@ -177,6 +177,19 @@ export function AppShell() {
     <LiveModeProvider mode={mode}>
       <CredentialFillProvider>
         <div className="nt-console" data-collapsed={collapsed || undefined}>
+          <header className="nt-console__top">
+            <Link to="/" className="lr-brand" activeProps={{}}>
+              <span className="lr-brand__mark"><Logo label="" /></span>
+              <span>{t("app.brand")}</span>
+            </Link>
+            <Breadcrumbs className="nt-crumbs">
+              {group?.label ? <Breadcrumbs.Item>{group.label}</Breadcrumbs.Item> : null}
+              <Breadcrumbs.Item>{current?.label ?? t("app.brand")}</Breadcrumbs.Item>
+            </Breadcrumbs>
+            <div className="nt-console__tools">
+              <CommandTrigger onPress={() => setCommandOpen(true)} />
+            </div>
+          </header>
           <AppSidebar
             groups={groups}
             active={active}
@@ -186,15 +199,6 @@ export function AppShell() {
             footer={<UserMenu me={me} showName={!collapsed} pages={account.items} active={active} />}
           />
           <div className="nt-console__main">
-            <header className="nt-console__top">
-              <Breadcrumbs className="nt-crumbs">
-                {group?.label ? <Breadcrumbs.Item>{group.label}</Breadcrumbs.Item> : null}
-                <Breadcrumbs.Item>{current?.label ?? t("app.brand")}</Breadcrumbs.Item>
-              </Breadcrumbs>
-              <div className="nt-console__tools">
-                <CommandTrigger onPress={() => setCommandOpen(true)} />
-              </div>
-            </header>
             {expected ? (
               <Alert status="warning" role="status" className="nt-console__notice">
                 <Alert.Indicator />

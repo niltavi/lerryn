@@ -10,6 +10,9 @@
    Scene colors are the illustrations' own low-saturation set. */
 :root{
   color-scheme:light;
+  --background:var(--color-paper);
+  --content-max:100%;
+  --gutter:16px;
   --paper:#f5f1e6;--surface:#f6f3ea;--surface-2:#eae9e2;--surface-3:#e3e1d7;--ink:#283e38;--muted:#57675f;--link:#485d78;--line:#d6d6cb;--separator:#e3e1d7;
   --accent:#3a5cf4;--on-accent:#ffffff;--ochre:#8a5d22;--focus:#5882ff;
   --sky:#ece5d1;--sun:#ead9a6;--sun-cut:#f5f1e6;--hill:#cdd3bf;--hill-cut:#e4e7d8;--bank:#e2dbc4;--bank-cut:#efe9d8;
@@ -20,11 +23,12 @@
   --clearing:#e7e4d2;--branch:#5b4636;--key:#b98a3c;--key-cut:#f3dfae;--thread:#5b4636;
   --card:#fffcf3;--card-shadow:#ddd6c2;--card-rule:#d6d6cb;--log:#7a8a80;--stamp:#3a5cf4;--stamp-cut:#ffffff;
   --serif:'Cormorant Garamond','Songti SC','Noto Serif SC','Source Han Serif SC','STSong',Georgia,serif;
-  --sans:'DM Sans',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  --font-sans:"DM Sans","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
 }
 :root[data-theme='dark']{
   color-scheme:dark;
+  --background:var(--color-throat-975);
   --paper:#0b1224;--surface:#111a2e;--surface-2:#18223a;--surface-3:#1c2741;--ink:#f5f1e6;--muted:#a7adbb;--link:#b2c3d9;--line:#28324b;--separator:#18223a;
     --accent:#79a4ff;--on-accent:#0b0938;--ochre:#e2b866;--focus:#79a4ff;
     --sky:#131d35;--sun:#27334f;--sun-cut:#0b1224;--hill:#18223a;--hill-cut:#232f4b;--bank:#131c30;--bank-cut:#1d2842;
@@ -38,6 +42,7 @@
 @media(prefers-color-scheme:dark){
   :root:not([data-theme='light']){
     color-scheme:dark;
+    --background:var(--color-throat-975);
     --paper:#0b1224;--surface:#111a2e;--surface-2:#18223a;--surface-3:#1c2741;--ink:#f5f1e6;--muted:#a7adbb;--link:#b2c3d9;--line:#28324b;--separator:#18223a;
     --accent:#79a4ff;--on-accent:#0b0938;--ochre:#e2b866;--focus:#79a4ff;
     --sky:#131d35;--sun:#27334f;--sun-cut:#0b1224;--hill:#18223a;--hill-cut:#232f4b;--bank:#131c30;--bank-cut:#1d2842;
@@ -51,9 +56,9 @@
 }
 
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;background:var(--background)}
 html.deck{scroll-snap-type:y mandatory}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{margin:0;background:var(--background);color:var(--ink);font-family:var(--font-sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-underline-offset:4px;text-decoration-thickness:1px}
 button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
 button:not([hidden]){cursor:pointer}
@@ -63,22 +68,30 @@ main:focus{outline:none}
 [hidden]{display:none!important}
 h1,h2,p,figure{margin:0}
 
-.shell{max-width:1280px;margin:0 auto;padding:0 48px}
+.shell{max-width:var(--content-max);margin:0 auto;padding-inline:var(--gutter)}
 .skip{position:fixed;top:12px;left:16px;z-index:6;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;transform:translateY(-200%)}
 .skip:focus{transform:none}
 
 /* Masthead floats over the slides. */
-.masthead{position:fixed;inset:0 0 auto;z-index:5;display:flex;align-items:center;height:64px;padding:0 max(48px,calc((100vw - 1280px) / 2 + 48px));background:color-mix(in srgb,var(--paper) 88%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.masthead{position:fixed;inset:0 0 auto;z-index:5;display:flex;align-items:center;height:56px;padding-inline:max(var(--gutter),calc((100% - var(--content-max))/2 + var(--gutter)));background:var(--background)}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;line-height:1}
-.mark{display:block;width:40px;height:auto}
+.brand-mark{display:grid;place-items:center;flex:none;width:40px;height:40px}
+.mark{display:block;width:100%;height:auto;max-height:100%}
 .mark-side{fill:var(--mark-side)}.mark-top{fill:var(--mark-top)}
-.wordmark{font-weight:500;font-size:20px;letter-spacing:-.5px}
+.wordmark{font-family:var(--font-sans);font-weight:500;font-size:20px;line-height:1}
 .masthead a{text-decoration:none}
 /* Same as ui.niltavi.com: borderless 32px round icon buttons. */
 .tools{display:flex;align-items:center;gap:4px;margin-left:auto}
 .icon-button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:999px;background:transparent;color:var(--ink)}
 .icon-button:hover{background:var(--surface-2)}
-.icon-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.language-menu{position:relative}
+.language-menu summary{list-style:none;cursor:pointer}
+.language-menu summary::-webkit-details-marker{display:none}
+.language-menu__list{position:absolute;right:0;top:calc(100% + 4px);min-width:132px;margin:0;padding:4px;list-style:none;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.language-menu__list a{display:block;padding:6px 10px;border-radius:4px;white-space:nowrap}
+.language-menu__list a:hover,.language-menu__list [aria-current="page"]{background:var(--surface-2)}
+.language-menu__list [aria-current="page"]{font-weight:600}
+.icon-button svg{width:18px;height:18px}
 .theme-switch .sun-icon,.theme-switch[aria-pressed='true'] .moon{display:none}
 .theme-switch[aria-pressed='true'] .sun-icon{display:block}
 
@@ -170,17 +183,18 @@ footer{display:flex;justify-content:center;padding:24px 0 36px;scroll-snap-align
 @keyframes stamp{0%,38%{opacity:0;scale:1.5}44%,84%{opacity:1;scale:1}94%,100%{opacity:0;scale:1}}
 .js .slide:not(.in-view) .art *{animation-play-state:paused}
 
+@media(min-width:576px){:root{--content-max:540px;--gutter:24px}.masthead{height:64px}}
+@media(min-width:768px){:root{--content-max:720px}}
+@media(min-width:992px){:root{--content-max:960px}}
+@media(min-width:1200px){:root{--content-max:1140px;--gutter:48px}}
+@media(min-width:1400px){:root{--content-max:1320px}}
 @media(max-width:900px){
-  .shell{padding:0 24px}
-  .masthead{padding:0 24px}
   .slide,.slide:nth-child(3),.slide:nth-child(5),.slide.connect{grid-template-columns:minmax(0,1fr);align-content:center;gap:32px;padding:88px 0 40px}
   .slide:nth-child(3) .slide-copy,.slide:nth-child(5) .slide-copy,.slide.connect .slide-copy{order:0}
   .art{max-height:52svh}
   .slide-copy p{font-size:16px;margin-top:16px}
 }
 @media(max-width:560px){
-  .shell{padding:0 16px}
-  .masthead{padding:0 16px;height:56px}
   .slide-art:not(.prompt){margin:0 -16px}
   .prompt{padding:22px 20px 18px}
 }
